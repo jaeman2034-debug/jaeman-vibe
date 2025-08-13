@@ -1,0 +1,122 @@
+/* 페이지 전체 */
+.ys-root {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #ffffff;
+  color: #2b3748;
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+}
+
+/* 중앙 컨테이너 */
+.ys-container {
+  width: 92%;
+  max-width: 420px;
+  text-align: center;
+  margin: 40px auto;
+}
+
+/* 로고 */
+.ys-logo {
+  width: 76px;
+  height: 30px;
+  margin: 0 auto 18px;
+  color: #7a8aa0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* 타이틀/서브타이틀 */
+.ys-title {
+  font-size: 34px;
+  letter-spacing: 1px;
+  font-weight: 800;
+  margin: 0 0 8px;
+}
+.ys-subtitle {
+  margin: 0 0 24px;
+  color: #7a8aa0;
+}
+
+/* 설명 문단 */
+.ys-desc {
+  line-height: 1.7;
+  color: #445166;
+  margin-bottom: 18px;
+}
+
+/* 선택 박스(언어/지역) */
+.ys-select-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 8px 0 24px;
+  padding: 0;
+}
+.ys-select-icon {
+  position: absolute;
+  left: 12px;
+}
+.ys-select {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  padding: 10px 42px 10px 40px; /* 왼쪽 아이콘, 오른쪽 캐럿 공간 */
+  border: 2px solid #e2e8f0;
+  border-radius: 10px;
+  background: #fff;
+  font-size: 15px;
+  color: #2b3748;
+  outline: none;
+  transition: box-shadow .15s ease, border-color .15s ease;
+}
+.ys-select:focus {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59,130,246,.2);
+}
+.ys-caret {
+  position: absolute;
+  right: 14px;
+  font-size: 10px;
+  color: #334155;
+  pointer-events: none;
+}
+
+/* 시작 버튼 */
+.ys-button {
+  width: 100%;
+  max-width: 320px;
+  margin: 4px auto 16px;
+  border: 0;
+  border-radius: 10px;
+  background: #2563eb;     /* 파란색 */
+  color: #fff;
+  padding: 12px 18px;
+  font-size: 18px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(37,99,235,.22);
+  transition: transform .05s ease, filter .15s ease, background .15s ease;
+}
+.ys-button:hover { filter: brightness(1.03); }
+.ys-button:active { transform: translateY(1px); }
+
+/* 로그인 링크 */
+.ys-login {
+  color: #7a8aa0;
+  margin-top: 10px;
+}
+.ys-login a {
+  color: #2563eb;
+  text-decoration: none;
+}
+.ys-login a:hover { text-decoration: underline; }
+
+/* 반응형(좁은 화면 간격 조정) */
+@media (max-width: 360px) {
+  .ys-title { font-size: 30px; }
+  .ys-container { margin: 24px auto; }
+}

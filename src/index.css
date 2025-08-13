@@ -1,0 +1,134 @@
+/* ===========================
+   Global Reset / Base
+   =========================== */
+   *,
+   *::before,
+   *::after {
+     box-sizing: border-box;
+   }
+   
+   html, body, #root {
+     height: 100%;
+   }
+   
+   body {
+     margin: 0;
+     -webkit-text-size-adjust: 100%;
+     text-rendering: optimizeLegibility;
+     -webkit-font-smoothing: antialiased;
+     -moz-osx-font-smoothing: grayscale;
+   
+     font-family: system-ui, Avenir, Helvetica, Arial, 'Noto Sans KR', sans-serif;
+     color: #213547;               /* 기본 텍스트 */
+     background-color: #ffffff;    /* 기본 배경 */
+   }
+   
+   /* 마진 겹침 방지 */
+   h1, h2, h3, h4, h5, h6, p {
+     margin: 0;
+   }
+   
+   /* 이미지 공백 제거 & 반응형 */
+   img {
+     display: block;
+     max-width: 100%;
+     height: auto;
+   }
+   
+   /* 포커스 링 접근성 유지 */
+   :focus-visible {
+     outline: 3px solid #99b6ff;
+     outline-offset: 2px;
+   }
+   
+   /* ===========================
+      Theme Tokens
+      =========================== */
+   :root {
+     --brand: #3478ff;
+     --brand-600: #2563eb;
+     --text: #213547;
+     --muted: #6b7280;
+     --bg: #ffffff;
+     --surface: #ffffff;
+     --surface-border: #e6e8ef;
+     --btn-bg: #f9f9f9;
+   }
+   
+   /* 필요 시 다크 모드 대응 */
+   @media (prefers-color-scheme: dark) {
+     :root {
+       --text: #e5e7eb;
+       --muted: #b5bdc9;
+       --bg: #0f172a;
+       --surface: #111827;
+       --surface-border: #2a3340;
+       --btn-bg: #1f2937;
+     }
+     body {
+       color: var(--text);
+       background-color: var(--bg);
+     }
+   }
+   
+   /* ===========================
+      Links
+      =========================== */
+   a {
+     font-weight: 500;
+     color: var(--brand);
+     text-decoration: none;   /* 필요시 underline */
+   }
+   a:hover {
+     color: var(--brand-600);
+     text-decoration: underline;
+   }
+   
+   /* ===========================
+      Buttons
+      =========================== */
+   button {
+     border-radius: 8px;
+     border: 1px solid transparent;
+     padding: 0.6em 1.2em;
+     font-size: 1rem;
+     font-weight: 600;
+     font-family: inherit;
+     background-color: var(--btn-bg);
+     color: var(--text);
+     cursor: pointer;
+     transition: border-color 0.2s ease, background-color 0.2s ease, transform 0.02s ease;
+   }
+   
+   button:hover {
+     border-color: var(--brand);
+   }
+   
+   button:active {
+     transform: translateY(0.5px);
+   }
+   
+   button:focus,
+   button:focus-visible {
+     outline: 3px solid #99b6ff;
+     outline-offset: 2px;
+   }
+   
+   /* Primary 버튼이 필요할 때(예: 시작하기) */
+   .btn-primary {
+     background-color: var(--brand);
+     color: #fff;
+     border: none;
+     box-shadow: 0 6px 16px rgba(52, 120, 255, 0.25);
+   }
+   .btn-primary:hover {
+     background-color: var(--brand-600);
+   }
+   
+   /* ===========================
+      Optional: Typography scale
+      =========================== */
+   h1 { font-size: clamp(24px, 2.6vw, 32px); line-height: 1.2; }
+   h2 { font-size: clamp(18px, 2.2vw, 24px); line-height: 1.25; }
+   p  { font-size: clamp(13px, 1.8vw, 16px); line-height: 1.55; color: var(--muted); }
+   

@@ -1,83 +1,102 @@
-/* 화면 전체 중앙정렬 */
+/* 화면 전체 */
 .start-root {
   min-height: 100vh;
+  background: #ffffff;
   display: grid;
   place-items: center;
-  background: #f7f8fb;
-  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Noto Sans KR",
-    Helvetica, Arial, "Apple SD Gothic Neo", "Malgun Gothic", "맑은 고딕", sans-serif;
-  color: #111827;
+  padding: 24px;
+  color: #0f172a; /* slate-900 */
 }
 
-/* 카드 */
+/* 가운데 카드(실제 박스 테두리는 없이 공간만) */
 .start-card {
-  width: 360px;
-  background: #fff;
-  border: 1px solid #e5e7eb;
-  border-radius: 16px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.06);
-  padding: 28px 24px;
+  width: 100%;
+  max-width: 360px;
   text-align: center;
 }
 
-/* 로고 자리 */
-.start-logo {
-  width: 56px;
-  height: 56px;
+/* 상단 로고 배지 */
+.logo {
+  width: 48px;
+  height: 48px;
   margin: 0 auto 14px;
   border-radius: 12px;
-  background: #eef2ff;
-  color: #3b82f6;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 700;
+  background: #eef2ff;     /* indigo-50 */
+  color: #6366f1;          /* indigo-500 */
+  font-weight: 800;
+  display: grid;
+  place-items: center;
+  user-select: none;
 }
 
-/* 타이틀/텍스트 */
-.start-title {
-  margin: 4px 0 2px;
+/* 타이틀/설명 */
+.brand {
+  margin: 0 0 4px;
   font-size: 22px;
   font-weight: 800;
-  letter-spacing: 0.2px;
+  letter-spacing: 0.3px;
 }
 
-.start-subtitle {
-  margin: 0 0 12px;
-  font-size: 12px;
-  color: #6b7280;
-}
-
-.start-desc {
+.tagline {
+  margin: 2px 0;
   font-size: 13px;
-  color: #374151;
-  line-height: 1.5;
-  margin: 0 0 18px;
+  line-height: 1.55;
+  color: #64748b;          /* slate-500 */
 }
 
-/* 버튼/링크 */
-.start-btn {
+/* 작은 점 토글(디자인용) */
+.tiny-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid #e5e7eb;   /* gray-200 */
+  background: #fff;
+  padding: 6px 10px;
+  border-radius: 999px;
+  margin: 14px 0 18px;
+}
+.tiny-toggle .dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: #cbd5e1;         /* slate-300 */
+}
+.tiny-toggle .dot.active {
+  background: #111827;         /* gray-900 */
+}
+
+/* 시작 버튼 */
+.primary {
   width: 100%;
-  padding: 12px 14px;
+  height: 44px;
   border: none;
   border-radius: 10px;
-  background: #2563eb;
+  background: #2563eb;         /* blue-600 */
   color: #fff;
   font-weight: 700;
+  font-size: 14px;
+  letter-spacing: .2px;
   cursor: pointer;
-  transition: transform 0.04s ease, filter 0.2s ease;
+  transition: filter .15s ease;
 }
-.start-btn:hover { filter: brightness(1.05); }
-.start-btn:active { transform: translateY(1px); }
+.primary:hover { filter: brightness(1.05); }
+.primary:active { filter: brightness(0.95); }
 
-.start-login {
+/* 로그인 링크 */
+.login-row {
   margin-top: 12px;
   font-size: 13px;
-  color: #6b7280;
+  color: #475569;              /* slate-600 */
 }
-.start-login-link {
-  margin-left: 6px;
+.login-row a {
   color: #2563eb;
   text-decoration: none;
+  font-weight: 600;
 }
-.start-login-link:hover { text-decoration: underline; }
+.login-row a:hover { text-decoration: underline; }
+
+/* 모바일 대응 */
+@media (max-width: 380px) {
+  .brand { font-size: 20px; }
+  .tagline { font-size: 12.5px; }
+}

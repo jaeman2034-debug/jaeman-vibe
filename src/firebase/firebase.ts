@@ -1,8 +1,8 @@
-import { initializeApp } from "firebase/app";
+// src/firebase/firebase.ts
+import { initializeApp, getApp, getApps } from "firebase/app";
 import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 
-// .env에서 불러오기
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
   authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
@@ -12,12 +12,9 @@ const firebaseConfig = {
   appId: import.meta.env.VITE_FIREBASE_APP_ID,
 };
 
-// Firebase 초기화
-const app = initializeApp(firebaseConfig);
+// ✅ HMR에서도 중복 초기화 방지
+export const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
 
-// Auth, Firestore 인스턴스
-const auth = getAuth(app);
-const db = getFirestore(app);
-
-// 필요한 것 export
-export { auth, db };
+// 공용 인스턴스
+export const auth = getAuth(app);
+export const db = getFirestore(app);

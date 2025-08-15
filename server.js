@@ -1,7 +1,7 @@
-const express = require('express');
-const cors = require('cors');
-const fs = require('node:fs');
-const path = require('node:path');
+import express from 'express';
+import cors from 'cors';
+import fs from 'node:fs';
+import path from 'node:path';
 
 const app = express();
 const ALLOWED = (process.env.ALLOWED_ORIGINS || 'http://localhost:5173,http://localhost:5174')
@@ -37,4 +37,4 @@ app.post('/api/telemetry', (req, res) => {
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`[telemetry] listening on :${PORT}`)); 
+app.listen(PORT, '0.0.0.0', () => console.log(`[telemetry] listening on :${PORT}`)); 

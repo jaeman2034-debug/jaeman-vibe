@@ -3,34 +3,11 @@ import { useNavigate } from "react-router-dom";
 import { parseNaturalSignup } from "../utils/naturalSignupParser";
 import { parseSignupFromText } from "../utils/voiceSignupParser";
 import { Telemetry, sanitizeRawForLogs } from "../lib/telemetry";
+import { normalizeEmail, extractPhone, extractPassword } from "../lib/parse-ko";
 
 
 
 /** Natural Signup Parser 데모: 한국어 섞인 자연어에서 name/email/phone/password 추출 */
-
-
-
-
-
-
-
-
-
-
-function extractPassword(s: string) {
-  // 단순 데모: 따옴표 안/콜론 뒤 단어, 또는 "비밀번호는/패스워드는" 다음 토큰
-  const m1 = s.match(/["“”](.+?)["“”]/);
-  if (m1?.[1]) return m1[1].trim();
-  const m2 = s.match(/(?:비밀번호|패스워드)\s*(?:는|:)?\s*([^\s.,]+)/i);
-  if (m2?.[1]) return m2[1].trim();
-  // 영어+숫자 8자 이상 토큰 스캔
-  const m3 = s.match(/\b(?=[A-Za-z0-9!@#$%^&*()_+\-={}[\]|:;"'<>,.?/]{8,})[^\s]+/);
-  return m3?.[0] || "";
-}
-function validatePassword(pw: string) {
-  const ok = /^(?=.*[A-Za-z])(?=.*\d).{8,}$/.test(pw);
-  return { ok, msg: ok ? "✅ 규칙 충족" : "ℹ️ 8자 이상, 문자+숫자 포함" };
-}
 
 export default function NaturalSignupLab() {
   const navigate = useNavigate();
@@ -48,6 +25,7 @@ export default function NaturalSignupLab() {
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
+  const [pwStatus, setPwStatus] = useState<"ok"|"weak"|"missing">("missing");
   const [enStrict, setEnStrict] = useState(false);
   const [autoReprompt, setAutoReprompt] = useState(false); // 기본: 꺼짐(수동만)
   const [autoParse, setAutoParse] = useState(false); // 듣는 동안 자동 파싱(기본: 꺼짐)
@@ -281,6 +259,18 @@ function applyParsed(r: any) {
   if (r.password) setPassword(r.password.replace(/[.\s,·:;]+/g, ""));
 }
 
+// 새로운 파서 v1.1 적용
+function applyNewParser(raw: string) {
+  const email = normalizeEmail(raw) ?? "";
+  const phone = extractPhone(raw);
+  const pw = extractPassword(raw);
+  
+  if (email) setEmail(email);
+  if (phone) setPhone(phone);
+  if (pw.value) setPassword(pw.value);
+  setPwStatus(pw.status); // "ok" | "weak" | "missing"
+}
+
 // 실패 시 슬롯별 재질문(재청취) 자동화
 function repromptMissing(r: any) {
   const wants: string[] = [];
@@ -455,7 +445,8 @@ function onClickRepromptOnce() {
 
       // 4) 자동 파싱이 켜져 있을 때만 필드에 채움 (기본은 꺼짐)
       if (autoParse) {
-        applyParsed(best.parsed);
+        // 새로운 파서 v1.1 적용
+        applyNewParser(best.text);
         
         // 누락 슬롯이 있고 autoReprompt가 켜져 있으면, TTS로 1회 안내 → 종료 후 재청취
         if (autoReprompt) {
@@ -650,7 +641,7 @@ function stopListen() {
 
 
 
-  const pwv = validatePassword(password);
+  const pwv = { ok: isValidPw(password), msg: isValidPw(password) ? "✅ 규칙 충족" : "ℹ️ 8자 이상, 문자+숫자 포함" };
 
   return (
     <div style={{maxWidth: 860, margin: "24px auto", padding: 16}}>
@@ -851,7 +842,11 @@ function stopListen() {
             }}
             placeholder="비밀번호를 입력하세요"
           />
-          <div style={{fontSize:12, opacity:.8, marginTop:4}}>{pwv.msg}</div>
+          <div style={{fontSize:12, opacity:.8, marginTop:4}}>
+            {pwStatus === "ok" && <span style={{color: "#28a745"}}>✅ 강함</span>}
+            {pwStatus === "weak" && <span style={{color: "#ffc107"}}>⚠️ 약함 (8자 이상 권장)</span>}
+            {pwStatus === "missing" && <span style={{color: "#6c757d"}}>ℹ️ 입력 필요</span>}
+          </div>
         </div>
       </div>
 

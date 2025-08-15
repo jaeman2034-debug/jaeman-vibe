@@ -77,7 +77,17 @@ async function hmacHex(key: string, msg: string) {
   
     async flush() {
       if (!this.queue.length) return;
-      const body = JSON.stringify({ events: this.queue, ts: Date.now() });
+      
+      // 텔레메트리 envelope 추가
+      const sessionId = (crypto as any).randomUUID ? (crypto as any).randomUUID() : String(Date.now());
+      const body = JSON.stringify({
+        schema: 1,
+        parserVersion: '1.1.0',
+        sessionId,
+        events: this.queue,
+        ts: Date.now()
+      });
+      
       this.queue = [];
       try {
         await fetch(this.endpoint, {

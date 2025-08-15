@@ -22,19 +22,46 @@ export function extractPhone(raw: string) {
                          : `${d.slice(0,3)}-${d.slice(3,7)}-${d.slice(7)}`;
 }
 
-export type PwStatus = "ok"|"weak"|"missing";
+export type PwStatus = "ok" | "weak" | "missing";
+
+/** 한글로 말한 알파벳/숫자/구두점 정규화 사전 */
+const KO_LETTER: Record<string, string> = {
+  에이:"A", 비:"B", 씨:"C", 디:"D", 이:"E", 에프:"F", 지:"G", 에이치:"H", 에취:"H",
+  아이:"I", 제이:"J", 케이:"K", 엘:"L", 엠:"M", 엔:"N", 오:"O", 피:"P", 큐:"Q",
+  알:"R", 에스:"S", 티:"T", 유:"U", 브이:"V", 더블유:"W", 엑스:"X", 와이:"Y", 지드:"Z"
+};
+const KO_NUM: Record<string,string> = { 공:"0", 영:"0", 일:"1", 이:"2", 삼:"3", 사:"4", 오:"5", 육:"6", 칠:"7", 팔:"8", 구:"9" };
+
+/** 후행 문장(이메일/전화/이름/끝맺음) 앞에서 멈추도록 경계 지정 */
+const STOP_RE = /(이메일|메일|전화|번호|이름|주소|끝|입니다|이에요|다시 말|재질문|재설정)/i;
+
 export function extractPassword(raw: string): { value: string; status: PwStatus } {
-  const mm = raw.match(/(비\s*밀\s*번\s*호|비\s*번|암호|password)[^A-Za-z0-9가-힣]{0,10}([\s\S]{0,80})$/i);
-  if (!mm) return { value:"", status:"missing" };
-  let s = mm[2];
-  s = s.replace(/다시 말할게|못 알아듣|영어|알파벳|그래|일본어|입니다|요\./g, " ");
-  const koLetter: Record<string,string> = { 에이:"A", 비:"B", 씨:"C", 디:"D", 이:"E", 에프:"F", 지:"G", 에이치:"H", 에취:"H", 아이:"I", 제이:"J", 케이:"K", 엘:"L", 엠:"M", 엔:"N", 오:"O", 피:"P", 큐:"Q", 알:"R", 에스:"S", 티:"T", 유:"U", 브이:"V", 더블유:"W", 엑스:"X", 와이:"Y", 지드:"Z" };
-  s = s.replace(new RegExp(Object.keys(koLetter).join("|"),"g"), (m)=>koLetter[m]);
-  s = s.replace(/\./g," ").replace(/\s+/g," ");
-  s = s.replace(/[^A-Za-z0-9!@#$%^&*_\-+= ]/g,"");
-  const parts = s.match(/[A-Za-z0-9!@#$%^&*_\-+=]+/g) || [];
-  const joined = parts.join("");
+  // 1) 트리거(비밀번호/비번/암호/password) 뒤의 최대 100자만 비번 후보로 캡처, 다음 항목(STOP_RE) 앞에서 멈춤
+  const trig = /(비\s*밀\s*번\s*호|비\s*번|암호|password)\s*(은|는|:)?\s*/i;
+  const m = raw.match(new RegExp(trig.source + '([\\s\\S]{0,100}?)' + '(?=' + STOP_RE.source + '|$)', 'i'));
+  let s = m ? m[3] ?? m[1] : "";
+
+  // 2) 후보가 비었으면 마지막 트리거 이후를 통째로 시도(보수적 폴백)
+  if (!s) {
+    const idx = raw.search(trig);
+    if (idx >= 0) s = raw.slice(idx);
+  }
+
+  // 3) 한국어 알파벳/숫자 단어를 실제 문자로 치환
+  s = s.replace(new RegExp(Object.keys(KO_LETTER).join("|"), "g"), w => KO_LETTER[w]);
+  s = s.replace(new RegExp(Object.keys(KO_NUM).join("|"), "g"), w => KO_NUM[w]);
+
+  // 4) 흔한 구어 요소/구두점 정리 (점, 쉼, "다시 말할게" 등)
+  s = s.replace(/다시 말할게|못 알아듣|입니다|요\./g, " ");
+  s = s.replace(/[·ㆍ·•∙‧・·]/g, "."); // 이종 점 → 점
+  s = s.replace(/\s+/g, " ");
+  s = s.replace(/\./g, " ");         // "A. B. C. 1 2 3 4" → "A B C 1 2 3 4"
+
+  // 5) 허용 문자만 남기고 토큰 병합
+  const tokens = (s.match(/[A-Za-z0-9!@#$%^&*_\-+=]+/g) || []);
+  const joined = tokens.join("");
+
   if (joined.length >= 8) return { value: joined, status: "ok" };
   if (joined.length >= 6) return { value: joined, status: "weak" };
-  return { value:"", status:"missing" };
+  return { value: "", status: "missing" };
 } 

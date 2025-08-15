@@ -251,13 +251,7 @@ export default function NaturalSignupLab() {
     return { text: bestText, parsed: bestParsed };
   }
 
-  // 실제 폼에 반영 (Lab 페이지에 이미 비슷한 로직 있으면 그 자리에 통합)
-function applyParsed(r: any) {
-  if (r.name)     setName(r.name.replace(/\s+/g, "").replace(/입니다[다\s]*$/, ""));
-  if (r.email)    setEmail(r.email);
-  if (r.phone)    setPhone(r.phone);
-  if (r.password) setPassword(r.password.replace(/[.\s,·:;]+/g, ""));
-}
+  
 
 // 새로운 파서 v1.1 적용
 function applyNewParser(raw: string) {
@@ -353,7 +347,7 @@ function onClickRepromptOnce() {
       const best = pickBestParse(texts);
       appendRaw(best.text);
 
-      if (autoParseRef.current) applyParsed(best.parsed);  // ✅ 최신값
+      if (autoParseRef.current) applyNewParser(best.text);  // ✅ 새로운 파서 v1.1 적용
 
       // [ADD]
       logStt(best.text, best.parsed, texts.length);
@@ -553,7 +547,7 @@ function stopListen() {
                 // 후보 + 기존 누적(raw)에 대해 파싱 스코어링
                 const best = pickBestParse(alts);
                 // best.text: 채택 문장, best.parsed: parse 결과
-                applyParsed(best.parsed);
+                applyNewParser(best.text); // ✅ 새로운 파서 v1.1 적용
                 // 채택된 문장을 raw에 추가 (줄바꿈으로 구분)
                 appendRaw(best.text.trim());
                 
@@ -622,18 +616,16 @@ function stopListen() {
 
   // "파싱하기"는 원문 → 수동 파싱으로만 동작
   const onParse = async () => {
+    // 새로운 파서 v1.1 적용
+    applyNewParser(raw);
+    
+    // 기존 파서로 로깅용 데이터 생성 (텔레메트리 호환성)
     const parsed = parseSignupFromText(raw, {
       emailMode: enStrict ? "en_strict" : "mixed",
       passwordMode: enStrict ? "en_strict" : "mixed",
       emailPick: enStrict ? "first" : "last",
       passwordOrder: pwOrder, // ★ 전달
     });
-
-    // 이름은 안전망으로 '입니다' 제거
-    if (parsed.name) setName(parsed.name.replace(/\s+/g, "").replace(/입니다[다\s]*$/, ""));
-    if (parsed.email) setEmail(parsed.email);
-    if (parsed.phone) setPhone(parsed.phone);
-    if (parsed.password) setPassword(parsed.password.replace(/[.\s,·:;]+/g, ""));
 
     // [MODIFY] onParse 끝부분에 추가
     await logParse(parsed, raw);

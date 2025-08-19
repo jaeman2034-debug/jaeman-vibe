@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { auth, db, storage } from '@/firebase';
-import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
+import { addDoc, collection, serverTimestamp, setDoc, doc } from 'firebase/firestore';
 import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import CaptureSheet from '@/pages/capture/CaptureSheet';
 import { resizeImage } from '@/lib/imageUtils';
@@ -102,6 +102,34 @@ export default function MarketCreate() {
       };
 
       const docRef = await addDoc(collection(db, 'market_items'), doc);
+      console.log('상품 등록 완료, 문서 ID:', docRef.id);
+
+      // 업로드 끝나고 docRef 얻은 뒤: AI 분석 호출
+      try {
+        console.log('AI 분석 시작...');
+        const resp = await fetch('http://localhost:5001/jaeman-vibe-platform/us-central1/analyzeProduct', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ images: urls, hint: title })
+        });
+        
+        const j = await resp.json();
+        if (j.ok) {
+          console.log('AI 분석 성공:', j.provider, j.result);
+          
+          // AI 분석 결과를 문서에 병합
+          await setDoc(doc(db, 'market_items', docRef.id), {
+            ai: j.result
+          }, { merge: true });
+          
+          console.log('AI 분석 결과 문서 병합 완료');
+        } else {
+          console.warn('AI 분석 응답 오류:', j.error);
+        }
+      } catch (e) {
+        console.warn('AI 분석 실패(무시)', e);
+      }
+
       alert('등록 완료!');
       navigate(`/market/${docRef.id}`);
     } catch (err: any) {

@@ -11,6 +11,7 @@ import RequireAuth from './features/auth/RequireAuth';
 import MarketCreate from './pages/market/MarketCreate';
 import MarketList from './pages/market/MarketList';
 import MarketDetail from './pages/market/MarketDetail';
+import Nearby from './pages/market/Nearby';
 import AIProductWorkflow from './pages/ai/AIProductWorkflow';
 
 import StartScreen from './pages/StartScreen';
@@ -107,6 +108,9 @@ export default function App() {
                 </RequireAuth>
               }
             />
+            
+            {/* 내 주변 상품 페이지 */}
+            <Route path="/market/nearby" element={<Nearby />} />
             
             {/* 상품 상세 페이지 */}
             <Route path="/market/:id" element={<MarketDetail />} />

@@ -1,0 +1,173 @@
+좋아—Cursor에 그대로 붙여 넣으면 되는 지시문을 “작업 순서대로” 정리했어.
+아래 8개 프롬프트를 위에서부터 차례대로 실행하면 /market 스포츠 마켓 목록이 동작하고, 카테고리/필터/무한 스크롤까지 한 번에 구성돼.
+
+1) 라우팅 & 네비게이션 연결
+[GOAL]
+- 스포츠 마켓 목록 라우트(/market)를 추가하고 상단 네비게이션에 "마켓" 링크를 노출한다.
+
+[TOUCH FILES]
+- src/App.tsx
+- src/components/Layout.tsx
+
+[ACCEPTANCE CRITERIA]
+- /market 진입 시 빈 페이지(스켈레톤)라도 렌더링
+- 헤더에 "마켓" 링크가 보이고 클릭 시 /market 이동
+- 타입/빌드 에러 없음
+
+[STEPS]
+1) src/App.tsx에 MarketPage 라우트 스텁 추가: <Route path="/market" element={<MarketPage />} />.
+2) src/features/market/MarketPage.tsx 파일을 생성하고 "스포츠 마켓" 텍스트만 렌더.
+3) Layout 헤더 네비에 <NavLink to="/market">마켓</NavLink> 추가.
+4) 최소 변경으로 패치(diff) 출력.
+
+2) 카테고리 도식/코드 정의
+[GOAL]
+- 스포츠 마켓 카테고리 트리를 코드로 정의하고, 코드↔라벨 헬퍼를 제공한다.
+
+[TOUCH FILES]
+- src/features/market/categories.ts
+
+[ACCEPTANCE CRITERIA]
+- sport 코드(BSB/SOC/BSK/RAC/GLF/RUN/SNW/OUT), category 코드(예: BSB-GLV-INF) 매핑 제공
+- export: categoryTree, categoryList(flat), sportLabel(), categoryLabel(), flattenCategories()
+
+[STEPS]
+1) categories.ts에 아래 구조 생성:
+   - const sportLabels: Record<SportCode,string>
+   - const categoryTree: Array<{ sport:'BSB'|...; label:string; nodes:[{code:string,label:string, children?:...}] }>
+   - export helpers: sportLabel(code), categoryLabel(code), flattenCategories(tree) => {code,label,sport}[]
+2) 트리는 내가 준 도식(야구/축구/농구/라켓/골프/러닝/스노우/아웃도어)의 핵심 분류만 우선 반영.
+3) 최소 변경 diff 출력.
+
+3) 타입/유틸 공통
+[GOAL]
+- 마켓 도메인 타입과 공통 포맷/디바운스 유틸을 추가한다.
+
+[TOUCH FILES]
+- src/features/market/types.ts
+- src/lib/format.ts
+- src/hooks/useDebounced.ts
+
+[ACCEPTANCE CRITERIA]
+- Product 타입, MarketFilters 타입 정의
+- fmtPrice(v:number) → "12,300원"
+- useDebounced(value, ms=400) 훅 제공
+
+[STEPS]
+1) types.ts에 Product/MarketFilters 정의:
+   Product: { id,title,category,condition,price,images:string[],ownerId,status,createdAt,location? }
+   condition: "new"|"like-new"|"good"|"fair"; status: "active"|"reserved"|"sold"|"hidden"
+2) format.ts에 fmtPrice 구현.
+3) useDebounced.ts에 디바운스 훅 구현.
+4) diff 출력.
+
+4) Firestore 쿼리 훅(무한 스크롤)
+[GOAL]
+- 필터(검색어/카테고리/컨디션/가격/정렬)를 반영하는 Firestore 페이지네이션 훅을 만든다.
+
+[TOUCH FILES]
+- src/features/market/useMarketProducts.ts
+
+[ACCEPTANCE CRITERIA]
+- useMarketProducts(filters) → { items, loading, eof, load(), reset() }
+- 쿼리: status in ["active", null] + 필터(where) + orderBy + limit + startAfter
+- filters.q는 클라이언트에서 제목 부분일치로 1차 필터(후일 검색엔진 대체)
+
+[STEPS]
+1) Firestore SDK(query, where, orderBy, limit, startAfter, getDocs) 사용.
+2) filters.sort: latest=createdAt desc, price-low/price-high=price asc/desc.
+3) 에러 없이 빌드되도록 구현.
+4) diff 출력.
+
+5) 필터 바 UI
+[GOAL]
+- 검색어/카테고리/컨디션/최소가/최대가/정렬을 설정하는 FiltersBar를 만든다.
+
+[TOUCH FILES]
+- src/features/market/FiltersBar.tsx
+
+[ACCEPTANCE CRITERIA]
+- props: { value:MarketFilters, onChange:(v)=>void }
+- "적용" 클릭 시 onChange(localState)
+- "초기화" 클릭 시 기본값 {q:"",category:null,min:null,max:null,condition:null,sort:"latest"}
+
+[STEPS]
+1) Tailwind로 입력/셀렉트/버튼 구성.
+2) 카테고리 셀렉트는 categories.ts의 flatten 결과를 사용하거나, 1차 릴리스에선 “전체 종목” 단일 드롭다운으로 구현.
+3) diff 출력.
+
+6) 카드 & 페이지 본체(무한 스크롤)
+[GOAL]
+- ProductCard와 MarketPage를 완성하여 /market에서 필터 + 스켈레톤 + 무한 스크롤이 동작하게 한다.
+
+[TOUCH FILES]
+- src/features/market/ProductCard.tsx
+- src/features/market/MarketPage.tsx  (1단계 스텁 대체)
+
+[ACCEPTANCE CRITERIA]
+- /market 진입 → 첫 페이지 로드, 하단 근접 시 load() 호출
+- 그리드 카드(2/3/4열 반응형), 가격 포맷, 이미지 lazy
+- 결과 개수 라벨, 빈 상태(조건 없음) UI
+
+[STEPS]
+1) ProductCard: 이미지 첫 장, 제목/카테고리/컨디션/가격 보여주기.
+2) MarketPage: FiltersBar + useDebounced(filters) + useMarketProducts 연결.
+3) window.scroll 이벤트로 near-bottom(400px)일 때 load().
+4) 스켈레톤/EmptyState 컴포넌트 포함.
+5) diff 출력.
+
+7) 파이어스토어 보안 규칙/인덱스 메모 추가
+[GOAL]
+- 마켓 읽기용 최소 Firestore 규칙과 인덱스 안내 문서를 추가한다.
+
+[TOUCH FILES]
+- firestore.rules (또는 docs/market-rules.md)
+- docs/market-indexes.md
+
+[ACCEPTANCE CRITERIA]
+- products 읽기 허용(초기), 쓰기는 차후 관리자/본인만으로 강화 예정
+- 가격 정렬/범위 + 카테고리 조합 시 필요한 복합 인덱스 명시
+
+[STEPS]
+1) rules에:
+   match /products/{id} { allow read: if true; }
+2) docs에 인덱스 케이스 정리:
+   - status==active + createdAt desc
+   - status==active + price asc/desc (+ category/condition 조합 시 복합 인덱스 생성)
+3) diff 출력.
+
+8) (선택) 상세/등록 진입선 연결
+[GOAL]
+- 카드 클릭 시 상세로 이동할 수 있게 라우팅만 먼저 열고, 등록 페이지 링크도 노출한다.
+
+[TOUCH FILES]
+- src/App.tsx
+- src/features/market/ProductDetailPage.tsx (스텁)
+- src/features/products/ProductNew.tsx (이미 있으면 링크만)
+
+[ACCEPTANCE CRITERIA]
+- /market/:id 진입 시 스텁 페이지 렌더
+- /sell/new → 기존 ProductNew 라우트 연결(관리자만 노출해도 됨)
+
+[STEPS]
+1) <Route path="/market/:id" element={<ProductDetailPage />} /> 추가.
+2) ProductDetailPage.tsx에 “상세 준비 중” 스켈레톤 구성.
+3) 헤더/마켓 상단에 "판매 등록" 버튼(권한 조건부 노출) 추가.
+4) diff 출력.
+
+실행/검증 체크리스트
+
+ /market 로드 OK, 필터 적용 시 목록 리셋 후 재조회
+
+ 스크롤 하단 근접 시 더 불러오기
+
+ 빈 결과 상태/스켈레톤 정상
+
+ 헤더 네비에서 “마켓” 이동 정상
+
+ 빌드/타입 에러 0
+
+이후 단계(별도 프롬프트):
+썸네일 파이프라인(Functions) → 상세 페이지 → 찜/채팅 → 신고/예약/판매완료.
+
+필요하면 위 8개를 한 번에 주지 말고 PR 단위로 하나씩 커서에 넣어 진행하면 가장 안정적이야.

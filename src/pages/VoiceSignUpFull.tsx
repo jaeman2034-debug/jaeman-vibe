@@ -7,7 +7,10 @@ import {
   fetchSignInMethodsForEmail,
 } from "firebase/auth";
 import { doc, setDoc, serverTimestamp } from "firebase/firestore";
-import { auth, db } from "../firebase/firebase";
+import { auth, app } from "@/firebase";
+import { getFirestore } from "firebase/firestore";
+
+const db = getFirestore(app);
 import { EmailVoiceField } from "../utils/speechEmail";
 
 /**
@@ -928,6 +931,7 @@ export default function VoiceSignUpFull() {
     setError(null);
     try {
       // 중복 이메일 미리 확인(UX 친화)
+              // auth와 db는 이미 위에서 정의됨
       const methods = await fetchSignInMethodsForEmail(auth, email);
       if (methods && methods.length > 0) {
         setError("이미 가입된 이메일입니다. 다른 이메일을 사용해 주세요.");

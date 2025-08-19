@@ -1,0 +1,20 @@
+import React from 'react';
+
+export default class DevErrorBoundary extends React.Component<
+  { children: React.ReactNode }, { err?: any }
+> {
+  state = { err: undefined as any };
+  static getDerivedStateFromError(err: any) { return { err }; }
+  componentDidCatch(err: any, info: any) { console.error('[ErrorBoundary]', err, info); }
+  render() {
+    if (this.state.err) {
+      return (
+        <div style={{ padding: 16 }}>
+          <h3>오류가 발생했어요</h3>
+          <pre style={{ whiteSpace: 'pre-wrap' }}>{String(this.state.err?.message || this.state.err)}</pre>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+} 

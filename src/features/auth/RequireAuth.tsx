@@ -1,0 +1,17 @@
+import { useEffect, useState } from 'react';
+import { Navigate } from 'react-router-dom';
+import { onAuthStateChanged } from 'firebase/auth';
+import { auth } from '../../firebase';
+
+export default function RequireAuth({ children }: { children: JSX.Element }) {
+  const [state, setState] = useState<'loading'|'ok'|'no'>('loading');
+
+  useEffect(() => {
+    const unsub = onAuthStateChanged(auth, u => setState(u ? 'ok' : 'no'));
+    return () => unsub();
+  }, []);
+
+  if (state === 'loading') return <div style={{ padding: 24 }}>로그인 상태 확인 중…</div>;
+  if (state === 'no') return <Navigate to="/login" replace />;
+  return children;
+} 

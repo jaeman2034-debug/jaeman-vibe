@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { speak, isCurrentlyListening } from '@/lib/tts';
 type Missing = ('email'|'phone'|'password')[];
 
 export default function ChatDock({
@@ -19,13 +20,13 @@ export default function ChatDock({
 
   useEffect(() => {
     if (!nextQ) return;
-    const u = new SpeechSynthesisUtterance(nextQ);
-    speechSynthesis.cancel(); speechSynthesis.speak(u);
+    speak(nextQ); // ✅ TTS 가드 사용
     // 텔레메트리: chat.ask_missing_field
-    fetch(import.meta.env.VITE_TELEMETRY_ENDPOINT, {
-      method:'POST', headers:{'Content-Type':'application/json'},
+    fetch("/api/telemetry", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ schema:1, events:[{ type:'chat.ask_missing_field', data:{ nextQ } }]})
-    }).catch(()=>{});
+    }).catch(() => {}); // 실패해도 앱 진행 방해 금지
   }, [nextQ]);
 
   if (!nextQ) return null;
@@ -37,10 +38,8 @@ export default function ChatDock({
         <button className="px-3 py-1.5 rounded bg-black text-white"
           onClick={()=>onAsk(nextQ)}>텍스트로 보기</button>
         <button className="px-3 py-1.5 rounded border"
-          onClick={()=>{
-            speechSynthesis.cancel();
-            speechSynthesis.speak(new SpeechSynthesisUtterance(nextQ));
-          }}>다시 듣기</button>
+          onClick={()=>speak(nextQ)} // ✅ TTS 가드 사용
+          disabled={isCurrentlyListening()}>다시 듣기</button>
       </div>
     </div>
   );

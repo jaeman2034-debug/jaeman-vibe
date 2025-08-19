@@ -8,7 +8,10 @@ import type {
   UserCredential,
   AuthError 
 } from "firebase/auth";
-import { auth } from "../firebase/firebase";
+import { auth, app } from "@/firebase";
+import { getFirestore } from "firebase/firestore";
+
+const db = getFirestore(app);
 
 /**
  * ✅ 이 파일 하나로 끝나는 "통복" 버전

@@ -1,0 +1,35 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isAuthed() {
+      return request.auth != null;
+    }
+
+    // 공용 읽기 허용 (원하면 false로 막으세요)
+    match /{coll}/{doc} {
+      allow read: if true; 
+
+      allow create: if isAuthed()
+        && request.resource.data.ownerId == request.auth.uid
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.title is string
+        && request.resource.data.title.size() > 0;
+
+      allow update: if isAuthed()
+        && resource.data.ownerId == request.auth.uid
+        // createdAt/ownerId 불변
+        && request.resource.data.ownerId == resource.data.ownerId
+        && request.resource.data.createdAt == resource.data.createdAt;
+
+      allow delete: if isAuthed()
+        && resource.data.ownerId == request.auth.uid;
+    }
+
+    // 마켓 아이템 전용 규칙
+    match /market_items/{id} {
+      allow read: if true;
+      allow write: if true; // 로컬 개발 편의용
+    }
+  }
+}

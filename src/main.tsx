@@ -1,41 +1,70 @@
 // src/main.tsx
-import React from "react";
+import "./crash-shield";
+import "./index.css"; // ← 반드시 추가
+import React, { lazy, Suspense } from "react";
 import ReactDOM from "react-dom/client";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
-
 import App from "./App";
-import StartScreen from "./pages/StartScreen";
-import VoiceSignUpFull from "./pages/VoiceSignUpFull";
-import NaturalSignupLab from "./pages/NaturalSignupLab";
+import { RootErrorBoundary } from "./app/RootErrorBoundary";
+import AppSplash from "./components/AppSplash";
+import GlobalErrorOverlay from "./app/GlobalErrorOverlay";
+import { ModalProvider } from "./components/ModalHost";
+import { ThemeProvider } from "./components/theme/ThemeProvider";
 
-// 임시 로그인 페이지 (없으면 라우터 에러 방지용)
-function LoginPage() {
-  return (
-    <div style={{ padding: 24 }}>
-      <h2>로그인</h2>
-      <p>나중에 실제 로그인 폼으로 교체하세요.</p>
-    </div>
-  );
-}
+// 지연 로딩으로 번들 최적화
+const VoiceDebugPanel = lazy(() => import("./features/voice/VoiceDebugPanel"));
+const PTTTestPage = lazy(() => import("./pages/PTTTestPage"));
+const OneShotVoiceSignup = lazy(() => import("./components/OneShotVoiceSignup"));
+
+// 새로운 음성 명령 모달들
+const ProductCaptureModal = lazy(() => import("./pages/voice/modals/ProductCaptureModal"));
+const ProductQuickRegisterModal = lazy(() => import("./pages/voice/modals/ProductQuickRegisterModal"));
+const ProductAnalyzeModal = lazy(() => import("./pages/voice/modals/ProductAnalyzeModal"));
+
+import { withClosable } from "./utils/withClosable";
+
+const registry = {
+  "voice:vad": (props: any) => (
+    <Suspense fallback={<AppSplash small/>}>
+      {withClosable(VoiceDebugPanel)(props)}
+    </Suspense>
+  ),
+  "voice:asr": (props: any) => (
+    <Suspense fallback={<AppSplash small/>}>
+      {withClosable(PTTTestPage)(props)}
+    </Suspense>
+  ),
+  "voice:signup": (props: any) => (
+    <Suspense fallback={<AppSplash small/>}>
+      {withClosable(OneShotVoiceSignup)(props)}
+    </Suspense>
+  ),
+  // 새로운 음성 명령 모달들
+  "voice:capture": (props: any) => (
+    <Suspense fallback={<AppSplash small/>}>
+      {withClosable(ProductCaptureModal)(props)}
+    </Suspense>
+  ),
+  "voice:register": (props: any) => (
+    <Suspense fallback={<AppSplash small/>}>
+      {withClosable(ProductQuickRegisterModal)(props)}
+    </Suspense>
+  ),
+  "voice:analyze": (props: any) => (
+    <Suspense fallback={<AppSplash small/>}>
+      {withClosable(ProductAnalyzeModal)(props)}
+    </Suspense>
+  ),
+} as const;
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
-    <BrowserRouter>
-      <Routes>
-        {/* 공통 레이아웃 */}
-        <Route element={<App />}>
-          {/* 홈: 시작 카드 */}
-          <Route index element={<StartScreen />} />
-          {/* 음성 회원가입 마법사 */}
-          <Route path="signup/voice" element={<VoiceSignUpFull />} />
-          {/* 자연어 회원가입 베타 */}
-          <Route path="natural-signup" element={<NaturalSignupLab />} />
-          {/* 로그인 */}
-          <Route path="login" element={<LoginPage />} />
-          {/* 그 외는 홈으로 */}
-          <Route path="*" element={<StartScreen />} />
-        </Route>
-      </Routes>
-    </BrowserRouter>
+    <RootErrorBoundary>
+      <ThemeProvider>
+        <ModalProvider registry={registry}>
+          <App />
+          <GlobalErrorOverlay />
+        </ModalProvider>
+      </ThemeProvider>
+    </RootErrorBoundary>
   </React.StrictMode>
 );

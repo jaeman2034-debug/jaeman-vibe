@@ -1,0 +1,15 @@
+// storage.rules.production
+// 프로덕션 환경용 Storage 보안 규칙 (간소화 버전)
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    // /products/<uid>/... 만 쓰기 허용, 모두 읽기 가능
+    match /products/{uid}/{allPaths=**} {
+      allow read: if true;
+      allow write: if request.auth != null
+                   && request.auth.uid == uid
+                   && request.resource.size < 10 * 1024 * 1024
+                   && request.resource.contentType.matches('image/.*');
+    }
+  }
+} 

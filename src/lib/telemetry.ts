@@ -101,3 +101,26 @@ async function hmacHex(key: string, msg: string) {
     }
   }
   
+// ====== 간단 텔레메트리 유틸 ======
+export async function sendTelemetry(evt: string, data: any = {}) {
+  const payload = JSON.stringify({ evt, ...data });
+  
+  // 페이지가 떠날 때도 안전하게 전송
+  if (navigator.sendBeacon) {
+    const blob = new Blob([payload], { type: "application/json" });
+    navigator.sendBeacon("/api/telemetry", blob);
+    return;
+  }
+  
+  try {
+    await fetch("/api/telemetry", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: payload,
+      keepalive: true,
+    });
+  } catch {
+    /* 실패해도 앱 흐름 방해 X */
+  }
+}
+  

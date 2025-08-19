@@ -26,10 +26,11 @@ export default function SynthLab(){
       const c = cases[idx.current];
       speechSynthesis.speak(new SpeechSynthesisUtterance(c.text));
       // 텔레메트리: synth.queue
-      fetch(import.meta.env.VITE_TELEMETRY_ENDPOINT, {
-        method:'POST', headers:{'Content-Type':'application/json'},
+      fetch("/api/telemetry", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ schema:1, events:[{ type:'synth.queue', data:{ id:c.id, tags:c.tags }}] })
-      }).catch(()=>{});
+      }).catch(() => {}); // 실패해도 앱 진행 방해 금지
       await new Promise(r=>setTimeout(r, 1400)); // 문장 길이에 맞게 조절
     }
   };

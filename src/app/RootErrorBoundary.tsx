@@ -1,0 +1,24 @@
+import React from "react";
+
+export class RootErrorBoundary extends React.Component<{ children: React.ReactNode }, { error?: Error }> {
+  constructor(props: any) { super(props); this.state = { error: undefined }; }
+  static getDerivedStateFromError(error: Error) { return { error }; }
+  componentDidCatch(error: Error, info: React.ErrorInfo) { console.error("RootErrorBoundary", error, info); }
+  render() {
+    if (this.state.error) {
+      return (
+        <div className="min-h-dvh grid place-items-center p-6">
+          <div className="max-w-xl w-full rounded-2xl border p-6 bg-white dark:bg-zinc-900">
+            <h1 className="text-xl font-bold mb-2">문제가 발생했습니다</h1>
+            <p className="text-sm opacity-70 mb-3">개발 콘솔(F12)에서 에러를 함께 확인하세요.</p>
+            <pre className="text-xs bg-zinc-100 dark:bg-zinc-800 rounded p-3 overflow-auto max-h-64">
+{String(this.state.error.stack || this.state.error.message)}
+            </pre>
+            <button className="mt-4 px-4 py-2 rounded bg-zinc-900 text-white" onClick={() => location.reload()}>새로고침</button>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children as any;
+  }
+} 

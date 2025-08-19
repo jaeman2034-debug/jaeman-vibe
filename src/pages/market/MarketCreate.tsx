@@ -6,6 +6,7 @@ import { addDoc, collection, serverTimestamp, setDoc, doc } from 'firebase/fires
 import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import CaptureSheet from '@/pages/capture/CaptureSheet';
 import { resizeImage } from '@/lib/imageUtils';
+import { geohashForLocation } from 'geofire-common';
 
 // 상품 카테고리 정의
 const CATEGORIES = [
@@ -61,6 +62,27 @@ export default function MarketCreate() {
 
     setBusy(true);
     try {
+      // 위치 정보 획득
+      let geo: any = null;
+      try {
+        const pos = await new Promise<GeolocationPosition>((res, rej) =>
+          navigator.geolocation.getCurrentPosition(res, rej, { 
+            enableHighAccuracy: true, 
+            timeout: 8000 
+          })
+        );
+        const lat = pos.coords.latitude, lng = pos.coords.longitude;
+        geo = { 
+          lat, 
+          lng, 
+          geohash: geohashForLocation([lat, lng]) 
+        };
+        console.log('위치 정보 획득 성공:', geo);
+      } catch (error) {
+        console.warn('위치 정보 획득 실패:', error);
+        // 위치 정보가 없어도 상품 등록은 계속 진행
+      }
+
       // 이미지 전처리: 리사이즈 및 WebP 변환
       console.log('이미지 전처리 시작...');
       const processed = await Promise.all(files.map(f => resizeImage(f)));
@@ -99,6 +121,7 @@ export default function MarketCreate() {
         ownerId: uid,
         createdAt: serverTimestamp(),
         status: 'active' as const,
+        geo, // 위치 정보 추가
       };
 
       const docRef = await addDoc(collection(db, 'market_items'), doc);

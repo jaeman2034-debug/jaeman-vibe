@@ -1,5 +1,9 @@
 # 배포 가이드 (Render + Vercel)
 
+## 🌐 배포된 주소
+- **Backend**: https://jaeman-api.onrender.com
+- **Frontend**: https://jaeman-vibe.vercel.app
+
 ## 백엔드(Render)
 1. GitHub 연결 → New → Web Service
 2. Build Command: (비움)  Start Command: `node server.cjs`

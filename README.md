@@ -1,5 +1,9 @@
 # YAGO SPORTS - AI Platform
 
+## 🌐 배포된 주소
+- **Backend**: https://jaeman-api.onrender.com
+- **Frontend**: https://jaeman-vibe.vercel.app
+
 ## 🚀 빠른 시작
 
 ### 옵션 A: 백엔드 설정 (Express) - 5분 컷

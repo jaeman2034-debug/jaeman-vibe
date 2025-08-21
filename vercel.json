@@ -1,5 +1,5 @@
 {
   "rewrites": [
-    { "source": "/api/(.*)", "destination": "https://RENDER_SERVICE_URL/api/$1" }
+    { "source": "/api/(.*)", "destination": "https://jaeman-api.onrender.com/api/$1" }
   ]
 }

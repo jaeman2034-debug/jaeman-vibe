@@ -2,15 +2,16 @@
 
 import { collection, query, where, orderBy, limit, getDocs, GeoPoint } from 'firebase/firestore';
 import { db } from '../firebase';
-import { MarketItem, Location } from '../features/market/types';
+import type { Location } from '@/features/market/types';
+import type { MarketItem } from '@/features/market/types';
 
 // GeoFire 기반 지오해시 생성 (클라이언트용 간단 버전)
-export const generateGeohash = (latitude: number, longitude: number, precision: number = 6): string => {
+export const generateGeohash = (lat: number, lng: number, precision: number = 6): string => {
   // 실제로는 GeoFire 라이브러리 사용 권장
   // 여기서는 간단한 구현으로 대체
   
-  const lat = latitude + 90;
-  const lng = longitude + 180;
+  const latitude = lat + 90;
+  const longitude = lng + 180;
   
   let geohash = '';
   const base32 = '0123456789bcdefghjkmnpqrstuvwxyz';
@@ -79,7 +80,7 @@ export const findNearbyItems = async (
     else if (radiusKm <= 50) precision = 4;
     else precision = 3;
     
-    const geohash = generateGeohash(userLocation.latitude, userLocation.longitude, precision);
+    const geohash = generateGeohash(userLocation.lat, userLocation.lng, precision);
     const geohashPrefix = geohash.substring(0, precision);
     
     // Firestore 쿼리 (지오해시 기반)
@@ -101,10 +102,10 @@ export const findNearbyItems = async (
       // 거리 계산 및 필터링
       if (item.geo) {
         const distance = calculateDistance(
-          userLocation.latitude,
-          userLocation.longitude,
-          item.geo.latitude,
-          item.geo.longitude
+          userLocation.lat,
+          userLocation.lng,
+          item.geo.lat,
+          item.geo.lng
         );
         
         if (distance <= radiusKm) {
@@ -165,10 +166,10 @@ export const filterItemsByLocation = (
       if (!item.geo) return false;
       
       const distance = calculateDistance(
-        userLocation.latitude,
-        userLocation.longitude,
-        item.geo.latitude,
-        item.geo.longitude
+        userLocation.lat,
+        userLocation.lng,
+        item.geo.lat,
+        item.geo.lng
       );
       
       return distance <= maxDistanceKm;
@@ -176,10 +177,10 @@ export const filterItemsByLocation = (
     .map(item => ({
       ...item,
       distance: calculateDistance(
-        userLocation.latitude,
-        userLocation.longitude,
-        item.geo!.latitude,
-        item.geo!.longitude
+        userLocation.lat,
+        userLocation.lng,
+        item.geo!.lat,
+        item.geo!.lng
       )
     }))
     .sort((a, b) => (a.distance || 0) - (b.distance || 0));
@@ -188,8 +189,8 @@ export const filterItemsByLocation = (
 // 위치 정보 검증
 export const validateLocation = (location: Location): boolean => {
   return (
-    location.latitude >= -90 && location.latitude <= 90 &&
-    location.longitude >= -180 && location.longitude <= 180 &&
+    location.lat >= -90 && location.lat <= 90 &&
+    location.lng >= -180 && location.lng <= 180 &&
     location.geohash && location.geohash.length > 0
   );
 };
@@ -197,10 +198,10 @@ export const validateLocation = (location: Location): boolean => {
 // 위치 정보 정규화
 export const normalizeLocation = (location: Location): Location => {
   return {
-    latitude: Number(location.latitude.toFixed(6)),
-    longitude: Number(location.longitude.toFixed(6)),
+    lat: Number(location.lat.toFixed(6)),
+    lng: Number(location.lng.toFixed(6)),
     geohash: location.geohash,
-    address: location.address
+    regionCode: location.regionCode
   };
 };
 
@@ -213,10 +214,10 @@ export const calculateLocationScore = (
   if (!item.geo) return 0;
   
   const distance = calculateDistance(
-    userLocation.latitude,
-    userLocation.longitude,
-    item.geo.latitude,
-    item.geo.longitude
+    userLocation.lat,
+    userLocation.lng,
+    item.geo.lat,
+    item.geo.lng
   );
   
   if (distance > maxDistanceKm) return 0;

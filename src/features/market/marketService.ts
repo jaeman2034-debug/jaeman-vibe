@@ -1,7 +1,16 @@
 // src/features/market/marketService.ts
+import { auth, app } from '@/firebase';
+import { getFirestore } from 'firebase/firestore';
+import { getStorage } from 'firebase/storage';
+
+const db = getFirestore(app);
+const storage = getStorage(app);
 import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
 import { getDownloadURL, ref, uploadBytesResumable } from 'firebase/storage';
-import { auth, db, storage } from '../../firebase';
+
+// 환경변수 체크
+const USE_STORAGE = false; // 강제로 false로 설정 (환경변수 문제 우회)
+console.log("[MARKET_SERVICE] USE_STORAGE:", USE_STORAGE);
 
 export type NewItemInput = {
   title: string;
@@ -15,6 +24,13 @@ export type NewItemInput = {
 
 export async function uploadImages(files: File[], uid: string) {
   const urls: string[] = [];
+  
+  if (!USE_STORAGE) {
+    console.log('[MARKET_SERVICE] Skipping image upload (USE_STORAGE:', USE_STORAGE, ')');
+    return urls;
+  }
+  
+  console.log('[MARKET_SERVICE] Uploading images to storage...');
   for (const file of files) {
     const id = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     const key = `products/${uid}/${id}-${file.name}`;

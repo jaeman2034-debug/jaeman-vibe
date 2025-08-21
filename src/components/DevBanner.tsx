@@ -1,9 +1,9 @@
 import { isDevBuild, canAccessDev } from "../lib/devMode";
-import { useAuthUser } from "../lib/auth";
+import { getUid } from "../lib/auth";
 
 export default function DevBanner() {
-  const user = useAuthUser();
-  const show = isDevBuild() && canAccessDev(user || null);
+  const uid = getUid();
+  const show = isDevBuild() && canAccessDev({ uid } as any);
   if (!show) return null;
   return (
     <div className="fixed top-3 right-3 z-[1000] select-none">

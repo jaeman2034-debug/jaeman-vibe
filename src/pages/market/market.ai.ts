@@ -32,13 +32,13 @@ export function makeMarketPlugin(): (ctx: PageAIContext) => PageAIPlugin {
     if (/낮은순|오름차순|저가|싼순/.test(s)) {
       const u = new URL(location.href);
       u.searchParams.set("sort", "price_asc");
-      ctx.navigate(u.pathname + u.search);
+      ctx.navigate(`/market${u.search}`);
       return true;
     }
     if (/높은순|내림차순|고가|비싼순/.test(s)) {
       const u = new URL(location.href);
       u.searchParams.set("sort", "price_desc");
-      ctx.navigate(u.pathname + u.search);
+      ctx.navigate(`/market${u.search}`);
       return true;
     }
 
@@ -48,7 +48,7 @@ export function makeMarketPlugin(): (ctx: PageAIContext) => PageAIPlugin {
       const loc = mLoc[1].trim();
       const u = new URL(location.href);
       u.searchParams.set("loc", loc);
-      ctx.navigate(u.pathname + u.search);
+      ctx.navigate(`/market${u.search}`);
       return true;
     }
 

@@ -13,7 +13,7 @@ export function makeMeetPlugin(): (ctx: PageAIContext) => PageAIPlugin {
 
     if (/오늘이후|다가오는|다가올|이번주|이번\s?주/.test(input)) {
       u.searchParams.set("date", "upcoming");
-      ctx.navigate(u.pathname + u.search);
+      ctx.navigate(`/meet${u.search}`);
       return true;
     }
 
@@ -21,13 +21,13 @@ export function makeMeetPlugin(): (ctx: PageAIContext) => PageAIPlugin {
     if (mLoc) {
       const loc = mLoc[1].trim();
       u.searchParams.set("loc", loc);
-      ctx.navigate(u.pathname + u.search);
+      ctx.navigate(`/meet${u.search}`);
       return true;
     }
 
     if (/모집중/.test(input)) {
       u.searchParams.set("status", "open");
-      ctx.navigate(u.pathname + u.search);
+      ctx.navigate(`/meet${u.search}`);
       return true;
     }
 

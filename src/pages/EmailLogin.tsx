@@ -1,6 +1,21 @@
 import React, { useState } from "react";
 import { getAuth, signInWithEmailAndPassword, sendPasswordResetEmail } from "firebase/auth";
 
+// 사람친화적인 인증 오류 메시지 매핑
+const AUTH_MSG: Record<string, string> = {
+  'auth/user-not-found': '가입되지 않은 이메일입니다.',
+  'auth/wrong-password': '비밀번호가 올바르지 않습니다.',
+  'auth/invalid-credential': '이메일 또는 비밀번호가 올바르지 않습니다.',
+  'auth/too-many-requests': '요청이 많습니다. 잠시 후 다시 시도하세요.',
+  'auth/network-request-failed': '네트워크 오류입니다. 인터넷 연결을 확인해주세요.',
+  'auth/invalid-email': '올바른 이메일 형식이 아닙니다.',
+  default: '로그인에 실패했습니다. 잠시 후 다시 시도하세요.',
+};
+
+function humanize(code?: string) {
+  return (code && AUTH_MSG[code]) || `${AUTH_MSG.default}${code ? ` (${code})` : ''}`;
+}
+
 export default function EmailLogin() {
   const auth = getAuth();
   const params = new URLSearchParams(window.location.search);
@@ -18,7 +33,9 @@ export default function EmailLogin() {
       setMsg("로그인 성공! 잠시 후 이동합니다.");
       // 필요 시: window.location.href = "/";
     } catch (err: any) {
-      setMsg(err?.message ?? "로그인에 실패했습니다.");
+      // Firebase 오류 코드/메시지만 로깅 (민감 정보 제외)
+      console.error('[AUTH] EmailLogin error:', err?.code, err?.message);
+      setMsg(humanize(err?.message)); // err.message에 'auth/...' 코드가 담겨옴
     } finally {
       setLoading(false);
     }

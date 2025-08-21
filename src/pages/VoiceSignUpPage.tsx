@@ -5,8 +5,7 @@ import {
   signInWithEmailAndPassword
 } from "firebase/auth";
 import type { 
-  UserCredential,
-  AuthError 
+  UserCredential
 } from "firebase/auth";
 import { auth, app } from "@/firebase";
 import { getFirestore } from "firebase/firestore";
@@ -71,8 +70,10 @@ async function signUpWithFirebase(email: string, password: string): Promise<User
     const userCredential = await createUserWithEmailAndPassword(auth, email, password);
     return userCredential;
   } catch (error: any) {
-    const authError = error as AuthError;
-    throw new Error(getFirebaseErrorMessage(authError.code));
+    if (error && typeof error === 'object' && 'code' in error) {
+      throw new Error(getFirebaseErrorMessage(error.code));
+    }
+    throw new Error('알 수 없는 오류가 발생했습니다.');
   }
 }
 
@@ -81,8 +82,10 @@ async function signInWithFirebase(email: string, password: string): Promise<User
     const userCredential = await signInWithEmailAndPassword(auth, email, password);
     return userCredential;
   } catch (error: any) {
-    const authError = error as AuthError;
-    throw new Error(getFirebaseErrorMessage(authError.code));
+    if (error && typeof error === 'object' && 'code' in error) {
+      throw new Error(getFirebaseErrorMessage(error.code));
+    }
+    throw new Error('알 수 없는 오류가 발생했습니다.');
   }
 }
 

@@ -2,7 +2,7 @@
 
 import { collection, query, where, orderBy, limit, getDocs, startAfter } from 'firebase/firestore';
 import { db } from '../firebase';
-import { MarketItem, SearchResult, Location } from '../features/market/types';
+import type { MarketItem, SearchResult, Location } from '../features/market/types';
 import { searchItemsByLocation, calculateLocationScore } from './locationService';
 
 // 검색 타입 정의
@@ -95,18 +95,19 @@ export const performTextSearch = async (
       const relevance = calculateTextRelevance(query, data);
       
       if (relevance > 0.1) { // 최소 관련성 임계값
-        results.push({
-          id: doc.id,
-          title: data.title,
-          description: data.description,
-          price: data.price,
-          category: data.category,
-          region: data.region || '지역 정보 없음',
-          distance: undefined, // 위치 기반 검색에서 계산
-          relevance,
-          imageUrl: data.images?.[0] || '/placeholder.jpg',
-          ai: data.ai
-        });
+                 results.push({
+           id: doc.id,
+           title: data.title,
+           description: data.description,
+           price: data.price,
+           category: data.category,
+           region: data.region || '지역 정보 없음',
+           distance: undefined, // 위치 기반 검색에서 계산
+           relevance,
+           imageUrl: data.images?.[0] || '/placeholder.jpg',
+           ai: data.ai,
+           createdAt: data.createdAt
+         });
       }
     });
 

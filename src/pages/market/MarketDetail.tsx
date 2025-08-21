@@ -1,43 +1,32 @@
 import { useEffect, useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '@/firebase';
-
-interface MarketItem {
-  id: string;
-  title: string;
-  price: number;
-  description: string;
-  images: string[];
-  ownerId: string;
-  createdAt: any;
-  status: string;
-  ai?: {
-    category?: string;
-    condition?: string;
-    tags?: string[];
-    brand?: string;
-    color?: string;
-    title?: string;
-  };
-}
+import { getUid } from '@/lib/auth';
+import FavoriteButton from '../../components/favorite/FavoriteButton';
+import StatusBadge from '../../components/market/StatusBadge';
+import StatusChangeModal from '../../components/market/StatusChangeModal';
+import type { ProductDoc } from '@/types/product';
 
 export default function MarketDetail() {
   const { id } = useParams<{ id: string }>();
-  const [item, setItem] = useState<MarketItem | null>(null);
+  const navigate = useNavigate();
+  const [item, setItem] = useState<ProductDoc | null>(null);
   const [loading, setLoading] = useState(true);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [isStatusModalOpen, setIsStatusModalOpen] = useState(false);
+  const uid = getUid();
 
   useEffect(() => {
     if (!id) return;
 
     const fetchItem = async () => {
       try {
-        const docRef = doc(db, 'market_items', id);
+        const docRef = doc(db, 'products', id); // market_items → products로 변경
         const docSnap = await getDoc(docRef);
         
         if (docSnap.exists()) {
-          setItem({ id: docSnap.id, ...docSnap.data() } as MarketItem);
+          setItem({ id: docSnap.id, ...docSnap.data() } as ProductDoc);
         } else {
           console.log('상품을 찾을 수 없습니다');
         }
@@ -78,8 +67,25 @@ export default function MarketDetail() {
 
   const prevImage = () => {
     setCurrentImageIndex((prev) => 
-      prev === 0 ? (item.images?.length || 1) - 1 : prev - 1
+      prev === 0 ? (item.images?.length || 1) - 1 : prev + 1
     );
+  };
+
+  // 상태 변경 처리
+  const handleStatusChange = (newStatus: "active" | "sold") => {
+    if (item) {
+      setItem(prev => prev ? { ...prev, status: newStatus } : null);
+    }
+  };
+
+  const formatPrice = (price: number) => {
+    return price.toLocaleString('ko-KR') + '원';
+  };
+
+  const formatDate = (timestamp: any) => {
+    if (!timestamp) return '날짜 정보 없음';
+    const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+    return date.toLocaleDateString('ko-KR');
   };
 
   return (
@@ -204,12 +210,17 @@ export default function MarketDetail() {
 
         {/* 상품 정보 섹션 */}
         <div>
-          <h1 style={{ fontSize: 28, fontWeight: 700, marginBottom: 16, lineHeight: 1.3 }}>
-            {item.title}
-          </h1>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
+            <h1 style={{ fontSize: 28, fontWeight: 700, lineHeight: 1.3, flex: 1 }}>
+              {item.title}
+            </h1>
+            <div style={{ marginLeft: 16 }}>
+              <FavoriteButton itemId={item.id} size="lg" />
+            </div>
+          </div>
 
           <div style={{ fontSize: 24, fontWeight: 700, color: '#2563eb', marginBottom: 24 }}>
-            {item.price.toLocaleString()}원
+            {formatPrice(item.price)}
           </div>
 
           <div style={{ marginBottom: 24 }}>
@@ -221,16 +232,56 @@ export default function MarketDetail() {
             </p>
           </div>
 
+          {/* 위치 정보 */}
+          {item.region && item.region.provider !== 'none' && (
+            <div style={{ marginBottom: 24 }}>
+              <h3 style={{ fontSize: 16, fontWeight: 600, marginBottom: 8, color: '#374151' }}>
+                위치
+              </h3>
+              <div style={{ 
+                padding: '16px', 
+                backgroundColor: '#f8f9fa', 
+                borderRadius: '8px',
+                fontSize: '16px',
+                color: '#374151'
+              }}>
+                📍 {item.region.full || `${item.region.si} ${item.region.gu} ${item.region.dong}`}
+              </div>
+            </div>
+          )}
+
           <div style={{ marginBottom: 24 }}>
             <h3 style={{ fontSize: 16, fontWeight: 600, marginBottom: 8, color: '#374151' }}>
               등록 정보
             </h3>
             <div style={{ color: '#6b7280', fontSize: 14 }}>
-              <div>등록일: {item.createdAt?.toDate ? 
-                item.createdAt.toDate().toLocaleDateString('ko-KR') : 
-                '날짜 정보 없음'
-              }</div>
-              <div>상태: {item.status === 'active' ? '판매중' : '판매완료'}</div>
+              <div>등록일: {formatDate(item.createdAt)}</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 8 }}>
+                <span>상태:</span>
+                <StatusBadge status={item.status} size="md" />
+                {uid === item.sellerId && (
+                  <button
+                    onClick={() => setIsStatusModalOpen(true)}
+                    style={{
+                      padding: '4px 8px',
+                      fontSize: 12,
+                      color: '#2563eb',
+                      backgroundColor: '#eff6ff',
+                      border: '1px solid #dbeafe',
+                      borderRadius: 6,
+                      cursor: 'pointer'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.backgroundColor = '#dbeafe';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.backgroundColor = '#eff6ff';
+                    }}
+                  >
+                    상태 변경
+                  </button>
+                )}
+              </div>
             </div>
           </div>
 
@@ -383,6 +434,16 @@ export default function MarketDetail() {
           )}
         </div>
       </div>
+
+      {/* 상태 변경 모달 */}
+      {item && (
+        <StatusChangeModal
+          item={item}
+          isOpen={isStatusModalOpen}
+          onClose={() => setIsStatusModalOpen(false)}
+          onStatusChange={handleStatusChange}
+        />
+      )}
     </div>
   );
 } 

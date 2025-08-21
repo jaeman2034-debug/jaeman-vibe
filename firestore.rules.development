@@ -1,0 +1,85 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 개발 환경용 보안 규칙 (프로덕션보다 유연)
+    
+    // 기본적으로 인증된 사용자만 접근
+    function isAuthed() {
+      return request.auth != null;
+    }
+    
+    // 사용자 프로필 (자신만 읽기/쓰기)
+    match /users/{userId} {
+      allow read, write: if isAuthed() && request.auth.uid == userId;
+    }
+    
+    // 상품 아이템 (인증된 사용자 읽기, 자신의 상품만 쓰기)
+    match /market_items/{itemId} {
+      allow read: if isAuthed();
+      allow create: if isAuthed() && request.auth.uid == resource.data.ownerId;
+      allow update: if isAuthed() && request.auth.uid == resource.data.ownerId;
+      allow delete: if isAuthed() && request.auth.uid == resource.data.ownerId;
+    }
+    
+    // 찜하기 (자신의 찜만 읽기/쓰기)
+    match /favorites/{userId}/items/{itemId} {
+      allow read, write: if isAuthed() && request.auth.uid == userId;
+    }
+    
+    // 상태 변경 이력 (자신의 상품 변경 이력만 읽기, 생성은 상품 소유자만)
+    match /status_changes/{changeId} {
+      allow read: if isAuthed() && 
+        exists(/databases/$(database)/documents/market_items/$(resource.data.itemId)) &&
+        get(/databases/$(database)/documents/market_items/$(resource.data.itemId)).data.ownerId == request.auth.uid;
+      allow create: if isAuthed() && 
+        exists(/databases/$(database)/documents/market_items/$(request.resource.data.itemId)) &&
+        get(/databases/$(database)/documents/market_items/$(request.resource.data.itemId)).data.ownerId == request.auth.uid;
+      allow update: if false; // 이력 수정 금지
+      allow delete: if false; // 이력 삭제 금지
+    }
+    
+    // 개발용 임시 데이터 (인증된 사용자만)
+    match /dev_temp/{docId} {
+      allow read, write: if isAuthed();
+    }
+    
+    // 공개 설정 (모든 인증된 사용자 읽기, 관리자만 쓰기)
+    match /settings/{settingId} {
+      allow read: if isAuthed();
+      allow write: if isAuthed() && 
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    
+    // 카테고리 (모든 인증된 사용자 읽기, 관리자만 쓰기)
+    match /categories/{categoryId} {
+      allow read: if isAuthed();
+      allow write: if isAuthed() && 
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    
+    // 지역 정보 (모든 인증된 사용자 읽기, 관리자만 쓰기)
+    match /regions/{regionId} {
+      allow read: if isAuthed();
+      allow write: if isAuthed() && 
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    
+    // 사용자 통계 (자신의 통계만 읽기)
+    match /user_stats/{userId} {
+      allow read: if isAuthed() && request.auth.uid == userId;
+      allow write: if isAuthed() && request.auth.uid == userId;
+    }
+    
+    // 상품 통계 (모든 인증된 사용자 읽기, 관리자만 쓰기)
+    match /product_stats/{statId} {
+      allow read: if isAuthed();
+      allow write: if isAuthed() && 
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+  }
+} 

@@ -1,10 +1,16 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { finishSignup } from '../features/auth/phoneService';
 import { extractPhoneKO } from '../features/voice/phoneParser';
-import { auth } from '@/firebase';
+import { auth, db } from '@/firebase';
+import { getUid } from '@/lib/auth';
 import { usePttStt } from '@/hooks/usePttStt';
 import { sendSms, verifySmsCode, toE164KR } from '../lib/sms';
+import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { updateProfile } from 'firebase/auth';
+import { PhoneAuthProvider, signInWithCredential } from 'firebase/auth';
+import { RecaptchaVerifier } from 'firebase/auth';
+
 
 type Step = 'phone' | 'code' | 'name';
 
@@ -127,6 +133,30 @@ const PhoneVoiceSignup = () => {
       }
       
       await finishSignup(user, name.trim());
+      nav('/home');
+    } catch (e: any) {
+      console.error('[PROFILE] save error:', e);
+      setErr('프로필 저장에 실패했습니다: ' + (e?.message || '알 수 없는 오류'));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function saveProfile() {
+    try {
+      if (!name.trim()) {
+        setErr('이름을 입력해주세요.');
+        return;
+      }
+      
+      setBusy(true);
+      const uid = getUid();
+      if (!uid) {
+        setErr('사용자 정보를 찾을 수 없습니다. 다시 시도해주세요.');
+        return;
+      }
+      
+      await finishSignup({ uid } as any, name.trim());
       nav('/home');
     } catch (e: any) {
       console.error('[PROFILE] save error:', e);

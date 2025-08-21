@@ -1,6 +1,6 @@
-import { useState } from "react";
-import { getAuth } from "firebase/auth";
-import { createDoc } from "../../lib/writeDoc";
+import React, { useState } from "react";
+import { createDoc } from "../../lib/firebase";
+import { getUid } from "../../lib/auth";
 
 export default function ProductCreateExample() {
   const [loading, setLoading] = useState(false);
@@ -15,8 +15,8 @@ export default function ProductCreateExample() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    const user = getAuth().currentUser;
-    if (!user) return alert("로그인이 필요합니다.");
+    const uid = getUid();
+    if (!uid) return alert("로그인이 필요합니다.");
 
     setLoading(true);
     try {
@@ -27,7 +27,7 @@ export default function ProductCreateExample() {
         category: formData.category || undefined,
         location: formData.location || undefined,
         tags: formData.tags ? formData.tags.split(",").map(s => s.trim()).filter(Boolean) : undefined,
-      }, user.uid);
+      }, uid);
 
       alert("상품 등록 완료!");
       setFormData({ title: "", price: "", imageUrl: "", category: "", location: "", tags: "" });

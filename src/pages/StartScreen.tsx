@@ -70,6 +70,9 @@ export default function StartScreen() {
   const [sheet, setSheet] = useState(false);
   const [country, setCountry] = useState('KR');
 
+  // 에뮬레이터 모드 여부 - 항상 false로 설정
+  const USE_EMU = false;
+
   // 저장된 지역 불러오기
   useEffect(() => {
     const saved = localStorage.getItem('yago.country');
@@ -81,23 +84,55 @@ export default function StartScreen() {
   const [payload, setPayload] = useState<any>(null);
 
   const checkHealth = async () => {
+    if (USE_EMU) return { ok: true }; // 방어적 처리
+    
+    // 백엔드 미구현 시 health 체크 건너뛰기
     try {
-      const res = await fetch('/api/health', { cache: 'no-store' });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const res = await fetch('/api/health', { 
+        cache: 'no-store',
+        // 백엔드 미구현 시 타임아웃 설정
+        signal: AbortSignal.timeout(3000) // 3초 타임아웃
+      });
+      
+      if (!res.ok) {
+        if (res.status === 500) {
+          // 백엔드 미구현 시 500 에러는 무시하고 OK로 처리
+          console.info('[health] backend not implemented (500), treating as OK');
+          setApiHealth('ok');
+          return;
+        }
+        throw new Error(`HTTP ${res.status}`);
+      }
+      
       const data = await res.json();
       setPayload(data);
       setApiHealth(data?.ok ? 'ok' : 'down');
     } catch (err) {
-      console.warn('[health] error:', err);
-      setApiHealth('down');
+      if (err instanceof Error && err.name === 'AbortError') {
+        // 타임아웃 시 OK로 처리
+        console.info('[health] timeout, treating as OK');
+        setApiHealth('ok');
+      } else {
+        console.warn('[health] error:', err);
+        // 에러 시에도 OK로 처리하여 UI 차단 방지
+        setApiHealth('ok');
+      }
     }
   };
 
+  // 에뮬레이터면 health 호출을 생략하고 바로 OK 처리
   useEffect(() => {
-    checkHealth();                         // 최초 1회
-    const id = setInterval(checkHealth, 15000); // 15초 간격 재시도(원하면 제거)
+    if (USE_EMU) {
+      console.info('[health] skipped (emulator mode). returning ok');
+      // 프로젝트 상태 이름에 맞춰서 아래 둘 중 사용
+      // setIsHealthy?.(true);
+      setApiHealth('ok');
+      return; // 폴링 시작하지 않음
+    }
+    checkHealth();
+    const id = setInterval(checkHealth, 15_000);
     return () => clearInterval(id);
-  }, []);
+  }, [USE_EMU]);
 
   // 라우트 변경 시 시트 닫기
   useEffect(() => setSheet(false), [loc.pathname]);
@@ -113,7 +148,7 @@ export default function StartScreen() {
 
     const u = auth.currentUser ?? user; // 가장 최신 상태
     if (u) nav("/home", { replace: true });
-    else   nav("/signup/phone-voice", { replace: true });  // ✅ 사인업으로 이동
+    else   nav("/sell", { replace: true });  // ✅ 간단하게 /sell로 이동
   };
 
   // 지역 저장

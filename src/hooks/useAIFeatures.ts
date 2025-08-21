@@ -1,118 +1,182 @@
 import { useState, useCallback } from 'react';
-import { ProductAnalysis, Location } from '../features/market/types';
+import { 
+  analyzeProductImage, 
+  analyzeMultipleImages,
+  validateImageFile,
+  getErrorMessage,
+  type AIAnalysis 
+} from '../services/aiService';
 
-interface AIFeaturesState {
-  capturedImages: File[];
-  analysis: ProductAnalysis | null;
-  location: Location | null;
-  isProcessing: boolean;
+export interface AIAnalysisResult extends AIAnalysis {}
+
+export interface AIAnalysisError {
+  error: string;
+  message: string;
 }
 
-export function useAIFeatures() {
-  const [state, setState] = useState<AIFeaturesState>({
-    capturedImages: [],
-    analysis: null,
-    location: null,
-    isProcessing: false
-  });
+export const useAIFeatures = () => {
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [lastAnalysis, setLastAnalysis] = useState<AIAnalysisResult | null>(null);
+  const [lastError, setLastError] = useState<AIAnalysisError | null>(null);
+  const [analysisProgress, setAnalysisProgress] = useState(0);
+  const [currentFile, setCurrentFile] = useState<File | null>(null);
 
-  // 이미지 캡처 완료
-  const handleImageCapture = useCallback((images: File[]) => {
-    setState(prev => ({
-      ...prev,
-      capturedImages: images,
-      isProcessing: true
-    }));
-  }, []);
+  const analyzeProductImageWithHook = useCallback(async (
+    file: File, 
+    prompt?: string
+  ): Promise<AIAnalysisResult | null> => {
+    setIsAnalyzing(true);
+    setLastError(null);
+    setAnalysisProgress(0);
+    setCurrentFile(file);
 
-  // AI 분석 완료
-  const handleAnalysisComplete = useCallback((analysis: ProductAnalysis) => {
-    setState(prev => ({
-      ...prev,
-      analysis,
-      isProcessing: false
-    }));
-  }, []);
+    try {
+      // 1. 파일 유효성 검사
+      const validation = validateImageFile(file);
+      if (!validation.valid) {
+        throw new Error(validation.error || 'invalid-file');
+      }
 
-  // 위치 설정 완료
-  const handleLocationSet = useCallback((location: Location) => {
-    setState(prev => ({
-      ...prev,
-      location
-    }));
-  }, []);
+      // 2. 진행률 시뮬레이션 (사용자 경험 향상)
+      const progressInterval = setInterval(() => {
+        setAnalysisProgress(prev => {
+          if (prev >= 90) return prev;
+          return prev + Math.random() * 10;
+        });
+      }, 200);
 
-  // 검색 결과 선택
-  const handleSearchResultSelect = useCallback((itemId: string) => {
-    // 실제로는 상품 상세 페이지로 이동
-    console.log('선택된 상품:', itemId);
-  }, []);
-
-  // AI 워크플로우 시작
-  const startAIWorkflow = useCallback(() => {
-    setState(prev => ({
-      ...prev,
-      capturedImages: [],
-      analysis: null,
-      isProcessing: false
-    }));
-  }, []);
-
-  // AI 워크플로우 완료
-  const completeAIWorkflow = useCallback(() => {
-    if (state.capturedImages.length > 0 && state.analysis) {
-      // 실제로는 상품 등록 페이지로 이동하거나 데이터 전달
-      console.log('AI 워크플로우 완료:', {
-        images: state.capturedImages,
-        analysis: state.analysis,
-        location: state.location
-      });
+      // 3. AI 분석 실행
+      const result = await analyzeProductImage(file, prompt);
       
-      return {
-        success: true,
-        data: {
-          images: state.capturedImages,
-          analysis: state.analysis,
-          location: state.location
-        }
-      };
-    }
-    
-    return {
-      success: false,
-      error: '필수 정보가 누락되었습니다.'
-    };
-  }, [state]);
+      // 4. 진행률 완료
+      clearInterval(progressInterval);
+      setAnalysisProgress(100);
 
-  // 상태 초기화
-  const resetState = useCallback(() => {
-    setState({
-      capturedImages: [],
-      analysis: null,
-      location: null,
-      isProcessing: false
-    });
+      // 5. 결과 저장
+      setLastAnalysis(result);
+      return result;
+
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'unknown-error';
+      const userMessage = getErrorMessage(errorMessage);
+      
+      const aiError: AIAnalysisError = {
+        error: errorMessage,
+        message: userMessage
+      };
+      
+      setLastError(aiError);
+      console.error('[AI_ANALYZE] 분석 실패:', error);
+      return null;
+    } finally {
+      setIsAnalyzing(false);
+      setCurrentFile(null);
+      // 진행률 초기화는 약간의 지연 후
+      setTimeout(() => setAnalysisProgress(0), 1000);
+    }
   }, []);
+
+  const analyzeMultipleImagesWithHook = useCallback(async (
+    files: File[], 
+    prompt?: string
+  ): Promise<AIAnalysisResult[]> => {
+    setIsAnalyzing(true);
+    setLastError(null);
+    setAnalysisProgress(0);
+
+    try {
+      // 1. 모든 파일 유효성 검사
+      const validations = files.map(file => validateImageFile(file));
+      const invalidFiles = validations.filter(v => !v.valid);
+      
+      if (invalidFiles.length > 0) {
+        const firstError = invalidFiles[0].error || 'invalid-file';
+        throw new Error(firstError);
+      }
+
+      // 2. 진행률 시뮬레이션
+      const progressInterval = setInterval(() => {
+        setAnalysisProgress(prev => {
+          if (prev >= 90) return prev;
+          return prev + Math.random() * 5;
+        });
+      }, 300);
+
+      // 3. 다중 이미지 분석
+      const results = await analyzeMultipleImages(files, prompt);
+      
+      // 4. 진행률 완료
+      clearInterval(progressInterval);
+      setAnalysisProgress(100);
+
+      // 5. 첫 번째 결과를 마지막 분석으로 설정
+      if (results.length > 0 && !results[0].error) {
+        setLastAnalysis(results[0]);
+      }
+
+      return results;
+
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'unknown-error';
+      const userMessage = getErrorMessage(errorMessage);
+      
+      const aiError: AIAnalysisError = {
+        error: errorMessage,
+        message: userMessage
+      };
+      
+      setLastError(aiError);
+      console.error('[AI_ANALYZE] 다중 이미지 분석 실패:', error);
+      return [];
+    } finally {
+      setIsAnalyzing(false);
+      setTimeout(() => setAnalysisProgress(0), 1000);
+    }
+  }, []);
+
+  const clearAnalysis = useCallback(() => {
+    setLastAnalysis(null);
+    setLastError(null);
+    setAnalysisProgress(0);
+    setCurrentFile(null);
+  }, []);
+
+  const getAnalysisStatus = useCallback(() => {
+    if (isAnalyzing) return 'analyzing';
+    if (lastError) return 'error';
+    if (lastAnalysis) return 'success';
+    return 'idle';
+  }, [isAnalyzing, lastError, lastAnalysis]);
+
+  const retryAnalysis = useCallback(async () => {
+    if (currentFile) {
+      return await analyzeProductImageWithHook(currentFile);
+    }
+    return null;
+  }, [currentFile, analyzeProductImageWithHook]);
 
   return {
     // 상태
-    ...state,
+    isAnalyzing,
+    lastAnalysis,
+    lastError,
+    analysisStatus: getAnalysisStatus(),
+    analysisProgress,
+    currentFile,
     
     // 액션
-    handleImageCapture,
-    handleAnalysisComplete,
-    handleLocationSet,
-    handleSearchResultSelect,
-    startAIWorkflow,
-    completeAIWorkflow,
-    resetState,
+    analyzeProductImage: analyzeProductImageWithHook,
+    analyzeMultipleImages: analyzeMultipleImagesWithHook,
+    clearAnalysis,
+    retryAnalysis,
     
     // 유틸리티
-    canProceed: state.capturedImages.length > 0 && state.analysis !== null,
-    workflowProgress: {
-      images: state.capturedImages.length > 0 ? 100 : 0,
-      analysis: state.analysis ? 100 : 0,
-      location: state.location ? 100 : 0
-    }
+    hasAnalysis: !!lastAnalysis,
+    hasError: !!lastError,
+    canRetry: !!currentFile && !isAnalyzing,
+    
+    // 진행률 정보
+    progressPercentage: Math.round(analysisProgress),
+    isProgressComplete: analysisProgress >= 100,
   };
-} 
+}; 

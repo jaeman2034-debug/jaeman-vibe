@@ -22,9 +22,7 @@ dist-ssr
 *.sln
 *.sw?
 # env files
-.env
-.env.production
-.env.staging
+.env*
 !.env.example
 
 # telemetry logs

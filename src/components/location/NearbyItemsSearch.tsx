@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { searchItemsByLocation, LocationSearchOptions } from '../../services/locationService';
-import { MarketItem, Location } from '../../features/market/types';
+import type { MarketItem, Location } from '../../features/market/types';
 
 interface NearbyItemsSearchProps {
   userLocation: Location;

@@ -2,6 +2,21 @@ import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { signInWithEmail, loginWithGoogle } from '../features/auth/authService';
 
+// 사람친화적인 인증 오류 메시지 매핑
+const AUTH_MSG: Record<string, string> = {
+  'auth/user-not-found': '가입되지 않은 이메일입니다.',
+  'auth/wrong-password': '비밀번호가 올바르지 않습니다.',
+  'auth/invalid-credential': '이메일 또는 비밀번호가 올바르지 않습니다.',
+  'auth/too-many-requests': '요청이 많습니다. 잠시 후 다시 시도하세요.',
+  'auth/network-request-failed': '네트워크 오류입니다. 인터넷 연결을 확인해주세요.',
+  'auth/invalid-email': '올바른 이메일 형식이 아닙니다.',
+  default: '로그인에 실패했습니다. 잠시 후 다시 시도하세요.',
+};
+
+function humanize(code?: string) {
+  return (code && AUTH_MSG[code]) || `${AUTH_MSG.default}${code ? ` (${code})` : ''}`;
+}
+
 export default function Login() {
   const nav = useNavigate();
   const [email, setEmail] = useState('');
@@ -16,7 +31,7 @@ export default function Login() {
       await signInWithEmail(email, pw);
       nav('/home');
     } catch (e: any) {
-      setErr(e?.message || '로그인에 실패했습니다.');
+      setErr(humanize(e?.message)); // e.message에 'auth/...' 코드가 담겨옴
     } finally { setBusy(false); }
   };
 

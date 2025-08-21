@@ -1,0 +1,38 @@
+rules_version = '2';
+
+// 개발 환경용 Storage 보안 규칙
+service firebase.storage {
+  match /b/{bucket}/o {
+    // 기본적으로 인증된 사용자만 접근
+    match /{allPaths=**} {
+      allow read, write: if request.auth != null;
+    }
+    
+    // 사용자 프로필 이미지 (자신만 읽기/쓰기)
+    match /users/{userId}/profile/{fileName} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // 상품 이미지 (자신의 상품만 쓰기, 모든 인증된 사용자 읽기)
+    match /products/{userId}/{fileName} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // 공개 이미지 (모든 인증된 사용자 읽기/쓰기)
+    match /public/{fileName} {
+      allow read, write: if request.auth != null;
+    }
+    
+    // 임시 업로드 (인증된 사용자만)
+    match /temp/{userId}/{fileName} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // 개발용 임시 파일 (인증된 사용자만)
+    match /dev_temp/{fileName} {
+      allow read, write: if request.auth != null;
+    }
+  }
+} 

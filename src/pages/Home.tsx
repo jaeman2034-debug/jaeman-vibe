@@ -1,7 +1,7 @@
 import { Link, useNavigate } from "react-router-dom";
 import { useMemo } from "react";
 import { useModal } from "../components/ModalHost";
-import { useAuthUser } from "../lib/auth";
+import { getUid } from "../lib/auth";
 import { canAccessDev } from "../lib/devMode";
 import Header from "../components/layout/Header";
 import FooterNav from "../components/layout/FooterNav";
@@ -26,8 +26,8 @@ const ROUTES = {
 export default function Home() {
   const navigate = useNavigate();
   const { open } = useModal();
-  const user = useAuthUser();
-  const showDev = useMemo(() => user !== undefined && canAccessDev(user || null), [user]);
+  const uid = getUid();
+  const showDev = useMemo(() => uid && canAccessDev({ uid } as any), [uid]);
 
   return (
     <div className="min-h-dvh bg-gradient-to-b from-white to-zinc-50 dark:from-zinc-950 dark:to-zinc-900 pb-16 md:pb-0">

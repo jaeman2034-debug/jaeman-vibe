@@ -1,7 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { sendOtp, toE164KR, finishSignup } from '../features/auth/phoneService';
 import { auth } from '@/firebase';
+import { getUid } from '@/lib/auth';
+import { finishSignup } from '../features/auth/phoneService';
+import { sendOtp } from '../lib/sms';
+import { toE164KR } from '../lib/sms';
 
 export default function PhoneSignup() {
   const nav = useNavigate();
@@ -48,8 +51,12 @@ export default function PhoneSignup() {
     e.preventDefault(); setErr('');
     try {
       setBusy(true);
-      const user = auth.currentUser!;
-      await finishSignup(user, name.trim());
+      const uid = getUid();
+      if (!uid) {
+        setErr('사용자 정보를 찾을 수 없습니다.');
+        return;
+      }
+      await finishSignup({ uid } as any, name.trim());
       alert('가입 완료!');
       nav('/home');
     } catch (e: any) {

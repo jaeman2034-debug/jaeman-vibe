@@ -18,44 +18,47 @@ export const ITEM_STATUS = ['active', 'sold'] as const;
 
 export const CONDITION_GRADES = ['A', 'B', 'C'] as const; // A: 최상, B: 상, C: 하
 
-// 상품 아이템 타입
+// 위치 정보 타입 (새로 추가)
+export type Geo = {
+  lat: number;
+  lng: number;
+  geohash: string;
+  accuracy?: number;  // 브라우저가 준 정확도(m)
+  ts?: number;        // 저장 시각
+};
+
+export type Location = {
+  lat: number;
+  lng: number;
+  geohash?: string;
+  regionCode?: string | null;
+};
+
+// 기본 좌표 상수 (런타임 값으로 사용)
+export const LOCATION_DEFAULT = { lat: 37.5665, lng: 126.9780 } as const; // 서울 시청
+export const LOCATION_EMPTY = { lat: 0, lng: 0 } as const;
+
+export type Condition = '새상품' | '최상' | '상' | '중' | '하';
+
 export interface MarketItem {
-  id: string;
+  id?: string;
   title: string;
-  description: string;
   price: number;
-  category: typeof CATEGORIES[number];
-  region: typeof REGIONS[number];
+  description: string;
+  category?: typeof CATEGORIES[number];
+  region?: typeof REGIONS[number];
   images: string[];
   ownerId: string;
-  createdAt: any; // Firestore Timestamp
-  status: typeof ITEM_STATUS[number];
-  
-  // 구조화된 속성
-  brand?: string;
-  model?: string;
-  color?: string;
-  size?: string;
-  
-  // 상태 및 품질
-  condition?: typeof CONDITION_GRADES[number];
-  defects?: string[];
-  
-  // AI 분석 결과
+  createdAt?: any;  // Timestamp | Date (간단히 any)
+  status: 'active' | 'reserved' | 'sold';
+  geo?: Geo | null;  // 새로운 Geo 타입 사용
   ai?: {
-    quality_score: number;
-    confidence: number;
-    tags: string[];
-    ocr?: string[];
-    embedding?: number[]; // 벡터 검색용
-  };
-  
-  // 지리 정보
-  geo?: {
-    latitude: number;
-    longitude: number;
-    geohash: string;
-    region: typeof REGIONS[number];
+    category?: string;
+    condition?: string;
+    tags?: string[];
+    brand?: string;
+    color?: string;
+    title?: string;
   };
 }
 
@@ -117,6 +120,11 @@ export interface Favorite {
   createdAt: any; // Firestore Timestamp
 }
 
+// 찜하기 상세 타입 (상품 정보 포함)
+export interface FavoriteWithItem extends Favorite {
+  item: MarketItem;
+}
+
 // 가격 제안 타입
 export interface Offer {
   id: string;
@@ -170,13 +178,7 @@ export interface ProductAnalysis {
   };
 }
 
-// 위치 정보 타입
-export interface Location {
-  latitude: number;
-  longitude: number;
-  geohash: string;
-  address?: string;
-}
+
 
 // 검색 결과 타입
 export interface SearchResult {
@@ -189,6 +191,7 @@ export interface SearchResult {
   distance?: number;
   relevance: number;
   imageUrl: string;
+  createdAt?: any; // Firestore Timestamp
   ai?: {
     quality_score: number;
     confidence: number;

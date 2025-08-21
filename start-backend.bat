@@ -31,11 +31,11 @@ if not exist "node_modules" (
 
 echo.
 echo 🎯 백엔드 서버 시작:
-echo    포트: 3000
-echo    엔드포인트: http://localhost:3000/api/health
+echo    포트: 3001
+echo    엔드포인트: http://localhost:3001/api/health
 echo.
 
-node server.js
+node server.cjs
 
 echo.
 echo 💡 백엔드가 종료되었습니다.

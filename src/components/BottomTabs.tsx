@@ -1,11 +1,11 @@
 import { NavLink, Link } from 'react-router-dom';
-import { useAuth } from '../features/auth/AuthProvider';
+import { getUid } from '../lib/auth';
 
 const tabBase =
   'px-3 py-2 rounded-lg';
 
 export default function BottomTabs() {
-  const { user } = useAuth();
+  const uid = getUid();
   return (
     <nav
       style={{
@@ -20,7 +20,7 @@ export default function BottomTabs() {
       <NavLink to="/jobs" className={({isActive}) => `${tabBase} ${isActive ? 'bg-blue-600 text-white' : 'text-gray-700'}`}>일자리</NavLink>
       <NavLink to="/groups" className={({isActive}) => `${tabBase} ${isActive ? 'bg-blue-600 text-white' : 'text-gray-700'}`}>모임</NavLink>
       <NavLink to="/my" className={({isActive}) => `${tabBase} ${isActive ? 'bg-blue-600 text-white' : 'text-gray-700'}`}>마이</NavLink>
-      {user && (
+      {uid && (
         <Link to="/products/new" className={`${tabBase} border`}>
           판매 등록
         </Link>

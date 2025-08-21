@@ -34,6 +34,17 @@ app.use(cors({ origin: true }));
 // 헬스체크
 app.get('/healthz', (_, res) => res.send('ok'));
 
+// ✅ 프런트 빌드 산출물(dist) 서빙
+const distPath = path.join(__dirname, 'dist');   // CRA면 'build'로 변경
+app.use(express.static(distPath));
+
+// ✅ SPA 라우팅용 (API가 아닌 모든 경로는 index.html 반환)
+app.get('*', (req, res, next) => {
+  // API 경로가 있다면 제외 (예: /api)
+  if (req.path.startsWith('/api') || req.path === '/healthz') return next();
+  res.sendFile(path.join(distPath, 'index.html'));
+});
+
 // 지오코딩 캐시 + 백오프
 const geoCache = new Map(); // key: normalized addr, value: { data, exp }
 

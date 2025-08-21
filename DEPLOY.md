@@ -5,6 +5,37 @@
 - **Frontend**: https://jaeman-vibe.vercel.app
 
 ## 백엔드(Render)
+
+### 자동 배포 설정 (GitHub Actions)
+
+#### 1. Repository Secrets 설정
+GitHub 저장소의 **Settings → Secrets and variables → Actions**에서 다음 두 개의 secret을 추가하세요:
+
+- **`RENDER_API_KEY`**: Render Account → API Keys에서 생성
+- **`RENDER_SERVICE_ID`**: Render 대시보드 → Settings → Service ID
+
+#### 2. 자동 배포 활성화
+`main` 브랜치에 push하면 자동으로 Render 배포가 트리거됩니다.
+
+### 수동 배포
+
+#### Windows PowerShell
+```powershell
+$env:RENDER_API_KEY="PASTE_KEY_HERE"
+$env:RENDER_SERVICE_ID="PASTE_SERVICE_ID"
+iwr https://api.render.com/v1/services/$env:RENDER_SERVICE_ID/deploys `
+    -Method Post -Headers @{Authorization="Bearer $env:RENDER_API_KEY"}
+```
+
+#### macOS/Linux
+```bash
+export RENDER_API_KEY=PASTE_KEY_HERE
+export RENDER_SERVICE_ID=PASTE_SERVICE_ID
+curl -X POST -H "Authorization: Bearer $RENDER_API_KEY" \
+  https://api.render.com/v1/services/$RENDER_SERVICE_ID/deploys
+```
+
+### Render 서비스 설정
 1. GitHub 연결 → New → Web Service
 2. Build Command: (비움)  Start Command: `node server.cjs`
 3. Environment: Node 20+
@@ -44,3 +75,12 @@
 - /products/new: 주소 검색/저장 → Firestore/Storage 확인
 - /products/near: 반경/정렬/동네 토글, 지도/길찾기
 - /api/* 호출이 Vercel → Render 로 rewrite 되는지 Network 탭 확인
+
+## 배포 상태 확인
+
+배포 후 다음 URL에서 헬스체크를 확인하세요:
+```
+https://jaeman-api.onrender.com/healthz
+```
+
+"ok" 응답이 오면 배포가 완료된 것입니다.

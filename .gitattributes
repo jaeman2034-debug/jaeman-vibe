@@ -1,0 +1,19 @@
+# 기본: 텍스트 자동 감지
+* text=auto
+
+# 소스/설정 파일은 커밋 시 LF로 고정
+*.sh      text eol=lf
+*.ts      text eol=lf
+*.tsx     text eol=lf
+*.js      text eol=lf
+*.jsx     text eol=lf
+*.json    text eol=lf
+*.md      text eol=lf
+*.css     text eol=lf
+*.scss    text eol=lf
+*.html    text eol=lf
+*.yml     text eol=lf
+*.yaml    text eol=lf
+*.graphql text eol=lf
+*.sql     text eol=lf
+*.env.example text eol=lf 

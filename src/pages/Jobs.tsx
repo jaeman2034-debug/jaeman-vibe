@@ -1,0 +1,1 @@
+export default function Jobs(){ return <div style={{padding:24}}>💼 Jobs</div>; } 

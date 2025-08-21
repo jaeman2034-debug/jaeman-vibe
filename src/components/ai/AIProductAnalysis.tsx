@@ -1,0 +1,348 @@
+import React, { useState, useRef, useCallback } from 'react';
+import { Camera, Upload, X, RefreshCw, CheckCircle, AlertCircle, RotateCcw } from 'lucide-react';
+import { useAIFeatures, type AIAnalysisResult } from '../../hooks/useAIFeatures';
+import { validateImageFile, getErrorMessage } from '../../services/aiService';
+
+interface AIProductAnalysisProps {
+  onAnalysisComplete?: (result: AIAnalysisResult) => void;
+  onClose?: () => void;
+  className?: string;
+}
+
+export const AIProductAnalysis: React.FC<AIProductAnalysisProps> = ({
+  onAnalysisComplete,
+  onClose,
+  className = ''
+}) => {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [selectedImage, setSelectedImage] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string>('');
+  const [customPrompt, setCustomPrompt] = useState('');
+  const [dragActive, setDragActive] = useState(false);
+  
+  const {
+    isAnalyzing,
+    lastAnalysis,
+    lastError,
+    analysisStatus,
+    analysisProgress,
+    analyzeProductImage,
+    clearAnalysis,
+    retryAnalysis,
+    hasAnalysis,
+    hasError,
+    canRetry,
+    progressPercentage
+  } = useAIFeatures();
+
+  // 이미지 선택 처리
+  const handleImageSelect = useCallback((file: File) => {
+    // 파일 유효성 검사
+    const validation = validateImageFile(file);
+    if (!validation.valid) {
+      const errorMessage = getErrorMessage(validation.error || 'invalid-file');
+      alert(errorMessage);
+      return;
+    }
+
+    setSelectedImage(file);
+    
+    // 미리보기 생성
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      setImagePreview(e.target?.result as string);
+    };
+    reader.readAsDataURL(file);
+    
+    // 이전 분석 결과 초기화
+    clearAnalysis();
+  }, [clearAnalysis]);
+
+  // 파일 드롭 처리
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setDragActive(false);
+    
+    const files = Array.from(e.dataTransfer.files);
+    if (files.length > 0) {
+      handleImageSelect(files[0]);
+    }
+  }, [handleImageSelect]);
+
+  // 드래그 오버 처리
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setDragActive(true);
+  }, []);
+
+  // 드래그 리브 처리
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setDragActive(false);
+  }, []);
+
+  // 이미지 분석 시작
+  const startAnalysis = useCallback(async () => {
+    if (!selectedImage) return;
+
+    try {
+      const result = await analyzeProductImage(selectedImage, customPrompt);
+      if (result && onAnalysisComplete) {
+        onAnalysisComplete(result);
+      }
+    } catch (error) {
+      console.error('이미지 분석 실패:', error);
+    }
+  }, [selectedImage, customPrompt, analyzeProductImage, onAnalysisComplete]);
+
+  // 새 이미지로 재시작
+  const resetAnalysis = useCallback(() => {
+    setSelectedImage(null);
+    setImagePreview('');
+    setCustomPrompt('');
+    clearAnalysis();
+  }, [clearAnalysis]);
+
+  // 이미지 제거
+  const removeImage = useCallback(() => {
+    setSelectedImage(null);
+    setImagePreview('');
+    clearAnalysis();
+  }, [clearAnalysis]);
+
+  // 재시도
+  const handleRetry = useCallback(async () => {
+    if (canRetry) {
+      await retryAnalysis();
+    }
+  }, [canRetry, retryAnalysis]);
+
+  return (
+    <div className={`bg-white rounded-lg shadow-lg p-6 max-w-2xl mx-auto ${className}`}>
+      {/* 헤더 */}
+      <div className="flex items-center justify-between mb-6">
+        <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+          <Camera className="w-6 h-6 text-blue-600" />
+          AI 상품 분석
+        </h2>
+        {onClose && (
+          <button
+            onClick={onClose}
+            className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+          >
+            <X className="w-5 h-5 text-gray-500" />
+          </button>
+        )}
+      </div>
+
+      {/* 이미지 업로드 영역 */}
+      {!selectedImage ? (
+        <div
+          className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors cursor-pointer ${
+            dragActive 
+              ? 'border-blue-400 bg-blue-50' 
+              : 'border-gray-300 hover:border-blue-400'
+          }`}
+          onClick={() => fileInputRef.current?.click()}
+          onDrop={handleDrop}
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+        >
+          <Upload className={`w-12 h-12 mx-auto mb-4 transition-colors ${
+            dragActive ? 'text-blue-600' : 'text-gray-400'
+          }`} />
+          <p className="text-lg text-gray-600 mb-2">
+            {dragActive ? '여기에 이미지를 놓으세요' : '이미지를 드래그하거나 클릭하여 업로드'}
+          </p>
+          <p className="text-sm text-gray-500">
+            JPG, PNG, WebP (최대 10MB)
+          </p>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) handleImageSelect(file);
+            }}
+            className="hidden"
+          />
+        </div>
+      ) : (
+        /* 이미지 미리보기 및 분석 */
+        <div className="space-y-4">
+          {/* 이미지 미리보기 */}
+          <div className="relative">
+            <img
+              src={imagePreview}
+              alt="상품 이미지"
+              className="w-full h-64 object-cover rounded-lg"
+            />
+            <button
+              onClick={removeImage}
+              className="absolute top-2 right-2 p-1 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+
+          {/* 커스텀 프롬프트 */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              분석 지시사항 (선택사항)
+            </label>
+            <textarea
+              value={customPrompt}
+              onChange={(e) => setCustomPrompt(e.target.value)}
+              placeholder="예: 이 축구화의 브랜드와 상태를 자세히 분석해주세요"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              rows={2}
+            />
+          </div>
+
+          {/* 분석 진행률 */}
+          {isAnalyzing && (
+            <div className="space-y-2">
+              <div className="flex items-center justify-between text-sm text-gray-600">
+                <span>AI 분석 중...</span>
+                <span>{progressPercentage}%</span>
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-2">
+                <div 
+                  className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                  style={{ width: `${progressPercentage}%` }}
+                ></div>
+              </div>
+            </div>
+          )}
+
+          {/* 분석 버튼 */}
+          <button
+            onClick={startAnalysis}
+            disabled={isAnalyzing}
+            className="w-full bg-blue-600 text-white py-3 px-4 rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
+          >
+            {isAnalyzing ? (
+              <>
+                <RefreshCw className="w-5 h-5 animate-spin" />
+                AI 분석 중... ({progressPercentage}%)
+              </>
+            ) : (
+              <>
+                <Camera className="w-5 h-5" />
+                AI로 상품 분석하기
+              </>
+            )}
+          </button>
+        </div>
+      )}
+
+      {/* 분석 결과 */}
+      {hasAnalysis && lastAnalysis && (
+        <div className="mt-6 p-4 bg-green-50 border border-green-200 rounded-lg">
+          <div className="flex items-center gap-2 mb-4">
+            <CheckCircle className="w-5 h-5 text-green-600" />
+            <h3 className="text-lg font-semibold text-green-800">AI 분석 완료</h3>
+          </div>
+          
+          <div className="space-y-3">
+            {/* 카테고리 */}
+            <div>
+              <span className="text-sm font-medium text-gray-600">카테고리:</span>
+              <span className="ml-2 px-2 py-1 bg-blue-100 text-blue-800 rounded text-sm">
+                {lastAnalysis.category || '기타'}
+              </span>
+            </div>
+
+            {/* 태그 */}
+            <div>
+              <span className="text-sm font-medium text-gray-600">태그:</span>
+              <div className="flex flex-wrap gap-1 mt-1">
+                {lastAnalysis.tags && lastAnalysis.tags.length > 0 ? (
+                  lastAnalysis.tags.map((tag, index) => (
+                    <span
+                      key={index}
+                      className="px-2 py-1 bg-gray-100 text-gray-700 rounded text-sm"
+                    >
+                      {tag}
+                    </span>
+                  ))
+                ) : (
+                  <span className="text-gray-500 text-sm">태그 없음</span>
+                )}
+              </div>
+            </div>
+
+            {/* 속성 */}
+            <div>
+              <span className="text-sm font-medium text-gray-600">속성:</span>
+              <div className="grid grid-cols-2 gap-2 mt-1">
+                {lastAnalysis.attributes && Object.entries(lastAnalysis.attributes).map(([key, value]) => (
+                  <div key={key} className="text-sm">
+                    <span className="text-gray-500">{key}:</span>
+                    <span className="ml-1 text-gray-700">
+                      {value || '알 수 없음'}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* 요약 */}
+            <div>
+              <span className="text-sm font-medium text-gray-600">요약:</span>
+              <p className="mt-1 text-gray-700">{lastAnalysis.summary || '요약 없음'}</p>
+            </div>
+          </div>
+
+          {/* 액션 버튼들 */}
+          <div className="flex gap-2 mt-4">
+            <button
+              onClick={resetAnalysis}
+              className="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors text-sm"
+            >
+              새 이미지로 다시 분석
+            </button>
+            {canRetry && (
+              <button
+                onClick={handleRetry}
+                className="px-4 py-2 bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200 transition-colors text-sm flex items-center gap-1"
+              >
+                <RotateCcw className="w-4 h-4" />
+                재시도
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* 에러 표시 */}
+      {hasError && lastError && (
+        <div className="mt-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+          <div className="flex items-center gap-2 mb-2">
+            <AlertCircle className="w-5 h-5 text-red-600" />
+            <h3 className="text-lg font-semibold text-red-800">분석 실패</h3>
+          </div>
+          <p className="text-red-700">{lastError.message}</p>
+          <div className="flex gap-2 mt-3">
+            <button
+              onClick={() => clearAnalysis()}
+              className="px-4 py-2 bg-red-100 text-red-700 rounded-md hover:bg-red-200 transition-colors text-sm"
+            >
+              닫기
+            </button>
+            {canRetry && (
+              <button
+                onClick={handleRetry}
+                className="px-4 py-2 bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200 transition-colors text-sm flex items-center gap-1"
+              >
+                <RotateCcw className="w-4 h-4" />
+                재시도
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}; 

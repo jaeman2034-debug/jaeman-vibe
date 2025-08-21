@@ -1,5 +1,5 @@
 // src/utils/speechEmail.tsx
-import React from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 
 // === 이메일 STT 핫픽스 유틸 ===
 const AT_WORDS = /(골뱅이|앳|\bat\b)/g;         // '@' 트리거
@@ -103,6 +103,7 @@ interface EmailVoiceFieldProps {
   domainSwitchedRef: React.MutableRefObject<boolean>;
   pushLog: (msg: string) => void;
   onTryNext: () => void;
+  onFinal?: (text: string) => void;   // ✅ 추가: 최종 결과 전달
 }
 
 export const EmailVoiceField: React.FC<EmailVoiceFieldProps> = ({
@@ -114,11 +115,133 @@ export const EmailVoiceField: React.FC<EmailVoiceFieldProps> = ({
   setMode,
   domainSwitchedRef,
   pushLog,
-  onTryNext
+  onTryNext,
+  onFinal
 }) => {
+  // 음성 인식기 관련 상태 및 ref
+  const [listening, setListening] = useState(false);
+  const userStopRef = useRef(false);   // 사용자가 직접 멈췄는지 여부
+  const recRef = useRef<any>(null);
+
+  // 음성 인식기 생성 및 설정
+  const ensureRecognizer = useCallback(() => {
+    const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SR) return null;
+    if (!recRef.current) {
+      const rec = new SR();
+      rec.lang = "ko-KR";
+      rec.interimResults = true;   // ✅ 중간 결과 ON
+      rec.continuous = true;       // ✅ 연속 인식 ON
+      rec.maxAlternatives = 3;
+      
+      // 최종 문장만 모아서 부모에 전달
+      rec.onresult = (e: any) => {
+        const finals: string[] = [];
+        for (let i = e.resultIndex; i < e.results.length; i++) {
+          const alt = e.results[i];
+          if (alt.isFinal) {
+            for (let k = 0; k < alt.length; k++) finals.push(alt[k].transcript);
+          }
+        }
+        if (finals.length > 0) {
+          const txt = finals.join(" ");
+          // 부모로 최종 결과 전달
+          onFinal?.(txt);
+          // 이메일 누적 함수 호출 (기존 로직 유지)
+          onEmailSpeechFinal(
+            txt,
+            mode,
+            emailId,
+            emailDomain,
+            setEmailId,
+            setEmailDomain,
+            setMode,
+            domainSwitchedRef,
+            pushLog
+          );
+        }
+      };
+
+      rec.onerror = (ev: any) => {
+        setListening(false);
+        // 사용자가 멈춘 게 아니고, aborted 외 에러면 재시작
+        if (!userStopRef.current && ev?.error !== "aborted") {
+          setTimeout(() => { try { rec.start(); setListening(true); } catch {} }, 600);
+        }
+      };
+
+      rec.onend = () => {
+        setListening(false);
+        // 사용자가 멈춘 게 아니면 바로 재시작
+        if (!userStopRef.current) {
+          setTimeout(() => { try { rec.start(); setListening(true); } catch {} }, 600);
+        }
+      };
+      
+      recRef.current = rec;
+    }
+    return recRef.current;
+  }, [mode, emailId, emailDomain, setEmailId, setEmailDomain, setMode, domainSwitchedRef, pushLog, onFinal]);
+
+  // 음성 인식 시작
+  const start = useCallback(() => {
+    const rec = ensureRecognizer();
+    if (!rec) return alert("이 브라우저는 음성 인식을 지원하지 않아요.");
+
+    userStopRef.current = false;
+    try { rec.start(); setListening(true); } catch {}
+  }, [ensureRecognizer]);
+
+  // 음성 인식 중지
+  const stop = useCallback(() => {
+    userStopRef.current = true;
+    try { recRef.current?.stop(); } catch {}
+    setListening(false);
+  }, []);
+
+  // 컴포넌트 언마운트 시 정리
+  useEffect(() => {
+    return () => {
+      userStopRef.current = true;
+      try { recRef.current?.stop(); recRef.current?.abort(); } catch {}
+    };
+  }, []);
+
   return (
     <div style={{ marginTop: 16 }}>
       <label>이메일 (음성 입력)</label>
+
+      {/* 음성 인식 버튼 추가 */}
+      <div style={{ margin: "8px 0", display: "flex", gap: 8 }}>
+        <button 
+          type="button" 
+          onClick={() => (listening ? stop() : start())}
+          style={{
+            padding: "8px 16px",
+            borderRadius: 8,
+            border: "1px solid rgba(34,197,94,0.5)",
+            background: listening ? "rgba(239,68,68,0.2)" : "rgba(34,197,94,0.2)",
+            color: listening ? "#f87171" : "#22c55e",
+            cursor: "pointer",
+            fontWeight: "bold"
+          }}
+        >
+          {listening ? "듣기 종료" : "말하기"}
+        </button>
+        {listening && (
+          <div style={{ 
+            display: "flex", 
+            alignItems: "center", 
+            padding: "8px 12px", 
+            background: "rgba(34,197,94,0.1)", 
+            borderRadius: 6,
+            fontSize: 12,
+            color: "#22c55e"
+          }}>
+            🎤 음성 인식 중... (자동 재시작)
+          </div>
+        )}
+      </div>
 
       <div style={{ margin: "8px 0", padding: 12, background: "#1f2330", borderRadius: 8 }}>
         <div style={{ fontSize: 13, opacity: 0.85, marginBottom: 6 }}>

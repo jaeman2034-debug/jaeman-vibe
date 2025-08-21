@@ -1,5 +1,8 @@
 import { useEffect, useRef, useState } from "react";
-import { auth } from "../firebase/firebase";
+import { auth, app } from "@/firebase";
+import { getFirestore } from "firebase/firestore";
+
+const db = getFirestore(app);
 import {
   createUserWithEmailAndPassword,
   fetchSignInMethodsForEmail,

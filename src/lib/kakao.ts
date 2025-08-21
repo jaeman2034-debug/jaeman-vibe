@@ -1,0 +1,21 @@
+declare global { interface Window { kakao: any } }
+
+export function loadKakao(): Promise<any> {
+  return new Promise((resolve, reject) => {
+    if ((window as any).kakao?.maps) return resolve((window as any).kakao);
+    const key = import.meta.env.VITE_KAKAO_JS_KEY;
+    if (!key) return reject(new Error('VITE_KAKAO_JS_KEY missing'));
+
+    const exist = document.querySelector('script[data-kakao="sdk"]');
+    if (exist) {
+      exist.addEventListener('load', () => (window as any).kakao.maps.load(() => resolve((window as any).kakao)));
+      return;
+    }
+    const s = document.createElement('script');
+    s.dataset.kakao = 'sdk';
+    s.src = `https://dapi.kakao.com/v2/maps/sdk.js?appkey=${key}&libraries=services,clusterer&autoload=false`;
+    s.onload = () => (window as any).kakao.maps.load(() => resolve((window as any).kakao));
+    s.onerror = () => reject(new Error('Kakao SDK load failed'));
+    document.head.appendChild(s);
+  });
+}

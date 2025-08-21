@@ -1,0 +1,43 @@
+import { auth, app } from '@/firebase';
+import { getFirestore } from 'firebase/firestore';
+import { getStorage } from 'firebase/storage';
+
+const db = getFirestore(app);
+const storage = getStorage(app);
+import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
+import { getDownloadURL, ref, uploadBytes } from 'firebase/storage';
+import type { ProductInput, ProductDoc } from './types';
+
+async function uploadOne(file: File, uid: string) {
+  const id = crypto.randomUUID();
+  const r = ref(storage, `market/${uid}/${id}-${file.name}`);
+  await uploadBytes(r, file);
+  return await getDownloadURL(r);
+}
+
+export async function createProduct(input: ProductInput) {
+  const user = auth.currentUser;
+  if (!user) throw new Error('로그인이 필요합니다.');
+
+  const urls: string[] = [];
+  for (const f of input.images) {
+    const url = await uploadOne(f, user.uid);
+    urls.push(url);
+  }
+
+  const doc: ProductDoc = {
+    title: input.title.trim(),
+    category: input.category,
+    condition: input.condition,
+    price: input.price,
+    description: input.description.trim(),
+    imageUrls: urls,
+    ownerUid: user.uid,
+    ownerName: user.displayName ?? user.email,
+    createdAt: serverTimestamp(),
+  };
+
+  const refCol = collection(db, 'products');
+  const { id } = await addDoc(refCol, doc);
+  return { id, ...doc };
+} 

@@ -1,0 +1,31 @@
+import React from 'react';
+
+interface ErrorStateProps {
+  title?: string;
+  message: string;
+  onRetry?: () => void;
+  className?: string;
+}
+
+export default function ErrorState({ 
+  title = '오류가 발생했습니다', 
+  message, 
+  onRetry, 
+  className = '' 
+}: ErrorStateProps) {
+  return (
+    <div className={`flex flex-col items-center justify-center py-8 px-4 ${className}`}>
+      <div className="text-6xl mb-4">⚠️</div>
+      <h3 className="text-lg font-medium text-gray-900 mb-2 text-center">{title}</h3>
+      <p className="text-gray-500 text-center mb-6 max-w-sm">{message}</p>
+      {onRetry && (
+        <button
+          onClick={onRetry}
+          className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+        >
+          다시 시도
+        </button>
+      )}
+    </div>
+  );
+} 

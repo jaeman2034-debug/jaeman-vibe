@@ -1,0 +1,21 @@
+{
+  "name": "재만바이브 - AI 상품 분석",
+  "short_name": "재만바이브",
+  "description": "AI 기반 상품 분석 및 중고거래 플랫폼",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#3b82f6",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/vite.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["shopping", "productivity", "utilities"],
+  "lang": "ko",
+  "dir": "ltr"
+} 

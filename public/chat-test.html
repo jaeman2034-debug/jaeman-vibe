@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Chat API Test Page</title>
+  <style>
+    body{font-family:system-ui,Segoe UI,Arial; background:#f7f7fb; margin:0; padding:24px;}
+    .wrap{max-width:900px; margin:0 auto;}
+    .card{background:#fff; border:1px solid #eee; border-radius:12px; padding:16px 20px; margin-bottom:16px; box-shadow:0 2px 6px rgba(0,0,0,.04)}
+    h1{margin:0 0 16px 0}
+    h2{font-size:18px; margin:0 0 12px}
+    button{padding:8px 14px; border-radius:8px; border:1px solid #ddd; background:#2563eb; color:#fff; cursor:pointer}
+    button:disabled{opacity:.6; cursor:default}
+    input,textarea{width:100%; padding:10px 12px; border:1px solid #ddd; border-radius:8px}
+    pre{background:#fafafa; padding:12px; border-radius:8px; overflow:auto; margin-top:10px}
+    .row{display:flex; gap:10px; align-items:center; flex-wrap:wrap}
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Chat API Test Page</h1>
+
+  <div class="card">
+    <h2>1. Health Check</h2>
+    <div class="row">
+      <button id="btnHealth">Test /api/health</button>
+      <label><input type="checkbox" id="pretty" checked /> pretty print 적용</label>
+    </div>
+    <pre id="outHealth"></pre>
+  </div>
+
+  <div class="card">
+    <h2>2. Chat API Test</h2>
+    <input id="msg" placeholder="메시지를 입력하세요" value="ping" />
+    <div class="row" style="margin-top:8px">
+      <button id="btnChat">Test /api/chat</button>
+    </div>
+    <pre id="outChat"></pre>
+  </div>
+
+  <div class="card">
+    <h2>3. Quick Test (둘 다 연속 호출)</h2>
+    <button id="btnQuick">Quick Test</button>
+    <pre id="outQuick"></pre>
+  </div>
+</div>
+
+<script>
+const pretty = () => document.getElementById('pretty').checked;
+
+async function call(url, options = {}) {
+  try {
+    const res = await fetch(url, options);
+    const ct = res.headers.get('content-type') || '';
+    const body = ct.includes('application/json') ? await res.json() : await res.text();
+    return { ok: res.ok, status: res.status, body };
+  } catch (e) {
+    return { ok: false, status: 0, body: String(e) };
+  }
+}
+
+function fmt(result){
+  const { ok, status, body } = result;
+  const head = `Status: ${status}  ${ok ? '(OK)' : '(ERR)'}\nResponse: `;
+  return typeof body === 'string'
+    ? head + body
+    : head + (pretty() ? JSON.stringify(body, null, 2) : JSON.stringify(body));
+}
+
+document.getElementById('btnHealth').onclick = async () => {
+  const r = await call('/api/health');
+  document.getElementById('outHealth').textContent = fmt(r);
+};
+
+document.getElementById('btnChat').onclick = async () => {
+  const msg = (document.getElementById('msg').value || '').trim();
+  const r = await call('/api/chat', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ message: msg })
+  });
+  document.getElementById('outChat').textContent = fmt(r);
+};
+
+document.getElementById('btnQuick').onclick = async () => {
+  const logs = [];
+  const h = await call('/api/health'); logs.push('[health]\n' + fmt(h));
+  const c = await call('/api/chat', {
+    method: 'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ message:'ping' })
+  }); logs.push('\n[chat]\n' + fmt(c));
+  document.getElementById('outQuick').textContent = logs.join('\n');
+};
+</script>
+</body>
+</html>

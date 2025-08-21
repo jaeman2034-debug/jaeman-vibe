@@ -1,0 +1,175 @@
+// src/lib/apiClient.ts
+// Vite 프록시를 통한 API 클라이언트
+
+interface ApiResponse<T = any> {
+  data?: T;
+  error?: string;
+  status: number;
+}
+
+class ApiClient {
+  private baseURL: string;
+  private timeout: number;
+
+  constructor(baseURL = '/api', timeout = 10000) {
+    this.baseURL = baseURL;
+    this.timeout = timeout;
+  }
+
+  // GET 요청
+  async get<T>(endpoint: string, options?: RequestInit): Promise<ApiResponse<T>> {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), this.timeout);
+
+      const response = await fetch(`${this.baseURL}${endpoint}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          ...options?.headers,
+        },
+        signal: controller.signal,
+        ...options,
+      });
+
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        return {
+          error: `HTTP ${response.status}: ${response.statusText}`,
+          status: response.status,
+        };
+      }
+
+      const data = await response.json();
+      return { data, status: response.status };
+    } catch (error) {
+      if (error instanceof Error && error.name === 'AbortError') {
+        return { error: 'Request timeout', status: 408 };
+      }
+      return { error: error instanceof Error ? error.message : 'Unknown error', status: 500 };
+    }
+  }
+
+  // POST 요청
+  async post<T>(endpoint: string, body?: any, options?: RequestInit): Promise<ApiResponse<T>> {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), this.timeout);
+
+      const response = await fetch(`${this.baseURL}${endpoint}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...options?.headers,
+        },
+        body: body ? JSON.stringify(body) : undefined,
+        signal: controller.signal,
+        ...options,
+      });
+
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        return {
+          error: `HTTP ${response.status}: ${response.statusText}`,
+          status: response.status,
+        };
+      }
+
+      const data = await response.json();
+      return { data, status: response.status };
+    } catch (error) {
+      if (error instanceof Error && error.name === 'AbortError') {
+        return { error: 'Request timeout', status: 408 };
+      }
+      return { error: error instanceof Error ? error.message : 'Unknown error', status: 500 };
+    }
+  }
+
+  // PUT 요청
+  async put<T>(endpoint: string, body?: any, options?: RequestInit): Promise<ApiResponse<T>> {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), this.timeout);
+
+      const response = await fetch(`${this.baseURL}${endpoint}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          ...options?.headers,
+        },
+        body: body ? JSON.stringify(body) : undefined,
+        signal: controller.signal,
+        ...options,
+      });
+
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        return {
+          error: `HTTP ${response.status}: ${response.statusText}`,
+          status: response.status,
+        };
+      }
+
+      const data = await response.json();
+      return { data, status: response.status };
+    } catch (error) {
+      if (error instanceof Error && error.name === 'AbortError') {
+        return { error: 'Request timeout', status: 408 };
+      }
+      return { error: error instanceof Error ? error.message : 'Unknown error', status: 500 };
+    }
+  }
+
+  // DELETE 요청
+  async delete<T>(endpoint: string, options?: RequestInit): Promise<ApiResponse<T>> {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), this.timeout);
+
+      const response = await fetch(`${this.baseURL}${endpoint}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          ...options?.headers,
+        },
+        signal: controller.signal,
+        ...options,
+      });
+
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        return {
+          error: `HTTP ${response.status}: ${response.statusText}`,
+          status: response.status,
+        };
+      }
+
+      const data = await response.json();
+      return { data, status: response.status };
+    } catch (error) {
+      if (error instanceof Error && error.name === 'AbortError') {
+        return { error: 'Request timeout', status: 408 };
+      }
+      return { error: error instanceof Error ? error.message : 'Unknown error', status: 500 };
+    }
+  }
+
+  // Health 체크
+  async health(): Promise<ApiResponse<{ ok: boolean; timestamp: number }>> {
+    return this.get<{ ok: boolean; timestamp: number }>('/health');
+  }
+}
+
+// 기본 API 클라이언트 인스턴스
+export const apiClient = new ApiClient();
+
+// 커스텀 설정이 필요한 경우
+export const createApiClient = (baseURL: string, timeout?: number) => {
+  return new ApiClient(baseURL, timeout);
+};
+
+export default ApiClient; 

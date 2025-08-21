@@ -1,17 +1,27 @@
 // server.cjs
-require('dotenv').config();
+
+try { require('dotenv').config(); } catch (_) {}
+console.log('[env-check:pre]', {
+  NODE_ENV: process.env.NODE_ENV,
+  has_PROJECT_ID: !!process.env.FIREBASE_PROJECT_ID,
+  has_STORAGE_BUCKET: !!process.env.FIREBASE_STORAGE_BUCKET,
+  has_ADMIN_JSON: !!process.env.FIREBASE_ADMIN_JSON,
+});
 
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
 
 // (A) 서비스 계정 JSON을 환경변수로 받는 경우 자동 파일화
+
 if (process.env.FIREBASE_ADMIN_JSON && !process.env.GOOGLE_APPLICATION_CREDENTIALS) {
   const out = path.join(os.tmpdir(), 'firebase-admin.json');
   fs.writeFileSync(out, process.env.FIREBASE_ADMIN_JSON);
   process.env.GOOGLE_APPLICATION_CREDENTIALS = out;
-}
 
+console.log('[env-check:post]', {
+  has_GAC: !!process.env.GOOGLE_APPLICATION_CREDENTIALS,
+});
 const express = require('express');
 const admin = require('firebase-admin');
 

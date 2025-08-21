@@ -1,5 +1,10 @@
 // server.cjs
-require('dotenv').config();
+try {
+  // Render(프로덕션)에서는 .env가 없으니 개발일 때만 로드
+  if (process.env.NODE_ENV !== 'production') {
+    require('dotenv').config();
+  }
+} catch (_) {}
 
 const fs = require('fs');
 const path = require('path');

@@ -28,3 +28,11 @@ dist-ssr
 # telemetry logs
 logs/
 *.jsonl
+# secrets & env
+secrets/
+.env
+.env.local
+.env.*
+!example.env
+dist/
+node_modules/

@@ -9,6 +9,10 @@ import AppSplash from "./components/AppSplash";
 import GlobalErrorOverlay from "./app/GlobalErrorOverlay";
 import { ModalProvider } from "./components/ModalHost";
 import { ThemeProvider } from "./components/theme/ThemeProvider";
+import { resumeRedirect } from "./lib/auth/google";
+
+// 앱 시작 시 리다이렉트 로그인 결과 복원
+resumeRedirect();
 
 // 지연 로딩으로 번들 최적화
 const VoiceDebugPanel = lazy(() => import("./features/voice/VoiceDebugPanel"));

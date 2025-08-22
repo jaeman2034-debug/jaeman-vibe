@@ -1,49 +1,30 @@
 // server.cjs
-require('dotenv').config();
 
-const fs = require('fs');
-const path = require('path');
-const os = require('os');
-
-// (A) 서비스 계정 JSON을 환경변수로 받는 경우 자동 파일화
-if (process.env.FIREBASE_ADMIN_JSON && !process.env.GOOGLE_APPLICATION_CREDENTIALS) {
-  const out = path.join(os.tmpdir(), 'firebase-admin.json');
-  fs.writeFileSync(out, process.env.FIREBASE_ADMIN_JSON);
-  process.env.GOOGLE_APPLICATION_CREDENTIALS = out;
-}
+// ① 환경변수 로드(없어도 에러 안 나게)
+try { require('dotenv').config(); } catch (_) {}
 
 const express = require('express');
-const admin = require('firebase-admin');
+const path = require('path');
+const fs = require('fs');
+const app = express();
 
-// Firebase Admin 초기화
-if (!admin.apps.length) {
-  admin.initializeApp({
-    credential: admin.credential.applicationDefault(), // GOOGLE_APPLICATION_CREDENTIALS 사용
-    storageBucket: process.env.FIREBASE_STORAGE_BUCKET,
-    projectId: process.env.FIREBASE_PROJECT_ID,
+// ② 헬스체크: 반드시 가장 먼저
+app.get('/healthz', (_, res) => res.type('text').send('ok'));
+
+// ③ 정적 파일 (dist 또는 build 자동 탐색)
+const candidates = ['dist', 'build'];
+const webRoot = candidates
+  .map(d => path.join(__dirname, d))
+  .find(p => fs.existsSync(path.join(p, 'index.html')));
+
+if (webRoot) {
+  app.use(express.static(webRoot, { index: false })); // 정적 파일 먼저
+  // SPA 라우팅: API/헬스체크 제외하고 index.html 반환
+  app.get('*', (req, res, next) => {
+    if (req.path.startsWith('/api') || req.path === '/healthz') return next();
+    res.sendFile(path.join(webRoot, 'index.html'));
   });
 }
-
-const app = express();
-const PORT = process.env.PORT || 3001;
-
-// (B) CORS (테스트용 전부 허용 → 운영 시 도메인 restrict)
-const cors = require('cors');
-app.use(cors({ origin: true }));
-
-// 헬스체크
-app.get('/healthz', (_, res) => res.send('ok'));
-
-// ✅ 프런트 빌드 산출물(dist) 서빙
-const distPath = path.join(__dirname, 'dist');   // CRA면 'build'로 변경
-app.use(express.static(distPath));
-
-// ✅ SPA 라우팅용 (API가 아닌 모든 경로는 index.html 반환)
-app.get('*', (req, res, next) => {
-  // API 경로가 있다면 제외 (예: /api)
-  if (req.path.startsWith('/api') || req.path === '/healthz') return next();
-  res.sendFile(path.join(distPath, 'index.html'));
-});
 
 // 지오코딩 캐시 + 백오프
 const geoCache = new Map(); // key: normalized addr, value: { data, exp }
@@ -256,6 +237,17 @@ app.get('/api/products/region', async (req, res) => {
     res.status(500).json({ ok:false, error:String(e) });
   }
 });
+
+const admin = require('firebase-admin');
+
+// Firebase Admin 초기화
+if (!admin.apps.length) {
+  admin.initializeApp({
+    credential: admin.credential.applicationDefault(), // GOOGLE_APPLICATION_CREDENTIALS 사용
+    storageBucket: process.env.FIREBASE_STORAGE_BUCKET,
+    projectId: process.env.FIREBASE_PROJECT_ID,
+  });
+}
 
 const DEFAULT_PORT = Number(process.env.PORT) || 3001;
 

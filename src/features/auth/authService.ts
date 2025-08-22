@@ -323,9 +323,11 @@ export async function signInWithGoogle() {
     }
     
     console.log('[AUTH] Attempting Google login');
-    const result = await signInWithPopup(auth, googleProvider);
+    // 새로운 모바일 친화적 Google 로그인 사용
+    const { loginWithGoogle: mobileFriendlyLogin } = await import('../../lib/auth/google');
+    await mobileFriendlyLogin();
     console.log('[AUTH] Google login successful');
-    return result;
+    return { user: auth.currentUser };
   } catch (error) {
     console.error('[AUTH] Google login failed');
     

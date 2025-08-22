@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { signInWithEmail, loginWithGoogle } from '../features/auth/authService';
+import InAppBrowserBanner from '../components/InAppBrowserBanner';
 
 // 사람친화적인 인증 오류 메시지 매핑
 const AUTH_MSG: Record<string, string> = {
@@ -47,6 +48,7 @@ export default function Login() {
 
   return (
     <div style={{maxWidth:420, margin:'40px auto', padding:16}}>
+      <InAppBrowserBanner />
       <h2 style={{marginBottom:12}}>🔐 로그인</h2>
       <form onSubmit={onSubmit} style={{display:'grid', gap:10}}>
         <input

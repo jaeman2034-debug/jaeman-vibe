@@ -1,0 +1,2 @@
+import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
+export default function OneShotSignupTestPage() { return (_jsxs("div", { className: "p-6", children: ["      ", _jsx("h1", { className: "text-2xl font-bold mb-2", children: "One?\uFFFDShot Voice Signup (Page)" }), "      ", _jsx("p", { className: "opacity-70 mb-4", children: "?\uFFFD\uC131 \uAE30\uBC18 ?\uFFFD\uC0F7 \uAC00???\uFFFD\uC2A4???\uFFFD\uC774\uC9C0?\uFFFD\uB2C8??" }), "    "] })); }

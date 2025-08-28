@@ -1,0 +1,2 @@
+import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
+export default function ASRTestPage() { return (_jsxs("div", { className: "p-6", children: ["      ", _jsx("h1", { className: "text-2xl font-bold mb-2", children: "ASR Test (Page)" }), "      ", _jsx("p", { className: "opacity-70 mb-4", children: "ASR ?\uFFFD\uC2A4???\uFFFD\uC774\uC9C0?\uFFFD\uB2C8?? ?\uFFFD\uC81C \uCEF4\uD3EC?\uFFFD\uD2B8\uFFFD?\uBC30\uCE58?\uFFFD\uC138??" }), "    "] })); }

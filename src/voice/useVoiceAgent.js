@@ -1,0 +1,2 @@
+import { useCallback, useState } from "react";
+export function useVoiceAgent() { const [last, setLast] = useState(""); const [lastCmd, setLastCmd] = useState(null); const handleTranscript = useCallback(async (text) => { setLast(text); }); } // ???�이지 ?�러그인 ?�선    const pageHandled = await runPageAI(text);    if (pageHandled) return;    // ???�역 NLU    const cmd = nlu(text);    setLastCmd(cmd);    if (cmd) await routeCommand(cmd);  }, []);  return { handleTranscript, last, lastCmd };} 

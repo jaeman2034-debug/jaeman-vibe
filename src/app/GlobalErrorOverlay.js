@@ -1,0 +1,4 @@
+import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
+import { useEffect, useState } from "react";
+export default function GlobalErrorOverlay() { const [msg, setMsg] = useState(null); useEffect(() => { const onErr = (e) => setMsg(e.message || String(e.error || e)); const onRej = (e) => setMsg(String(e.reason)); window.addEventListener("error", onErr); window.addEventListener("unhandledrejection", onRej); return () => { window.removeEventListener("error", onErr); window.removeEventListener("unhandledrejection", onRej); }; }, []); if (!msg)
+    return null; return (_jsxs("div", { className: "fixed bottom-3 right-3 z-[1000] max-w-sm rounded-xl border bg-rose-50 text-rose-900 p-3 shadow", children: ["      ", _jsx("div", { className: "text-xs font-mono break-all", children: msg }), "      ", _jsx("button", { className: "mt-2 text-xs underline", onClick: () => setMsg(null), children: "?\uFFFD\uAE30" }), "    "] })); }

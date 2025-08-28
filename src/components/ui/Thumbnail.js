@@ -1,0 +1,2 @@
+"use strict";
+// src/components/ui/Thumbnail.tsxtype Props = {  src?: string;  alt?: string;  className?: string;};export default function Thumbnail({ src, alt, className }: Props) {  const fallback = "/img/placeholder.svg";  return (    <div className={`relative w-full h-[200px] overflow-hidden rounded-xl bg-gray-50 ${className || ""}`}>      <img        src={src || fallback}        alt={alt || "image"}        loading="lazy"        onError={(e) => { e.currentTarget.src = fallback; }}        className="absolute inset-0 h-full w-full object-cover block"      />    </div>  );}

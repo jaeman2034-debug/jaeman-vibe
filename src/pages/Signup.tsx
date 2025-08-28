@@ -1,3 +1,1 @@
-import React, { useEffect, useState } from "react";
-
-export default function Signup(){ return <div style={{padding:24}}>ğŸ“ Signup</div>; }
+import React, { useEffect, useState } from "react";export default function Signup(){ return <div style={{padding:24}}>?“ Signup</div>; }

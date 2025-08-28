@@ -1,15 +1,1 @@
-import { useEffect, useState } from "react";
-import { getActiveExamples } from "./registry";
-
-export default function PageAITips() {
-  const [tips, setTips] = useState<string[]>([]);
-  useEffect(() => { setTips(getActiveExamples()); }, []);
-  if (!tips.length) return null;
-  return (
-    <div className="my-3 flex flex-wrap gap-2">
-      {tips.map((t, i) => (
-        <span key={i} className="text-xs px-2 py-1 rounded-full border bg-white/60 dark:bg-zinc-950/50">{t}</span>
-      ))}
-    </div>
-  );
-} 
+import { useEffect, useState } from "react";import { getActiveExamples } from "./registry";export default function PageAITips() {  const [tips, setTips] = useState<string[]>([]);  useEffect(() => { setTips(getActiveExamples()); }, []);  if (!tips.length) return null;  return (    <div className="my-3 flex flex-wrap gap-2">      {tips.map((t, i) => (        <span key={i} className="text-xs px-2 py-1 rounded-full border bg-white/60 dark:bg-zinc-950/50">{t}</span>      ))}    </div>  );} 

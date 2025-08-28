@@ -1,4 +1,1 @@
-export {};
-declare global {
-  interface Window { kakao: any }
-}
+export {};declare global {  interface Window { kakao: any }}

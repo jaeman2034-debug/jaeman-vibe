@@ -1,0 +1,7 @@
+import { useEffect } from "react";
+import { auth } from "@/lib/firebase";
+import { onAuthStateChanged } from "firebase/auth";
+export default function AuthBootstrap() { useEffect(() => { const unsub = onAuthStateChanged(auth, async (u) => { if (!u) {
+    try { }
+    finally { }
+} }); }); } // Anonymous 로그???�도          await signInAnonymously(auth);          console.log("[AUTH] Anonymous login successful, uid =", auth.currentUser?.uid);        } catch (err: any) {          console.warn("[AUTH] Anonymous login failed:", err.code, err.message);                    // Anonymous ?�패 ??Google 로그?�으�??�체하거나 ?�증 ?�이 진행          if (err.code === 'auth/admin-restricted-operation') {            console.log("[AUTH] Anonymous auth restricted, continuing without auth for now");            // ?�용?��? ?�동?�로 로그?�할 ???�도�?StartScreen?�서 처리          }        }      } else {        console.log("[AUTH] Already authenticated, uid =", u.uid);      }    });    return () => unsub();  }, []);  return null;}

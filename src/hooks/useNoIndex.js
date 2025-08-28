@@ -1,0 +1,9 @@
+import { useEffect } from "react";
+export function useNoIndex() { useEffect(() => { let meta = document.querySelector('meta[name="robots"]'); const created = !meta; if (!meta) {
+    meta = document.createElement("meta");
+    meta.name = "robots";
+    document.head.appendChild(meta);
+} const prev = meta.content; meta.content = "noindex, nofollow"; return () => { if (created)
+    meta.remove();
+else
+    meta.content = prev || ""; }; }, []); }

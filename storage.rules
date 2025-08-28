@@ -1,10 +1,50 @@
 rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
-    // 이미지 업로드 경로: products/{uid}/{filename}
-    match /products/{uid}/{fileId} {
+    // 상품 이미지: products/{uid}/{productId}/...
+    match /products/{userId}/{productId}/{allPaths=**} {
+      allow read: if true; // 모든 사용자가 읽기 가능
+      allow write: if request.auth != null && 
+        request.auth.uid == userId; // 소유자만 업로드/삭제 가능
+    }
+    
+    // 모임 이미지: groups/{uid}/{groupId}/...
+    match /groups/{userId}/{groupId}/{allPaths=**} {
       allow read: if true;
-      allow write: if request.auth != null && request.auth.uid == uid;
+      allow write: if request.auth != null && 
+        request.auth.uid == userId;
+    }
+    
+    // 구직 이미지: jobs/{uid}/{jobId}/...
+    match /jobs/{userId}/{jobId}/{allPaths=**} {
+      allow read: if true;
+      allow write: if request.auth != null && 
+        request.auth.uid == userId;
+    }
+    
+    // 사용자 프로필 이미지: users/{uid}/...
+    match /users/{userId}/{allPaths=**} {
+      allow read: if true;
+      allow write: if request.auth != null && 
+        request.auth.uid == userId;
+    }
+    
+    // 기존 업로드 경로 (하위 호환성)
+    match /uploads/{timestamp}/{fileName} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+    
+    // 기존 마켓 경로 (하위 호환성)
+    match /market/{productId}/{fileName} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+    
+    // 관리자 전용
+    match /admin/{allPaths=**} {
+      allow read, write: if request.auth != null && 
+        request.auth.uid in ['koHXAnJ9sXVOd4ojWxxhWNYdYOm2'];
     }
   }
 } 

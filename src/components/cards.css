@@ -1,0 +1,155 @@
+/* ===========================
+   Card Components - Common Styles
+   =========================== */
+
+/* 기본 카드 스타일 */
+.card {
+  @apply rounded-xl border border-slate-200 bg-white p-4 shadow-sm
+         hover:shadow-md active:shadow-sm
+         transition-all duration-200 ease-in-out;
+}
+
+/* 섹션 카드 (큰 카드) */
+.section-card {
+  @apply rounded-2xl border border-slate-200 bg-white p-6 shadow-sm
+         hover:shadow-md active:shadow-sm
+         transition-all duration-200 ease-in-out;
+}
+
+/* 데모 카드 (그라데이션 배경) */
+.demo-card {
+  @apply rounded-2xl border overflow-hidden relative w-full text-left block
+         hover:shadow-md active:shadow-sm
+         transition-all duration-200 ease-in-out;
+}
+
+/* 액션 카드 (설명 포함) */
+.action-card {
+  @apply text-left rounded-2xl border p-4 
+         hover:shadow-md active:shadow-sm
+         transition-all duration-200 ease-in-out
+         bg-white/80 dark:bg-zinc-950/60
+         hover:bg-white dark:hover:bg-zinc-900
+         active:bg-gray-50 dark:active:bg-zinc-800
+         cursor-pointer select-none;
+}
+
+/* 개발 링크 카드 */
+.dev-link {
+  @apply rounded-xl border px-3 py-2 
+         hover:bg-zinc-100 dark:hover:bg-zinc-800 
+         active:bg-zinc-200 dark:active:bg-zinc-700
+         transition-all duration-200 ease-in-out
+         inline-flex items-center gap-2
+         cursor-pointer select-none;
+}
+
+/* 카드 내부 아이콘 컨테이너 */
+.card-icon {
+  @apply inline-grid place-items-center w-10 h-10 rounded-xl 
+         bg-zinc-100 dark:bg-zinc-800 border
+         pointer-events-none select-none;
+}
+
+/* 카드 내부 아이콘 (데모 카드용) */
+.demo-card-icon {
+  @apply inline-grid place-items-center w-10 h-10 rounded-xl 
+         bg-white/70 dark:bg-white/10 border
+         pointer-events-none select-none;
+}
+
+/* 카드 제목 */
+.card-title {
+  @apply font-semibold text-gray-900 dark:text-gray-100;
+}
+
+/* 카드 설명 */
+.card-desc {
+  @apply text-sm text-gray-600 dark:text-gray-400 mt-1;
+}
+
+/* 카드 그라데이션 오버레이 */
+.card-gradient-overlay {
+  @apply absolute inset-0 opacity-20 group-hover:opacity-30 
+         transition-opacity duration-200 ease-in-out;
+}
+
+/* 카드 호버 효과 */
+.card:hover {
+  @apply transform -translate-y-0.5;
+}
+
+.card:active {
+  @apply transform translate-y-0;
+}
+
+/* 다크 모드 대응 */
+@media (prefers-color-scheme: dark) {
+  .card {
+    @apply border-zinc-700 bg-zinc-900;
+  }
+  
+  .section-card {
+    @apply border-zinc-700 bg-zinc-900 hover:bg-zinc-800 active:bg-zinc-700;
+  }
+  
+  .action-card {
+    @apply border-zinc-700 bg-zinc-950/60 hover:bg-zinc-900 active:bg-zinc-800;
+  }
+  
+  .dev-link {
+    @apply border-zinc-700 hover:bg-zinc-800 active:bg-zinc-700;
+  }
+}
+
+/* 반응형 디자인 */
+@media (max-width: 640px) {
+  .section-card {
+    @apply h-32;
+  }
+  
+  .card-icon, .demo-card-icon {
+    @apply w-8 h-8;
+  }
+  
+  .card-title {
+    @apply text-base;
+  }
+  
+  .card-desc {
+    @apply text-xs;
+  }
+}
+
+/* 애니메이션 */
+@keyframes card-enter {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.card-enter {
+  animation: card-enter 0.3s ease-out;
+}
+
+/* 그라데이션 배경 */
+.gradient-bg {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.gradient-bg-alt {
+  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+}
+
+.gradient-bg-blue {
+  background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+}
+
+.gradient-bg-green {
+  background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+}

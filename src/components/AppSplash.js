@@ -1,0 +1,2 @@
+import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
+export default function AppSplash({ small = false }) { return small ? (_jsxs("div", { className: "p-6 text-center text-sm opacity-70", children: ["\uBD88\uB7EC?\uFFFD\uB294 \uC911\uFFFD?/div>  ) : (    ", _jsxs("div", { className: "min-h-dvh grid place-items-center p-6", children: ["      ", _jsx("div", { className: "animate-pulse text-center opacity-80", children: "\uBD88\uB7EC?\uFFFD\uB294 \uC911\uFFFD?/div>    " }), "  );} "] })] })) : ; }

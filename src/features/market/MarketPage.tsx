@@ -1,82 +1,120 @@
-import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
-import type { MarketFilters } from "./types";
-import { useMarketProducts } from "./useMarketProducts";
-import { useDebounced } from "@/hooks/useDebounced";
-import FiltersBar from "./FiltersBar";
-import ProductCard from "./ProductCard";
+import React, { useEffect, useState } from "react";
+import "./Market.css";
+import FIREBASE from "@/lib/firebase";
+import { collection, getDocs, orderBy, query, limit } from "firebase/firestore";
+
+// === 자동 주입될 마켓 CSS (외부 CSS가 안 실릴 때 대비) ===
+const MARKET_CSS = String.raw`
+:root{
+  --bg:#f7f8fa; --surface:#fff; --text:#111827; --border:#e5e7eb;
+  --shadow:0 10px 30px rgba(16,24,40,.08);
+}
+.market-wrap{ min-height:100dvh; background:var(--bg); padding:24px; }
+.market-head{ display:flex; align-items:center; gap:12px; margin:0 auto 16px; max-width:1200px; }
+.market-head h1{ font-size:22px; font-weight:800; margin:0; color:var(--text); }
+.btn{ height:34px; padding:0 12px; border-radius:10px; border:1px solid var(--border); background:#fff; cursor:pointer; }
+.market-grid{
+  max-width:1200px; margin:0 auto;
+  display:grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap:16px;
+}
+.product-card{
+  background:#fff; border:1px solid var(--border); border-radius:16px; box-shadow:var(--shadow);
+  overflow:hidden; transition:transform .12s ease, box-shadow .12s ease; cursor:pointer;
+}
+.product-card:hover{ transform:translateY(-2px); box-shadow:0 14px 38px rgba(16,24,40,.12); }
+.thumb{ width:100%; padding-top:66%; background:#f3f4f6 center/cover no-repeat; position:relative; }
+.thumb.empty{ background:#f8fafc; border-bottom:1px dashed var(--border); }
+.thumb .placeholder{ position:absolute; inset:0; display:grid; place-items:center; color:#9aa0a6; font-size:13px; }
+.meta{ padding:12px 14px 16px; }
+.title{ font-size:15px; font-weight:700; color:#111827; margin:0 0 6px; line-height:1.3; }
+.price{ font-size:14px; color:#0f172a; }
+.skeleton .thumb{ animation: sk 1.2s linear infinite alternate; }
+.skeleton .sk-title,.skeleton .sk-price{ height:12px; background:#eceff3; border-radius:6px; animation: sk 1.2s linear infinite alternate; margin-top:10px; }
+.skeleton .sk-title{ width:70%; } .skeleton .sk-price{ width:40%; }
+@keyframes sk{ from{opacity:.6} to{opacity:1} }
+`;
+
+// 최초 1회만 <head>에 스타일 주입
+function useInjectMarketCss() {
+  useEffect(() => {
+    const id = "market-inline-css";
+    if (!document.getElementById(id)) {
+      const s = document.createElement("style");
+      s.id = id;
+      s.textContent = MARKET_CSS;
+      document.head.appendChild(s);
+    }
+  }, []);
+}
+
+type Product = {
+  id: string;
+  title: string;
+  price?: number;
+  cover?: string;
+  hasImages?: boolean;
+};
+
+const formatKRW = (n?: number) =>
+  typeof n === "number"
+    ? new Intl.NumberFormat("ko-KR", { style: "currency", currency: "KRW", maximumFractionDigits: 0 }).format(n)
+    : "가격 미정";
 
 export default function MarketPage() {
-  const [filters, setFilters] = useState<MarketFilters>({ q:"", category:null, min:null, max:null, condition:null, sort:"latest" });
-  const debounced = useDebounced(filters, 300);
-  const { items, loading, eof, load, reset } = useMarketProducts(debounced);
-
-  useEffect(() => { reset(); }, [debounced, reset]);
-  useEffect(() => { load(); }, [debounced, load]);
+  useInjectMarketCss(); // ← CSS 강제 주입
+  
+  const { db } = FIREBASE;
+  const [items, setItems] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const onScroll = () => {
-      if (loading || eof) return;
-      const nearBottom = window.innerHeight + window.scrollY > document.body.offsetHeight - 400;
-      if (nearBottom) load();
-    };
-    window.addEventListener("scroll", onScroll);
-    return () => window.removeEventListener("scroll", onScroll);
-  }, [loading, eof, load]);
-
-  const countLabel = useMemo(() => (items?.length ?? 0) + (eof ? "" : "+"), [items, eof]);
+    (async () => {
+      try {
+        const q = query(collection(db, "products"), orderBy("createdAt", "desc"), limit(60));
+        const snap = await getDocs(q);
+        const rows: Product[] = [];
+        snap.forEach((d) => rows.push({ id: d.id, ...(d.data() as any) }));
+        setItems(rows);
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, [db]);
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-6">
-      <div className="flex justify-between items-center mb-3">
-        <h1 className="text-2xl font-bold">스포츠 마켓</h1>
-        <Link 
-          to="/market/new" 
-          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
-        >
-          상품 등록
-        </Link>
-      </div>
-      <FiltersBar value={filters} onChange={setFilters} />
-      <div className="mt-4 text-sm text-slate-600">검색 결과 <b>{countLabel}</b> 건</div>
+    <div className="market-wrap">
+      <header className="market-head">
+        <h1>스포츠 마켓</h1>
+        <button className="btn back" onClick={() => (location.hash = "/start")}>← 시작으로</button>
+      </header>
 
-      <div className="mt-3 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-        {items.map(p => <ProductCard key={p.id} p={p} onClick={()=>{/* TODO: 상세 이동 */}} />)}
-        {loading && <SkeletonMany />}
-      </div>
-
-      {!loading && items.length === 0 && <EmptyState />}
-
-      {!eof && !loading && (
-        <div className="mt-6 flex justify-center">
-          <button onClick={load} className="rounded-xl border px-4 py-2">더 보기</button>
+      {loading ? (
+        <div className="market-grid">
+          {Array.from({ length: 8 }).map((_, i) => (
+            <div key={i} className="product-card skeleton">
+              <div className="thumb" />
+              <div className="meta">
+                <div className="sk-title" />
+                <div className="sk-price" />
+              </div>
+            </div>
+          ))}
         </div>
+      ) : (
+        <section className="market-grid">
+          {items.map((p) => (
+            <article key={p.id} className="product-card" onClick={() => alert(`상세 미리보기: ${p.title}`)}>
+              <div className={"thumb" + (!p.cover ? " empty" : "")} style={p.cover ? { backgroundImage: `url(${p.cover})` } : undefined}>
+                {!p.cover && <span className="placeholder">이미지 없음</span>}
+              </div>
+              <div className="meta">
+                <h3 className="title">{p.title || "제목 없음"}</h3>
+                <div className="price">{formatKRW(p.price)}</div>
+              </div>
+            </article>
+          ))}
+        </section>
       )}
-    </div>
-  );
-}
-
-function SkeletonMany() {
-  return (
-    <>
-      {Array.from({ length: 8 }).map((_, i) => (
-        <div key={i} className="animate-pulse rounded-2xl overflow-hidden border bg-white">
-          <div className="aspect-[4/3] bg-slate-100" />
-          <div className="p-3 space-y-2">
-            <div className="h-3 bg-slate-100 rounded" />
-            <div className="h-3 bg-slate-100 rounded w-2/3" />
-            <div className="h-4 bg-slate-100 rounded w-1/2" />
-          </div>
-        </div>
-      ))}
-    </>
-  );
-}
-function EmptyState() {
-  return (
-    <div className="mt-16 text-center text-slate-500">
-      조건에 맞는 상품이 없습니다.
-      <div className="mt-2 text-sm">필터를 변경해 보세요.</div>
     </div>
   );
 } 

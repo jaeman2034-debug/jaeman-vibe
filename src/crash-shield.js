@@ -1,0 +1,2 @@
+"use strict";
+// ?�역 ?��????�러???�면???�우�?(function () {  const show = (msg: string) => {    const d = document.createElement('div');    d.style.cssText =      'position:fixed;left:0;right:0;top:0;background:#ffebe9;color:#67060c;' +      'padding:10px 14px;z-index:2147483647;font:14px/1.45 system-ui,Segoe UI,Arial';    d.textContent = `Runtime error: ${msg}`;    document.body.appendChild(d);  };  window.addEventListener('error',  e => show(e.message || String(e)));  window.addEventListener('unhandledrejection', (e:any) => show(e.reason?.message || String(e.reason)));})(); 

@@ -33,7 +33,7 @@ const firebaseConfig = {
   apiKey: "test-api-key",
   authDomain: "test-project.firebaseapp.com",
   projectId: "test-project",
-  storageBucket: "test-project.appspot.com",
+  storageBucket: "test-project.firebasestorage.app",
   messagingSenderId: "123456789",
   appId: "test-app-id"
 };

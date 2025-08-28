@@ -1,0 +1,2 @@
+export const sportLabels = { BSB: "?�구", SOC: "축구", BSK: "?�구", RAC: "?�켓", GLF: "골프", RUN: "?�닝", SNW: "겨울", OUT: "?�웃?�어", };
+export const categoryTree = [{ sport: "SOC", label: sportLabels.SOC, nodes: [{ code: "SOC-SHO", label: "축구??, children:[      {code:", SOC } - SHO - FG, ", label:", FG, "}, {code:", SOC - SHO - AG, ", label:", AG, "},      {code:", SOC - SHO - TF, ", label:", TF, "}, {code:", SOC - SHO - IC, ", label:", IC, "},    ]},    { code:", SOC - BAL, ", label:"] }];

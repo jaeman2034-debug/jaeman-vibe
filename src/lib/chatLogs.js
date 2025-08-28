@@ -1,0 +1,1 @@
+export async function saveChatLog(userText, botText) { } // db???��? ?�에???�의??  const uid = auth.currentUser?.uid ?? "anon";  // 로그???�용?�는 users/{uid}/chats, 비로그인?� 공용 chats  const col = uid === "anon" ? collection(db, "chats") : collection(db, "users", uid, "chats");  await addDoc(col, { uid, userText, botText, ts: serverTimestamp() });} 

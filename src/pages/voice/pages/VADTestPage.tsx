@@ -1,8 +1,1 @@
-export default function VADTestPage() {
-  return (
-    <div className="p-6">
-      <h1 className="text-2xl font-bold mb-2">VAD Test (Page)</h1>
-      <p className="opacity-70 mb-4">VAD 테스트 페이지입니다. 실제 컴포넌트를 배치하세요.</p>
-    </div>
-  );
-} 
+export default function VADTestPage() {  return (    <div className="p-6">      <h1 className="text-2xl font-bold mb-2">VAD Test (Page)</h1>      <p className="opacity-70 mb-4">VAD ?�스???�이지?�니?? ?�제 컴포?�트�?배치?�세??</p>    </div>  );} 

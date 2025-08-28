@@ -1,0 +1,3 @@
+import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
+export default function Sheet({ open, onClose, children }) { if (!open)
+    return null; return (_jsxs("div", { onClick: onClose, style: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,.35)', display: 'flex', alignItems: 'flex-end', zIndex: 1000 }, children: ["      ", _jsxs("div", { onClick: e => e.stopPropagation(), style: { width: '100%', maxWidth: 520, margin: '0 auto', background: '#fff', borderTopLeftRadius: 16, borderTopRightRadius: 16, padding: 16 }, children: ["        ", _jsx("div", { style: { height: 4, width: 42, background: '#E5E7EB', borderRadius: 999, margin: '0 auto 10px' } }), "        ", children, "      "] }), "    "] })); }

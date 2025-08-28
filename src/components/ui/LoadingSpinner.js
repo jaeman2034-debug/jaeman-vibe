@@ -1,0 +1,2 @@
+import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
+export default function LoadingSpinner({ size = 'md', text = '로딩 �?..', className = '' }) { const sizeClasses = { sm: 'w-4 h-4', md: 'w-8 h-8', lg: 'w-12 h-12' }; return (_jsxs("div", { className: `flex flex-col items-center justify-center ${className}`, children: ["      ", _jsx("div", { className: `${sizeClasses[size]} border-4 border-gray-200 border-t-blue-600 rounded-full animate-spin mb-2` }), "      ", text && _jsx("p", { className: "text-sm text-gray-600", children: text }), "    "] })); }

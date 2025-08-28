@@ -1,0 +1,127 @@
+diff --git a/src/components/VoiceController.tsx b/src/components/VoiceController.tsx
+index 0000000..1234567 100644
+--- a/src/components/VoiceController.tsx
++++ b/src/components/VoiceController.tsx
+@@ -0,0 +1,108 @@
++import React, { useEffect, useRef, useState } from 'react';
++
++type Intent =
++  | { type: 'OPEN_CREATE' }
++  | { type: 'FILTER_NEARBY'; km: number }
++  | { type: 'FILTER_PRICE_MAX'; max: number }
++  | { type: 'OPEN_DETAIL'; index: number }
++  | { type: 'ANALYZE_CURRENT' }
++  | { type: 'NEXT_PAGE' }
++  | { type: 'PREV_PAGE' }
++  | { type: 'SEARCH'; query: string };
++
++type Props = { onIntent: (intent: Intent) => void; tts?: boolean; };
++
++const SpeechRecognition =
++  (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
++
++export default function VoiceController({ onIntent, tts = true }: Props) {
++  const [active, setActive] = useState(false);
++  const [lastTranscript, setLastTranscript] = useState('');
++  const recRef = useRef<any>(null);
++
++  const speak = (text: string) => {
++    if (!tts) return;
++    const u = new SpeechSynthesisUtterance(text);
++    u.lang = 'ko-KR';
++    window.speechSynthesis.speak(u);
++  };
++
++  useEffect(() => {
++    if (!SpeechRecognition) return;
++    const rec = new SpeechRecognition();
++    rec.lang = 'ko-KR';
++    rec.interimResults = false;
++    rec.maxAlternatives = 1;
++
++    rec.onresult = (e: any) => {
++      const transcript = e.results[0][0].transcript.trim();
++      setLastTranscript(transcript);
++      const intent = parseIntent(transcript);
++      if (intent) {
++        onIntent(intent);
++        feedback(intent, speak);
++      } else {
++        speak(`죄송해요. 이해하지 못했어요: ${transcript}`);
++      }
++    };
++    rec.onerror = () => setActive(false);
++    rec.onend = () => setActive(false);
++
++    recRef.current = rec;
++  }, [onIntent]);
++
++  const onToggle = () => {
++    if (!recRef.current) return;
++    if (active) {
++      recRef.current.stop();
++      setActive(false);
++    } else {
++      recRef.current.start();
++      setActive(true);
++      speak('듣고 있어요.');
++    }
++  };
++
++  return (
++    <div className="fixed right-4 bottom-5 z-40">
++      <button
++        onClick={onToggle}
++        className={`rounded-full shadow-lg px-5 py-4 text-white transition ${
++          active ? 'bg-red-500 animate-pulse' : 'bg-indigo-600 hover:bg-indigo-700'
++        }`}
++        aria-pressed={active}
++        aria-label="음성 제어"
++      >
++        🎙️ {active ? '끄기' : '말하기'}
++      </button>
++      {lastTranscript && (
++        <div className="mt-2 text-xs text-gray-600 bg-white/80 backdrop-blur rounded px-2 py-1 shadow">
++          "{lastTranscript}"
++        </div>
++      )}
++    </div>
++  );
++}
++
++function feedback(intent: Intent, speak: (t:string)=>void) {
++  switch (intent.type) {
++    case 'OPEN_CREATE': speak('상품 등록 화면을 열게요.'); break;
++    case 'FILTER_NEARBY': speak(`${intent.km}킬로 이내로 필터링했어요.`); break;
++    case 'FILTER_PRICE_MAX': speak(`최대 ${intent.max}원으로 제한했어요.`); break;
++    case 'OPEN_DETAIL': speak(`${intent.index}번 상세를 열게요.`); break;
++    case 'ANALYZE_CURRENT': speak('AI 분석을 시작할게요.'); break;
++    case 'NEXT_PAGE': speak('다음으로 이동합니다.'); break;
++    case 'PREV_PAGE': speak('이전으로 이동합니다.'); break;
++    case 'SEARCH': speak(`${intent.query}로 검색했어요.`); break;
++  }
++}
++
++function parseIntent(t: string): Intent | null {
++  const s = t.replace(/\s+/g, '');
++
++  if (s.includes('상품등록')) return { type: 'OPEN_CREATE' };
++  if (s.includes('다음')) return { type: 'NEXT_PAGE' };
++  if (s.includes('이전')) return { type: 'PREV_PAGE' };
++  if (s.includes('분석')) return { type: 'ANALYZE_CURRENT' };
++
++  const mKm = s.match(/(\d+)\s*킬?로/);
++  if (mKm) return { type: 'FILTER_NEARBY', km: Number(mKm[1]) };
++
++  const mWon = s.match(/(\d+)\s*(원|만원)/);
++  if (mWon && s.includes('이하')) {
++    const num = Number(mWon[1]) * (s.includes('만원') ? 10000 : 1);
++    return { type: 'FILTER_PRICE_MAX', max: num };
++  }
++
++  const mDetail = s.match(/(\d+)\s*번(상세|열어줘|보기)/);
++  if (mDetail) return { type: 'OPEN_DETAIL', index: Number(mDetail[1]) };
++
++  if (t.length >= 2) return { type: 'SEARCH', query: t };
++  return null;
++}

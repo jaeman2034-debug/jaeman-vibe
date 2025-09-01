@@ -1,0 +1,24 @@
+name: Test (with Emulators)
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      # Firebase 에뮬레이터를 테스트 동안만 자동 기동/종료
+      - name: Run tests against Emulators
+        run: npx firebase-tools@latest emulators:exec --project jaeman-vibe-platform "npm test"

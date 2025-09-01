@@ -1,0 +1,7 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 로컬 개발 편의: 전부 허용 (배포 금지)
+    match /{document=**} { allow read, write: if true; }
+  }
+}

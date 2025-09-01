@@ -1,0 +1,23 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    function isSignedIn() { return request.auth != null; }
+
+    // 공개 폴더(썸네일/정적자산 등) — 읽기만 공개
+    match /public/{allPaths=**} {
+      allow read:  if true;
+      allow write: if isSignedIn(); // 필요 없으면 false로
+    }
+
+    // 사용자별 개인 폴더: 본인만 접근
+    match /user_uploads/{uid}/{allPaths=**} {
+      allow read, write: if isSignedIn()
+                          && request.auth.uid == uid
+                          && request.resource.size < 10 * 1024 * 1024 // 10MB 제한
+                          && request.resource.contentType.matches('image/.*|application/pdf');
+    }
+
+    // 기본: 전부 거부
+    match /{path=**} { allow read, write: if false; }
+  }
+}

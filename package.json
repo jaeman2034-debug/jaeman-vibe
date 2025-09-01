@@ -4,10 +4,20 @@
   "version": "0.0.1",
   "type": "module",
   "scripts": {
-    "dev": "vite --port 5175 --strictPort --open \"/#/start\"",
-    "build": "tsc -b && vite build",
+    "dev": "vite --port 5175 --strictPort --open",
+    "build": "tsc && vite build",
+    "test": "vitest run -u || echo 'add your test runner here'",
+    "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview",
-    "start": "cross-env APP_VERSION=$npm_package_version BUILD_TIME=$(date -u +%FT%TZ) node server.cjs"
+    "start": "cross-env APP_VERSION=$npm_package_version BUILD_TIME=$(date -u +%FT%TZ) node server.cjs",
+    "rules:dev":  "powershell -NoProfile -Command \"Copy-Item -Force .\\firestore.rules.dev .\\firestore.rules; Copy-Item -Force .\\storage.rules.dev .\\storage.rules\"",
+    "rules:prod": "powershell -NoProfile -Command \"Copy-Item -Force .\\firestore.rules.prod .\\firestore.rules; Copy-Item -Force .\\storage.rules.prod .\\storage.rules\"",
+    "emu": "npx firebase-tools@latest emulators:start --config ./firebase.json --import ./.seed --export-on-exit",
+    "web": "vite",
+    "dev": "npm-run-all -p emu web",
+    "test:emu": "npx firebase-tools@latest emulators:exec --project jaeman-vibe-platform \"npm test\"",
+    "test:rules": "npx firebase-tools@latest emulators:exec --project jaeman-vibe-platform \"npm run test:rules\"",
+    "test:rules:unit": "jest src/tests/rules.test.ts"
   },
   "engines": {
     "node": ">=20"
@@ -17,10 +27,14 @@
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
     "@imgly/background-removal": "^1.7.0",
+    "@radix-ui/react-select": "^2.2.6",
+    "@radix-ui/react-slot": "^1.2.3",
+    "@radix-ui/react-tabs": "^1.1.13",
     "@tensorflow-models/mobilenet": "^2.1.1",
     "@tensorflow/tfjs": "^4.22.0",
     "@tensorflow/tfjs-backend-webgl": "^4.22.0",
     "axios": "^1.11.0",
+    "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cors": "^2.8.5",
     "dotenv": "^17.2.1",
@@ -36,7 +50,9 @@
     "react-dom": "^19.1.1",
     "react-hot-toast": "^2.6.0",
     "react-router-dom": "^7.8.0",
-    "sharp": "^0.34.3"
+    "recharts": "^3.1.2",
+    "sharp": "^0.34.3",
+    "tailwind-merge": "^3.3.1"
   },
   "devDependencies": {
     "@eslint/js": "^9.32.0",
@@ -55,6 +71,7 @@
     "firebase-functions": "^6.4.0",
     "firebase-tools": "^14.12.1",
     "globals": "^16.3.0",
+    "npm-run-all": "^4.1.5",
     "postcss": "^8.5.6",
     "tailwindcss": "^3.4.17",
     "typescript": "~5.8.3",

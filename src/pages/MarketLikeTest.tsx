@@ -1,0 +1,1 @@
+import React from 'react';import MarketLikeLayout from '../components/MarketLikeLayout';export default function MarketLikeTest() {  return (    <div>      <MarketLikeLayout />    </div>  );}

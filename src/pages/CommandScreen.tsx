@@ -1,0 +1,1 @@
+// src/pages/CommandScreen.tsximport React from "react";import "./startscreen.css"; // ???¤ì œ ?Œì¼ëª…ê³¼ ?¼ì¹˜ (?Œë¬¸?? ?˜ì´???†ìŒ)export default function CommandScreen() {  return (    <div className="start-root">      <div className="start-card">        <h2>Command Screen</h2>        <p>?”ë²„ê·?ì»¤ë§¨???ŒìŠ¤???”ë©´</p>      </div>    </div>  );}

@@ -1,0 +1,170 @@
+﻿{
+  "name": "YAGO VIBE - Simple Chat Log to Google Sheet",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "chat-new-message",
+        "options": {
+          "responseData": "allEntries",
+          "responseMode": "lastNode"
+        }
+      },
+      "id": "webhook-entry",
+      "name": "Webhook Entry",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [250, 300],
+      "webhookId": "chat-new-message",
+      "notes": "??Receives POST data from Firebase Function"
+    },
+    {
+      "parameters": {
+        "model": "gpt-4o-mini",
+        "messages": {
+          "values": [
+            {
+              "role": "system",
+              "content": "?뱀떊? 梨꾪똿 ?붿빟 ?꾨Ц媛?낅땲?? 媛꾧껐?섍쾶 ?붿빟?섍퀬 ?듭떖 ?ㅼ썙?쒕? 異붿텧?섏꽭??"
+            },
+            {
+              "role": "user",
+              "content": "=?ㅼ쓬 梨꾪똿 硫붿떆吏瑜??붿빟?섍퀬 ?ㅼ썙??3媛쒕? 異붿텧?댁＜?몄슂:\n\n?곹뭹: {{$json.room.productTitle}}\n蹂대궦?? {{$json.message.senderName}}\n?댁슜: {{$json.message.text}}\n\n異쒕젰 ?뺤떇:\n?붿빟: (??臾몄옣)\n?ㅼ썙?? (3媛? ?쇳몴濡?援щ텇)"
+            }
+          ]
+        },
+        "options": {
+          "temperature": 0.3,
+          "maxTokens": 150
+        }
+      },
+      "id": "ai-summary",
+      "name": "AI Summary",
+      "type": "n8n-nodes-base.openAi",
+      "typeVersion": 1.3,
+      "position": [600, 300],
+      "credentials": {
+        "openAiApi": {
+          "id": "1",
+          "name": "OpenAI API"
+        }
+      },
+      "notes": "??GPT-4o-mini濡??붿빟 諛??ㅼ썙??異붿텧"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "{{$env.GOOGLE_SHEET_ID}}",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "chat_logs",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "?좎쭨": "={{$now.format('yyyy-MM-dd HH:mm:ss')}}",
+            "諛⑸쾲??: "={{$json.roomId}}",
+            "?곹뭹": "={{$json.room.productTitle}}",
+            "蹂대궦??: "={{$json.message.senderName}}",
+            "?먮낯硫붿떆吏": "={{$json.message.text}}",
+            "AI?붿빟": "={{$node[\"AI Summary\"].json.choices[0].message.content}}",
+            "梨꾪똿諛⑸쭅??: "={{$json.links.chatRoom}}"
+          }
+        },
+        "options": {}
+      },
+      "id": "google-sheets",
+      "name": "Save to Google Sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.2,
+      "position": [950, 300],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "1",
+          "name": "Google Sheets OAuth2 API"
+        }
+      },
+      "notes": "??Google Sheets???먮룞 ???
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": true,\n  \"message\": \"Google Sheets ????꾨즺\",\n  \"roomId\": \"{{$json.roomId}}\",\n  \"timestamp\": \"{{$now}}\"\n}",
+        "options": {}
+      },
+      "id": "webhook-response",
+      "name": "Webhook Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1200, 300],
+      "notes": "??Returns success response"
+    }
+  ],
+  "connections": {
+    "Webhook Entry": {
+      "main": [
+        [
+          {
+            "node": "AI Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Summary": {
+      "main": [
+        [
+          {
+            "node": "Save to Google Sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save to Google Sheet": {
+      "main": [
+        [
+          {
+            "node": "Webhook Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": "",
+    "timezone": "Asia/Seoul"
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "createdAt": "2025-01-13T00:00:00.000Z",
+      "updatedAt": "2025-01-13T00:00:00.000Z",
+      "id": "1",
+      "name": "YAGO VIBE"
+    },
+    {
+      "createdAt": "2025-01-13T00:00:00.000Z",
+      "updatedAt": "2025-01-13T00:00:00.000Z",
+      "id": "2",
+      "name": "Google Sheets"
+    }
+  ],
+  "triggerCount": 1,
+  "updatedAt": "2025-01-13T00:00:00.000Z",
+  "versionId": "yagovibe-sheets-simple-v1",
+  "active": true
+}
+

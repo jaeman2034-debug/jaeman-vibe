@@ -1,0 +1,132 @@
+﻿{
+  "name": "YAGO VIBE - KakaoTalk Alert (Chat Message)",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "chat-new-message",
+        "options": {
+          "responseData": "allEntries",
+          "responseMode": "lastNode"
+        }
+      },
+      "id": "webhook-entry",
+      "name": "Webhook Entry",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [300, 300],
+      "webhookId": "chat-new-message",
+      "notes": "??Receives POST data from Firebase Function when a new chat message is created.\n\nEndpoint: https://n8n.yagovibe.com/webhook/chat-new-message"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://kapi.kakao.com/v2/api/talk/memo/default/send",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "kakaoOAuth2Api",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/x-www-form-urlencoded"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "form-urlencoded",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "template_object",
+              "value": "={\n  \"object_type\": \"text\",\n  \"text\": \"?뮠 YAGO VIBE ??硫붿떆吏 ?꾩갑!\\n\\n?곹뭹: {{$json.room.productTitle}}\\n蹂대궦?? {{$json.message.senderName}}\\n?댁슜: {{$json.message.text}}\\n?쒓컙: {{$json.message.createdAt}}\",\n  \"link\": {\n    \"web_url\": \"{{$json.links.chatRoom}}\",\n    \"mobile_web_url\": \"{{$json.links.chatRoom}}\"\n  },\n  \"button_title\": \"梨꾪똿諛?諛붾줈媛湲?"\n}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "kakao-notify",
+      "name": "Send KakaoTalk Message",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [700, 300],
+      "credentials": {
+        "kakaoOAuth2Api": {
+          "id": "1",
+          "name": "Kakao OAuth2 API"
+        }
+      },
+      "notes": "??Sends alert message to KakaoTalk using Kakao API\n\nRequired Scopes:\n- talk_message"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": true,\n  \"message\": \"移댁뭅?ㅽ넚 ?뚮┝ ?꾩넚 ?꾨즺\",\n  \"roomId\": \"{{$json.roomId}}\",\n  \"timestamp\": \"{{$now}}\"\n}",
+        "options": {}
+      },
+      "id": "webhook-response",
+      "name": "Webhook Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [900, 300],
+      "notes": "??Returns success response to Firebase Function"
+    }
+  ],
+  "connections": {
+    "Webhook Entry": {
+      "main": [
+        [
+          {
+            "node": "Send KakaoTalk Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send KakaoTalk Message": {
+      "main": [
+        [
+          {
+            "node": "Webhook Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": "",
+    "timezone": "Asia/Seoul"
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "createdAt": "2025-01-13T00:00:00.000Z",
+      "updatedAt": "2025-01-13T00:00:00.000Z",
+      "id": "1",
+      "name": "YAGO VIBE"
+    },
+    {
+      "createdAt": "2025-01-13T00:00:00.000Z",
+      "updatedAt": "2025-01-13T00:00:00.000Z",
+      "id": "2",
+      "name": "梨꾪똿"
+    },
+    {
+      "createdAt": "2025-01-13T00:00:00.000Z",
+      "updatedAt": "2025-01-13T00:00:00.000Z",
+      "id": "3",
+      "name": "KakaoTalk"
+    }
+  ],
+  "triggerCount": 1,
+  "updatedAt": "2025-01-13T00:00:00.000Z",
+  "versionId": "yagovibe-kakao-alert-v1",
+  "active": true
+}
+

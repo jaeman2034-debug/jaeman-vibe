@@ -1,0 +1,30 @@
+# Webhook 서비스 (Express + OG 생성 + 결제 + Auth)
+FROM node:20-bullseye
+
+WORKDIR /app
+
+# 패키지 설치
+COPY package*.json ./
+RUN npm ci --only=production
+
+# 소스 코드 복사
+COPY . .
+
+# 환경변수 설정
+ENV NODE_ENV=production \
+    PORT=3001 \
+    DATA_PUBLIC=/data/public \
+    DATA_CACHE=/data/cache
+
+# 포트 노출
+EXPOSE 3001
+
+# curl 설치 (헬스체크용)
+RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
+
+# 헬스체크 추가
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+  CMD curl -f http://localhost:3001/healthz || exit 1
+
+# 앱 실행
+CMD ["node", "index.mjs"]

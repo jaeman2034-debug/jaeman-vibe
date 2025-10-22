@@ -1,0 +1,325 @@
+import React, { useEffect, useState } from "react";
+import { db } from "../../lib/firebase";
+import { collection, query, where, orderBy, getDocs, Timestamp } from "firebase/firestore";
+import { jsPDF } from "jspdf";
+
+const TEAM_LIST = [
+  { id: "soheul60", name: "?Œí˜FC 60" },
+  { id: "soheul88", name: "?Œí˜FC 88" },
+  { id: "academy", name: "?Œí˜ ?„ì¹´?°ë?" },
+];
+
+interface TeamData {
+  id: string;
+  name: string;
+  count: {
+    positive: number;
+    neutral: number;
+    negative: number;
+  };
+  ratio: {
+    pos: string;
+    neu: string;
+    neg: string;
+  };
+  summaries: string[];
+}
+
+export default function TeamReportPDF() {
+  const [data, setData] = useState<TeamData[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [period, setPeriod] = useState<"week" | "month">("week");
+
+  const fetchTeamData = async () => {
+    setLoading(true);
+    try {
+      const now = new Date();
+      const daysAgo = period === "week" ? 7 : 30;
+      const from = new Date(now.getTime() - daysAgo * 24 * 60 * 60 * 1000);
+
+      const results = await Promise.all(
+        TEAM_LIST.map(async (team) => {
+          const q = query(
+            collection(db, "chat_summaries"),
+            where("teamId", "==", team.id),
+            where("createdAt", ">=", Timestamp.fromDate(from)),
+            orderBy("createdAt", "desc")
+          );
+          const snap = await getDocs(q);
+          const docs = snap.docs.map((d) => d.data());
+
+          const count = { positive: 0, neutral: 0, negative: 0 };
+          docs.forEach((d: any) => {
+            const sentiment = d.sentiment || d.emotion || "neutral";
+            const sentimentKey = sentiment.toLowerCase();
+            
+            if (sentimentKey.includes("positive") || sentiment === "ê¸ì •") count.positive++;
+            else if (sentimentKey.includes("negative") || sentiment === "ë¶€??) count.negative++;
+            else count.neutral++;
+          });
+
+          const total = docs.length || 1;
+          const ratio = {
+            pos: ((count.positive / total) * 100).toFixed(1),
+            neu: ((count.neutral / total) * 100).toFixed(1),
+            neg: ((count.negative / total) * 100).toFixed(1),
+          };
+
+          return {
+            id: team.id,
+            name: team.name,
+            count,
+            ratio,
+            summaries: docs.slice(0, 5).map((d: any) => d.summary || "?”ì•½ ?†ìŒ"),
+          };
+        })
+      );
+      setData(results);
+      console.log("???€ë³??°ì´??ë¡œë“œ ?„ë£Œ:", results);
+    } catch (error) {
+      console.error("???°ì´??ë¡œë“œ ?¤ë¥˜:", error);
+      alert("?°ì´?°ë? ë¶ˆëŸ¬?¤ëŠ” ì¤??¤ë¥˜ê°€ ë°œìƒ?ˆìŠµ?ˆë‹¤.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const generatePDF = () => {
+    const doc = new jsPDF();
+    doc.setFont("helvetica", "normal");
+
+    // ?œëª©
+    doc.setFontSize(20);
+    doc.text("YAGO VIBE Team Comparison Report", 20, 20);
+
+    doc.setFontSize(12);
+    doc.text(`Generated: ${new Date().toLocaleDateString("ko-KR")}`, 20, 30);
+    doc.text(`Period: ${period === "week" ? "Last 7 days" : "Last 30 days"}`, 20, 37);
+
+    let y = 50;
+
+    // ?€ë³?ë¦¬í¬??    data.forEach((team) => {
+      if (y > 240) {
+        doc.addPage();
+        y = 20;
+      }
+
+      doc.setFontSize(16);
+      doc.text(`${team.name}`, 20, y);
+      y += 8;
+
+      doc.setFontSize(11);
+      doc.text(`Positive: ${team.ratio.pos}%   Neutral: ${team.ratio.neu}%   Negative: ${team.ratio.neg}%`, 25, y);
+      y += 7;
+
+      doc.text(`Total: ${team.count.positive + team.count.neutral + team.count.negative} messages`, 25, y);
+      y += 10;
+
+      doc.setFontSize(10);
+      doc.text("Top Summaries:", 25, y);
+      y += 6;
+
+      team.summaries.forEach((s, idx) => {
+        const split = doc.splitTextToSize(`${idx + 1}. ${s}`, 165);
+        doc.text(split, 30, y);
+        y += split.length * 5 + 2;
+        if (y > 270) {
+          doc.addPage();
+          y = 20;
+        }
+      });
+
+      y += 5;
+      doc.line(20, y, 190, y);
+      y += 10;
+    });
+
+    // ?„ì²´ ?µê³„ ?”ì•½
+    doc.addPage();
+    y = 20;
+    doc.setFontSize(16);
+    doc.text("Overall Statistics", 20, y);
+    y += 10;
+
+    const totalPositive = data.reduce((sum, t) => sum + t.count.positive, 0);
+    const totalNeutral = data.reduce((sum, t) => sum + t.count.neutral, 0);
+    const totalNegative = data.reduce((sum, t) => sum + t.count.negative, 0);
+    const totalAll = totalPositive + totalNeutral + totalNegative || 1;
+
+    doc.setFontSize(11);
+    doc.text(`Total Positive: ${totalPositive} (${((totalPositive / totalAll) * 100).toFixed(1)}%)`, 20, y);
+    y += 7;
+    doc.text(`Total Neutral: ${totalNeutral} (${((totalNeutral / totalAll) * 100).toFixed(1)}%)`, 20, y);
+    y += 7;
+    doc.text(`Total Negative: ${totalNegative} (${((totalNegative / totalAll) * 100).toFixed(1)}%)`, 20, y);
+    y += 7;
+    doc.text(`Total Messages: ${totalAll}`, 20, y);
+
+    // ?¸í„°
+    doc.setFontSize(8);
+    doc.text("Generated by YAGO VIBE AI System", 20, 285);
+
+    // ?€??    const filename = `YAGO_Team_Report_${period}_${new Date().toISOString().slice(0, 10)}.pdf`;
+    doc.save(filename);
+    console.log(`??PDF ?ì„± ?„ë£Œ: ${filename}`);
+  };
+
+  useEffect(() => {
+    fetchTeamData();
+  }, [period]);
+
+  return (
+    <div className="min-h-screen bg-gray-50 pb-20">
+      <div className="max-w-5xl mx-auto p-6">
+        {/* ?¤ë” */}
+        <div className="text-center mb-8">
+          <h2 className="text-3xl font-bold text-gray-900 mb-2">?“„ ?€ë³?ë¹„êµ ë¦¬í¬??PDF ?ì„±</h2>
+          <p className="text-gray-600">3ê°??€??AI ?€??ë¶„ì„??PDFë¡??¤ìš´ë¡œë“œ?˜ì„¸??/p>
+        </div>
+
+        {/* ê¸°ê°„ ? íƒ */}
+        <div className="flex justify-center gap-4 mb-8">
+          <button
+            onClick={() => setPeriod("week")}
+            className={`px-6 py-3 rounded-xl font-semibold transition-all ${
+              period === "week"
+                ? "bg-blue-600 text-white shadow-lg scale-105"
+                : "bg-white border border-gray-300 text-gray-700 hover:bg-gray-50"
+            }`}
+          >
+            ?“… ì£¼ê°„ ë¹„êµ
+          </button>
+          <button
+            onClick={() => setPeriod("month")}
+            className={`px-6 py-3 rounded-xl font-semibold transition-all ${
+              period === "month"
+                ? "bg-blue-600 text-white shadow-lg scale-105"
+                : "bg-white border border-gray-300 text-gray-700 hover:bg-gray-50"
+            }`}
+          >
+            ?“† ?”ê°„ ë¹„êµ
+          </button>
+        </div>
+
+        {/* PDF ?ì„± ë²„íŠ¼ */}
+        <div className="text-center mb-8">
+          <button
+            onClick={generatePDF}
+            disabled={loading || data.length === 0}
+            className="px-8 py-4 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-2xl font-bold text-lg hover:from-green-600 hover:to-emerald-700 transition-all shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {loading ? "ë¡œë”© ì¤?.." : "?“„ ?€ë³?ë¹„êµ ë¦¬í¬???¤ìš´ë¡œë“œ"}
+          </button>
+          <p className="text-xs text-gray-500 mt-2">
+            {period === "week" ? "ìµœê·¼ 7?¼ê°„" : "ìµœê·¼ 30?¼ê°„"} 3ê°??€??AI ë¶„ì„???¬í•¨?©ë‹ˆ??
+          </p>
+        </div>
+
+        {/* ?€ë³?ë¯¸ë¦¬ë³´ê¸° */}
+        <div className="mb-8">
+          <h3 className="text-xl font-semibold mb-4 text-center">?“Š ?€ë³??µê³„ ë¯¸ë¦¬ë³´ê¸°</h3>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {data.map((team) => {
+              const total = team.count.positive + team.count.neutral + team.count.negative;
+              const isPositive = team.count.positive > team.count.negative;
+
+              return (
+                <div key={team.id} className="bg-white p-6 rounded-2xl shadow-md">
+                  <h3 className="text-lg font-semibold mb-4 text-center text-gray-900">
+                    ??{team.name}
+                  </h3>
+
+                  {/* ê°ì • ?µê³„ */}
+                  <div className="grid grid-cols-3 gap-2 mb-4">
+                    <div className="text-center p-3 bg-green-50 rounded-lg">
+                      <p className="text-xs text-gray-500 mb-1">ê¸ì •</p>
+                      <p className="text-xl font-bold text-green-600">{team.count.positive}</p>
+                      <p className="text-xs text-green-700">{team.ratio.pos}%</p>
+                    </div>
+                    <div className="text-center p-3 bg-blue-50 rounded-lg">
+                      <p className="text-xs text-gray-500 mb-1">ì¤‘ë¦½</p>
+                      <p className="text-xl font-bold text-blue-600">{team.count.neutral}</p>
+                      <p className="text-xs text-blue-700">{team.ratio.neu}%</p>
+                    </div>
+                    <div className="text-center p-3 bg-red-50 rounded-lg">
+                      <p className="text-xs text-gray-500 mb-1">ë¶€??/p>
+                      <p className="text-xl font-bold text-red-600">{team.count.negative}</p>
+                      <p className="text-xs text-red-700">{team.ratio.neg}%</p>
+                    </div>
+                  </div>
+
+                  {/* ?€ ?íƒœ */}
+                  <div className="text-center mb-4">
+                    <span className={`px-4 py-2 rounded-full text-sm font-semibold ${
+                      isPositive
+                        ? "bg-green-100 text-green-700"
+                        : "bg-amber-100 text-amber-700"
+                    }`}>
+                      {isPositive ? "?˜Š ê¸ì •??ë¶„ìœ„ê¸? : "?˜ ê´€???„ìš”"}
+                    </span>
+                  </div>
+
+                  {/* ?”ì•½ ë¯¸ë¦¬ë³´ê¸° */}
+                  <div className="border-t pt-3">
+                    <p className="text-xs text-gray-500 mb-2 font-semibold">ì£¼ìš” ?”ì•½ (TOP 3)</p>
+                    <ul className="text-xs text-gray-700 space-y-1">
+                      {team.summaries.slice(0, 3).map((s, i) => (
+                        <li key={i} className="flex items-start gap-1">
+                          <span className="text-blue-600 mt-0.5">??/span>
+                          <span className="flex-1">{s}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* ?„ì²´ ?µê³„ */}
+        {data.length > 0 && (
+          <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-6 rounded-2xl border border-blue-200">
+            <h3 className="text-lg font-bold text-gray-900 mb-4 text-center">?“Š ?„ì²´ ?€ ?µí•© ?µê³„</h3>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="bg-white p-4 rounded-xl shadow-sm text-center">
+                <p className="text-sm text-gray-500 mb-1">?„ì²´ ë¶„ì„</p>
+                <p className="text-2xl font-bold text-blue-600">
+                  {data.reduce((sum, t) => sum + t.count.positive + t.count.neutral + t.count.negative, 0)}ê°?                </p>
+              </div>
+              <div className="bg-white p-4 rounded-xl shadow-sm text-center">
+                <p className="text-sm text-gray-500 mb-1">ê¸ì • ?©ê³„</p>
+                <p className="text-2xl font-bold text-green-600">
+                  {data.reduce((sum, t) => sum + t.count.positive, 0)}ê°?                </p>
+              </div>
+              <div className="bg-white p-4 rounded-xl shadow-sm text-center">
+                <p className="text-sm text-gray-500 mb-1">ì¤‘ë¦½ ?©ê³„</p>
+                <p className="text-2xl font-bold text-blue-600">
+                  {data.reduce((sum, t) => sum + t.count.neutral, 0)}ê°?                </p>
+              </div>
+              <div className="bg-white p-4 rounded-xl shadow-sm text-center">
+                <p className="text-sm text-gray-500 mb-1">ë¶€???©ê³„</p>
+                <p className="text-2xl font-bold text-red-600">
+                  {data.reduce((sum, t) => sum + t.count.negative, 0)}ê°?                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ?°ì´???†ì„ ??*/}
+        {data.length === 0 && !loading && (
+          <div className="text-center py-20">
+            <div className="text-6xl mb-4">?“Š</div>
+            <p className="text-gray-400 text-lg mb-6">
+              {period === "week" ? "ìµœê·¼ 7?¼ê°„" : "ìµœê·¼ 30?¼ê°„"} ?€ ?°ì´?°ê? ?†ìŠµ?ˆë‹¤.
+            </p>
+            <p className="text-sm text-gray-500">
+              ì±„íŒ… ë©”ì‹œì§€??teamIdë¥?ì¶”ê??˜ë©´ ?ë™?¼ë¡œ ì§‘ê³„?©ë‹ˆ??
+            </p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+

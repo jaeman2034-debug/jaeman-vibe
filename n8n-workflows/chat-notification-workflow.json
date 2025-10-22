@@ -1,0 +1,133 @@
+﻿{
+  "name": "YAGO VIBE - 梨꾪똿 ?뚮┝ ?먮룞??,
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "chat-new-message",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-chat",
+      "name": "Webhook - ??硫붿떆吏",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300],
+      "webhookId": "chat-new-message"
+    },
+    {
+      "parameters": {
+        "channel": "#yagovibe-alerts",
+        "text": "?뮠 *??梨꾪똿 硫붿떆吏 ?꾩갑!*\n\n*?곹뭹:* {{$json.room.productTitle}}\n*蹂대궦??* {{$json.message.senderName}}\n*?댁슜:* {{$json.message.text}}\n*?쒓컙:* {{$json.message.createdAt}}\n\n?뵕 <{{$json.links.chatRoom}}|梨꾪똿諛??닿린> | <{{$json.links.product}}|?곹뭹 蹂닿린>",
+        "otherOptions": {}
+      },
+      "id": "slack-notification",
+      "name": "Slack ?뚮┝",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 1,
+      "position": [450, 200],
+      "credentials": {
+        "slackApi": {
+          "id": "1",
+          "name": "Slack API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "{{$env.TELEGRAM_CHAT_ID}}",
+        "text": "?뮠 *??梨꾪똿 硫붿떆吏*\n\n*?곹뭹:* {{$json.room.productTitle}}\n*蹂대궦??* {{$json.message.senderName}}\n*?댁슜:* {{$json.message.text}}\n*?쒓컙:* {{$json.message.createdAt}}\n\n[梨꾪똿諛??닿린]({{$json.links.chatRoom}})",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "id": "telegram-notification",
+      "name": "Telegram ?뚮┝",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1,
+      "position": [450, 400],
+      "credentials": {
+        "telegramApi": {
+          "id": "2",
+          "name": "Telegram Bot API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "https://hooks.discord.com/services/YOUR_WEBHOOK_URL",
+        "options": {
+          "bodyParametersJson": "{\n  \"content\": \"?뮠 **??梨꾪똿 硫붿떆吏**\\n\\n**?곹뭹:** {{$json.room.productTitle}}\\n**蹂대궦??** {{$json.message.senderName}}\\n**?댁슜:** {{$json.message.text}}\\n**?쒓컙:** {{$json.message.createdAt}}\\n\\n[梨꾪똿諛??닿린]({{$json.links.chatRoom}})\"\n}"
+        }
+      },
+      "id": "discord-notification",
+      "name": "Discord ?뚮┝",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [450, 600]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\n  \"success\": true,\n  \"message\": \"?뚮┝ ?꾩넚 ?꾨즺\",\n  \"roomId\": \"{{$json.roomId}}\",\n  \"timestamp\": \"{{$now}}\"\n}"
+      },
+      "id": "webhook-response",
+      "name": "Webhook ?묐떟",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [650, 300]
+    }
+  ],
+  "connections": {
+    "Webhook - ??硫붿떆吏": {
+      "main": [
+        [
+          {
+            "node": "Slack ?뚮┝",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Telegram ?뚮┝",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Discord ?뚮┝",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Slack ?뚮┝": {
+      "main": [
+        [
+          {
+            "node": "Webhook ?묐떟",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "name": "YAGO VIBE",
+      "id": "1"
+    },
+    {
+      "name": "梨꾪똿",
+      "id": "2"
+    }
+  ],
+  "triggerCount": 1,
+  "updatedAt": "2025-01-13T00:00:00.000Z",
+  "versionId": "1"
+}
+

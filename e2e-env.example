@@ -1,0 +1,10 @@
+PROJECT_ID=jaeman-vibe-platform
+REGION=asia-northeast3
+FIRESTORE_EMULATOR_HOST=127.0.0.1:8080
+FN_BASE=http://127.0.0.1:5001/jaeman-vibe-platform/asia-northeast3
+N8N_SHARED_SECRET=change-me
+EVENT_ID=E1
+REG_ID=R1
+TEST_UID=test-user-uid
+TEST_EMAIL=tester@example.com
+AMOUNT=10000

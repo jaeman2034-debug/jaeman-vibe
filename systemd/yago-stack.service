@@ -1,0 +1,38 @@
+[Unit]
+Description=YAGO Stack (Caddy + Webhook)
+Documentation=https://github.com/your-org/yago-stack
+After=docker.service network-online.target
+Wants=network-online.target
+Requires=docker.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory=/opt/yago-stack
+ExecStart=/usr/bin/docker compose up -d --build
+ExecStop=/usr/bin/docker compose down
+ExecReload=/usr/bin/docker compose restart
+TimeoutStartSec=0
+Restart=on-failure
+RestartSec=5
+
+# 환경변수
+Environment=COMPOSE_PROJECT_NAME=yago-stack
+Environment=COMPOSE_FILE=docker-compose.yml
+
+# 로그 설정
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=yago-stack
+
+# 보안 설정
+User=root
+Group=root
+PrivateTmp=true
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/yago-stack /var/lib/docker
+
+[Install]
+WantedBy=multi-user.target

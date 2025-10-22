@@ -1,0 +1,75 @@
+{
+  "name": "market-intent",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "chat-final",
+        "options": {}
+      },
+      "id": "Webhook",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [200, 300]
+    },
+    {
+      "parameters": {
+        "functionCode": "return [{ json: { intent: $json.intent || 'unknown' } }];"
+      },
+      "id": "Code1",
+      "name": "Extract Intent",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [400, 300]
+    },
+    {
+      "parameters": {
+        "propertyName": "intent",
+        "rules": [
+          { "operation": "equal", "value": "market.create" },
+          { "operation": "equal", "value": "market.get" },
+          { "operation": "equal", "value": "market.list" },
+          { "operation": "equal", "value": "market.updateStatus" },
+          { "operation": "equal", "value": "market.delete" }
+        ]
+      },
+      "id": "Switch",
+      "name": "Switch Intent",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 1,
+      "position": [600, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={ \"ok\": true, \"intent\": $json.intent }"
+      },
+      "id": "Respond",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [900, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [[{ "node": "Extract Intent", "type": "main", "index": 0 }]]
+    },
+    "Extract Intent": {
+      "main": [[{ "node": "Switch Intent", "type": "main", "index": 0 }]]
+    },
+    "Switch Intent": {
+      "main": [
+        [{ "node": "Respond to Webhook", "type": "main", "index": 0 }],
+        [{ "node": "Respond to Webhook", "type": "main", "index": 0 }],
+        [{ "node": "Respond to Webhook", "type": "main", "index": 0 }],
+        [{ "node": "Respond to Webhook", "type": "main", "index": 0 }],
+        [{ "node": "Respond to Webhook", "type": "main", "index": 0 }]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {},
+  "id": "market-intent-template"
+}

@@ -1,0 +1,10 @@
+{
+  "type": "email",
+  "displayName": "SRE Alerts (prod)",
+  "labels": { 
+    "email_address": "alerts@example.com" 
+  },
+  "userLabels": { 
+    "env": "prod" 
+  }
+}

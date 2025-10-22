@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>테스트 이벤트 생성</title>
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+        import { getFirestore, collection, addDoc, Timestamp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+
+        const firebaseConfig = {
+            apiKey: "***REMOVED***",
+            authDomain: "jaeman-vibe-platform.firebaseapp.com",
+            projectId: "jaeman-vibe-platform",
+            storageBucket: "jaeman-vibe-platform.appspot.com",
+            messagingSenderId: "123456789",
+            appId: "1:123456789:web:abcdef123456"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        window.createTestEvent = async function() {
+            try {
+                const eventData = {
+                    title: "테스트 축구 모임",
+                    sport: "축구",
+                    startAt: Timestamp.fromDate(new Date(Date.now() + 24 * 60 * 60 * 1000)),
+                    endAt: Timestamp.fromDate(new Date(Date.now() + 25 * 60 * 60 * 1000)),
+                    capacity: 20,
+                    fee: 10000,
+                    status: "open",
+                    placeName: "서울시 강남구 테스트 경기장",
+                    lat: 37.5665,
+                    lng: 126.9780,
+                    images: ["https://via.placeholder.com/400x300"],
+                    hostId: "test-host-id",
+                    attendeeCount: 0,
+                    description: "테스트용 축구 모임입니다. 모든 기능을 테스트해보세요!",
+                    createdAt: Timestamp.now()
+                };
+
+                const docRef = await addDoc(collection(db, 'events'), eventData);
+                console.log('테스트 이벤트 생성 완료:', docRef.id);
+                alert(`테스트 이벤트 생성 완료!\n이벤트 ID: ${docRef.id}\nURL: http://127.0.0.1:5179/events/${docRef.id}`);
+            } catch (error) {
+                console.error('이벤트 생성 실패:', error);
+                alert('이벤트 생성 실패: ' + error.message);
+            }
+        };
+    </script>
+</head>
+<body>
+    <h1>테스트 이벤트 생성</h1>
+    <button onclick="createTestEvent()">테스트 이벤트 생성</button>
+    <p>이 버튼을 클릭하면 Firebase에 테스트 이벤트가 생성됩니다.</p>
+</body>
+</html>

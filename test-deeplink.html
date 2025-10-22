@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YAGO VIBE 딥링크 테스트</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .test-card {
+            background: white;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .test-button {
+            background: #4A90E2;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            margin: 8px;
+            font-size: 14px;
+        }
+        .test-button:hover {
+            background: #357ABD;
+        }
+        .result {
+            background: #f8f9fa;
+            padding: 12px;
+            border-radius: 6px;
+            margin: 12px 0;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        .success { border-left: 4px solid #28a745; }
+        .error { border-left: 4px solid #dc3545; }
+        .info { border-left: 4px solid #17a2b8; }
+    </style>
+</head>
+<body>
+    <h1>🚀 YAGO VIBE 딥링크 테스트</h1>
+    
+    <div class="test-card">
+        <h2>📱 1. 알림 권한 확인</h2>
+        <button class="test-button" onclick="checkNotificationPermission()">알림 권한 확인</button>
+        <div id="permission-result" class="result info" style="display:none;"></div>
+    </div>
+
+    <div class="test-card">
+        <h2>🔗 2. 딥링크 테스트</h2>
+        <p>아래 버튼들을 클릭하여 각 페이지로 정상 이동하는지 확인하세요:</p>
+        
+        <button class="test-button" onclick="testNavigation('/chat/test-room-123')">
+            💬 채팅방 딥링크 테스트
+        </button>
+        
+        <button class="test-button" onclick="testNavigation('/product/test-product-456')">
+            🛒 상품 페이지 딥링크 테스트
+        </button>
+        
+        <button class="test-button" onclick="testNavigation('/market')">
+            🏪 마켓 페이지 테스트
+        </button>
+        
+        <div id="navigation-result" class="result info" style="display:none;"></div>
+    </div>
+
+    <div class="test-card">
+        <h2>📨 3. 푸시 알림 시뮬레이션</h2>
+        <p>실제 푸시 알림을 시뮬레이션하여 딥링크가 작동하는지 테스트합니다:</p>
+        
+        <button class="test-button" onclick="simulatePushNotification('chat', 'test-room-123')">
+            💬 채팅 알림 시뮬레이션
+        </button>
+        
+        <button class="test-button" onclick="simulatePushNotification('product', 'test-product-456')">
+            ✅ 거래 완료 알림 시뮬레이션
+        </button>
+        
+        <button class="test-button" onclick="simulatePushNotification('inquiry', 'test-room-789')">
+            🛒 새 문의 알림 시뮬레이션
+        </button>
+        
+        <div id="push-result" class="result info" style="display:none;"></div>
+    </div>
+
+    <div class="test-card">
+        <h2>🧪 4. 서비스워커 상태 확인</h2>
+        <button class="test-button" onclick="checkServiceWorker()">서비스워커 상태 확인</button>
+        <div id="sw-result" class="result info" style="display:none;"></div>
+    </div>
+
+    <script>
+        // 알림 권한 확인
+        function checkNotificationPermission() {
+            const result = document.getElementById('permission-result');
+            
+            if ('Notification' in window) {
+                const permission = Notification.permission;
+                result.className = `result ${permission === 'granted' ? 'success' : 'error'}`;
+                result.innerHTML = `
+                    <strong>알림 권한 상태:</strong> ${permission}<br>
+                    ${permission === 'granted' ? '✅ 알림 권한이 허용되어 있습니다.' : '❌ 알림 권한이 필요합니다.'}
+                `;
+            } else {
+                result.className = 'result error';
+                result.innerHTML = '❌ 이 브라우저는 알림을 지원하지 않습니다.';
+            }
+            result.style.display = 'block';
+        }
+
+        // 딥링크 네비게이션 테스트
+        function testNavigation(url) {
+            const result = document.getElementById('navigation-result');
+            
+            try {
+                // 현재 페이지 URL 확인
+                const currentUrl = window.location.href;
+                const baseUrl = currentUrl.split('/').slice(0, -1).join('/');
+                const targetUrl = baseUrl + url;
+                
+                result.className = 'result info';
+                result.innerHTML = `
+                    <strong>딥링크 테스트:</strong><br>
+                    현재 URL: ${currentUrl}<br>
+                    이동할 URL: ${targetUrl}<br>
+                    <a href="${url}" target="_blank">🔗 새 탭에서 열기</a> | 
+                    <a href="${url}">📱 현재 탭에서 이동</a>
+                `;
+                result.style.display = 'block';
+            } catch (error) {
+                result.className = 'result error';
+                result.innerHTML = `❌ 딥링크 테스트 실패: ${error.message}`;
+                result.style.display = 'block';
+            }
+        }
+
+        // 푸시 알림 시뮬레이션
+        function simulatePushNotification(type, id) {
+            const result = document.getElementById('push-result');
+            
+            if (Notification.permission !== 'granted') {
+                result.className = 'result error';
+                result.innerHTML = '❌ 알림 권한이 필요합니다. 먼저 알림 권한을 확인해주세요.';
+                result.style.display = 'block';
+                return;
+            }
+
+            let title, body, data;
+            
+            switch (type) {
+                case 'chat':
+                    title = '💬 새 메시지';
+                    body = '메시지가 도착했습니다.';
+                    data = { roomId: id, clickUrl: `/chat/${id}` };
+                    break;
+                case 'product':
+                    title = '✅ 거래 완료';
+                    body = '상품 거래가 완료되었습니다.';
+                    data = { productId: id, clickUrl: `/product/${id}` };
+                    break;
+                case 'inquiry':
+                    title = '🛒 새 문의 도착!';
+                    body = '새로운 문의가 도착했어요.';
+                    data = { roomId: id, clickUrl: `/chat/${id}` };
+                    break;
+            }
+
+            const notification = new Notification(title, {
+                body: body,
+                icon: '/icons/icon-192.svg',
+                data: data,
+                requireInteraction: true
+            });
+
+            // 클릭 이벤트 시뮬레이션
+            notification.onclick = function(event) {
+                const clickUrl = event.target.data.clickUrl || '/';
+                result.className = 'result success';
+                result.innerHTML = `
+                    <strong>✅ 푸시 알림 클릭됨:</strong><br>
+                    제목: ${title}<br>
+                    이동할 URL: ${clickUrl}<br>
+                    <a href="${clickUrl}" target="_blank">🔗 새 탭에서 열기</a>
+                `;
+                result.style.display = 'block';
+                notification.close();
+            };
+
+            result.className = 'result info';
+            result.innerHTML = `
+                <strong>📨 푸시 알림 시뮬레이션:</strong><br>
+                제목: ${title}<br>
+                내용: ${body}<br>
+                데이터: ${JSON.stringify(data)}<br>
+                <em>알림을 클릭하여 딥링크를 테스트하세요.</em>
+            `;
+            result.style.display = 'block';
+        }
+
+        // 서비스워커 상태 확인
+        function checkServiceWorker() {
+            const result = document.getElementById('sw-result');
+            
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.getRegistrations().then(registrations => {
+                    if (registrations.length > 0) {
+                        result.className = 'result success';
+                        result.innerHTML = `
+                            <strong>✅ 서비스워커 등록됨:</strong><br>
+                            등록된 SW 개수: ${registrations.length}<br>
+                            ${registrations.map(reg => `- ${reg.scope}`).join('<br>')}
+                        `;
+                    } else {
+                        result.className = 'result error';
+                        result.innerHTML = '❌ 등록된 서비스워커가 없습니다.';
+                    }
+                    result.style.display = 'block';
+                });
+            } else {
+                result.className = 'result error';
+                result.innerHTML = '❌ 이 브라우저는 서비스워커를 지원하지 않습니다.';
+                result.style.display = 'block';
+            }
+        }
+
+        // 페이지 로드 시 자동 실행
+        window.onload = function() {
+            console.log('🚀 YAGO VIBE 딥링크 테스트 페이지 로드됨');
+            checkNotificationPermission();
+            checkServiceWorker();
+        };
+    </script>
+</body>
+</html>

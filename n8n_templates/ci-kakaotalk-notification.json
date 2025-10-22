@@ -1,0 +1,104 @@
+﻿{
+  "name": "CI ??Kakao ?뚮┝??(?⑤룆)",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "ci-kakao-alert",
+        "options": {}
+      },
+      "id": "1",
+      "name": "GitHub CI Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [300, 300],
+      "webhookMethods": {
+        "default": "POST"
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json[\"status\"] }}",
+              "operation": "equal",
+              "value2": "success"
+            }
+          ]
+        }
+      },
+      "id": "2",
+      "name": "IF Success?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [500, 300]
+    },
+    {
+      "parameters": {
+        "url": "https://kapi.kakao.com/v2/api/talk/memo/default/send",
+        "method": "POST",
+        "authentication": "headerAuth",
+        "options": {},
+        "sendBody": true,
+        "jsonParameters": true,
+        "bodyParametersJson": "={\n  \"template_object\": {\n    \"object_type\": \"text\",\n    \"text\": \"??YAGO VIBE ?뚯뒪???깃났\\n\\n?뱦 Repo: {{$json[\"repo\"]}}\\n?뙼 Branch: {{$json[\"branch\"]}}\\n?뫀 Author: {{$json[\"author\"]}}\\n\\n?뚯뒪?멸? 紐⑤몢 ?듦낵?덉뒿?덈떎 ?럦\",\n    \"link\": {\n      \"web_url\": \"https://github.com/{{$json[\"repo\"]}}/actions\",\n      \"mobile_web_url\": \"https://github.com/{{$json[\"repo\"]}}/actions\"\n    },\n    \"button_title\": \"寃곌낵 ?뺤씤\"\n  }\n}"
+      },
+      "id": "3",
+      "name": "KakaoTalk Success",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [700, 200],
+      "credentials": {
+        "httpHeaderAuth": "Kakao API Token"
+      }
+    },
+    {
+      "parameters": {
+        "url": "https://kapi.kakao.com/v2/api/talk/memo/default/send",
+        "method": "POST",
+        "authentication": "headerAuth",
+        "options": {},
+        "sendBody": true,
+        "jsonParameters": true,
+        "bodyParametersJson": "={\n  \"template_object\": {\n    \"object_type\": \"text\",\n    \"text\": \"??YAGO VIBE ?뚯뒪???ㅽ뙣\\n\\n?뱦 Repo: {{$json[\"repo\"]}}\\n?뙼 Branch: {{$json[\"branch\"]}}\\n?뫀 Author: {{$json[\"author\"]}}\\n\\n肄붾뱶瑜??뺤씤?댁＜?몄슂 ?좑툘\",\n    \"link\": {\n      \"web_url\": \"https://github.com/{{$json[\"repo\"]}}/actions\",\n      \"mobile_web_url\": \"https://github.com/{{$json[\"repo\"]}}/actions\"\n    },\n    \"button_title\": \"寃곌낵 ?뺤씤\"\n  }\n}"
+      },
+      "id": "4",
+      "name": "KakaoTalk Failure",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [700, 400],
+      "credentials": {
+        "httpHeaderAuth": "Kakao API Token"
+      }
+    }
+  ],
+  "connections": {
+    "GitHub CI Webhook": {
+      "main": [
+        [
+          {
+            "node": "IF Success?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF Success?": {
+      "main": [
+        [
+          {
+            "node": "KakaoTalk Success",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "KakaoTalk Failure",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    }
+  }
+}

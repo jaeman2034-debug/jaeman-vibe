@@ -1,0 +1,234 @@
+﻿{
+  "name": "YAGO VIBE - Daily AI Summary Email Report",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 9 * * *"
+            }
+          ]
+        }
+      },
+      "id": "cron-trigger",
+      "name": "Daily Trigger (09:00 KST)",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [300, 300],
+      "notes": "??留ㅼ씪 ?ㅼ쟾 9?쒖뿉 ?먮룞 ?ㅽ뻾 (Asia/Seoul)"
+    },
+    {
+      "parameters": {
+        "operation": "read",
+        "documentId": {
+          "__rl": true,
+          "value": "{{$env.GOOGLE_SHEET_ID}}",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "chat_logs",
+          "mode": "name"
+        },
+        "options": {
+          "range": "A2:G"
+        }
+      },
+      "id": "read-sheet",
+      "name": "Read Google Sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.2,
+      "position": [550, 300],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "1",
+          "name": "Google Sheets OAuth2 API"
+        }
+      },
+      "notes": "???댁젣 梨꾪똿 ?곗씠???쎄린"
+    },
+    {
+      "parameters": {
+        "jsCode": "// ?댁젣 ?좎쭨 ?꾪꽣留?nconst yesterday = new Date();\nyesterday.setDate(yesterday.getDate() - 1);\nconst yesterdayStr = yesterday.toISOString().split('T')[0];\n\nconst items = $input.all();\nconst filteredItems = items.filter(item => {\n  const itemDate = item.json['?좎쭨']?.split(' ')[0];\n  return itemDate === yesterdayStr;\n});\n\nreturn filteredItems.length > 0 ? filteredItems : [{ json: { message: '?댁젣 ?곗씠???놁쓬' } }];"
+      },
+      "id": "filter-yesterday",
+      "name": "Filter Yesterday Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [700, 300],
+      "notes": "???댁젣 ?좎쭨 ?곗씠?곕쭔 ?꾪꽣留?
+    },
+    {
+      "parameters": {
+        "model": "gpt-4o-mini",
+        "messages": {
+          "values": [
+            {
+              "role": "system",
+              "content": "?뱀떊? YAGO VIBE??梨꾪똿 遺꾩꽍 ?꾨Ц媛?낅땲?? ?쇱씪 梨꾪똿 ?곗씠?곕? 遺꾩꽍?섏뿬 寃쎌쁺吏꾩뿉寃?蹂닿퀬???붿빟 由ы룷?몃? ?묒꽦?섏꽭??"
+            },
+            {
+              "role": "user",
+              "content": "=?ㅼ쓬? ?댁젣({{$now.format('yyyy-MM-dd')}}) YAGO VIBE 梨꾪똿 ?곗씠?곗엯?덈떎:\n\n{{JSON.stringify($json, null, 2)}}\n\n?ㅼ쓬 ??ぉ???ы븿???쇱씪 由ы룷?몃? ?묒꽦?댁＜?몄슂:\n\n## ?뱤 YAGO VIBE ?쇱씪 梨꾪똿 由ы룷??n\n### 1截뤴깵 ?꾩껜 ?듦퀎\n- 珥????嫄댁닔:\n- ?쒖꽦 梨꾪똿諛???\n- 李몄뿬 ?ъ슜????\n\n### 2截뤴깵 二쇱슂 ?ㅼ썙??TOP 5\n(鍮덈룄?쒖쑝濡??섏뿴)\n\n### 3截뤴깵 ?곹뭹蹂?臾몄쓽 ?꾪솴\n- 媛??留롮씠 臾몄쓽???곹뭹:\n- 二쇱슂 臾몄쓽 ?좏삎:\n\n### 4截뤴깵 媛먯젙 遺꾩꽍\n- 湲띿젙?????\n- 以묐┰?????\n- 遺?뺤쟻 ???\n\n### 5截뤴깵 ?곗꽑?쒖쐞 ?댁뒋\n- 湲닿툒 ????꾩슂:\n- ?쇰컲 ???\n\n### 6截뤴깵 AI ?몄궗?댄듃\n(?ㅻ뒛??二쇱슂 ?몃젋?? 媛쒖꽑 ?쒖븞 ??\n\n### 7截뤴깵 ?≪뀡 ?꾩씠??n(利됱떆 議곗튂媛 ?꾩슂???ы빆)"
+            }
+          ]
+        },
+        "options": {
+          "temperature": 0.5,
+          "maxTokens": 1000
+        }
+      },
+      "id": "ai-summarize",
+      "name": "AI Daily Summary",
+      "type": "n8n-nodes-base.openAi",
+      "typeVersion": 1.3,
+      "position": [850, 300],
+      "credentials": {
+        "openAiApi": {
+          "id": "1",
+          "name": "OpenAI API"
+        }
+      },
+      "notes": "??GPT-4o-mini濡??쇱씪 由ы룷???앹꽦"
+    },
+    {
+      "parameters": {
+        "sendTo": "={{$env.ADMIN_EMAIL}}",
+        "subject": "=?뱤 YAGO VIBE ?쇱씪 AI 梨꾪똿 由ы룷??- {{$now.format('yyyy-MM-dd')}}",
+        "emailType": "html",
+        "message": "=<!DOCTYPE html>\n<html>\n<head>\n  <meta charset=\"UTF-8\">\n  <style>\n    body { font-family: 'Segoe UI', Arial, sans-serif; line-height: 1.6; color: #333; }\n    .container { max-width: 800px; margin: 0 auto; padding: 20px; }\n    .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; border-radius: 10px; text-align: center; }\n    .content { background: #f9f9f9; padding: 30px; border-radius: 10px; margin-top: 20px; }\n    .section { background: white; padding: 20px; margin: 15px 0; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }\n    .section h3 { color: #667eea; border-bottom: 2px solid #667eea; padding-bottom: 10px; }\n    .footer { text-align: center; padding: 20px; color: #999; font-size: 12px; }\n    pre { background: #f4f4f4; padding: 15px; border-radius: 5px; overflow-x: auto; white-space: pre-wrap; }\n  </style>\n</head>\n<body>\n  <div class=\"container\">\n    <div class=\"header\">\n      <h1>??YAGO VIBE</h1>\n      <h2>?쇱씪 AI 梨꾪똿 由ы룷??/h2>\n      <p>{{$now.format('yyyy??MM??dd??)}}</p>\n    </div>\n    \n    <div class=\"content\">\n      <div class=\"section\">\n        <pre>{{$node[\"AI Daily Summary\"].json.choices[0].message.content}}</pre>\n      </div>\n      \n      <div class=\"section\">\n        <h3>?뵕 鍮좊Ⅸ 留곹겕</h3>\n        <p>\n          <a href=\"https://docs.google.com/spreadsheets/d/{{$env.GOOGLE_SHEET_ID}}\" style=\"color: #667eea; text-decoration: none;\">?뱤 Google Sheets 蹂닿린</a> |\n          <a href=\"https://yagovibe.com/chatlist\" style=\"color: #667eea; text-decoration: none;\">?뮠 梨꾪똿 紐⑸줉</a> |\n          <a href=\"https://n8n.yagovibe.com\" style=\"color: #667eea; text-decoration: none;\">?숋툘 n8n ??쒕낫??/a>\n        </p>\n      </div>\n    </div>\n    \n    <div class=\"footer\">\n      <p>??由ы룷?몃뒗 n8n + OpenAI GPT-4o-mini濡??먮룞 ?앹꽦?섏뿀?듬땲??</p>\n      <p>짤 2025 YAGO VIBE. All rights reserved.</p>\n    </div>\n  </div>\n</body>\n</html>",
+        "options": {}
+      },
+      "id": "send-email",
+      "name": "Send Gmail Report",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [1000, 300],
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "1",
+          "name": "Gmail OAuth2 API"
+        }
+      },
+      "notes": "??Gmail濡?HTML 由ы룷???꾩넚"
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "#yagovibe-reports",
+          "mode": "name"
+        },
+        "text": "=?뱤 *?쇱씪 AI 由ы룷??諛쒖넚 ?꾨즺*\n\n*?좎쭨:* {{$now.format('yyyy-MM-dd')}}\n*?섏떊:* {{$env.ADMIN_EMAIL}}\n*?곹깭:* ???깃났\n\n由ы룷?멸? ?대찓?쇰줈 ?꾩넚?섏뿀?듬땲??",
+        "otherOptions": {}
+      },
+      "id": "slack-notification",
+      "name": "Slack Notification",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.1,
+      "position": [1150, 400],
+      "credentials": {
+        "slackOAuth2Api": {
+          "id": "1",
+          "name": "Slack OAuth2 API"
+        }
+      },
+      "notes": "??Slack?쇰줈 諛쒖넚 ?꾨즺 ?뚮┝ (?좏깮)"
+    }
+  ],
+  "connections": {
+    "Daily Trigger (09:00 KST)": {
+      "main": [
+        [
+          {
+            "node": "Read Google Sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Google Sheet": {
+      "main": [
+        [
+          {
+            "node": "Filter Yesterday Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter Yesterday Data": {
+      "main": [
+        [
+          {
+            "node": "AI Daily Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Daily Summary": {
+      "main": [
+        [
+          {
+            "node": "Send Gmail Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Gmail Report": {
+      "main": [
+        [
+          {
+            "node": "Slack Notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": "",
+    "timezone": "Asia/Seoul"
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "createdAt": "2025-01-13T00:00:00.000Z",
+      "updatedAt": "2025-01-13T00:00:00.000Z",
+      "id": "1",
+      "name": "YAGO VIBE"
+    },
+    {
+      "createdAt": "2025-01-13T00:00:00.000Z",
+      "updatedAt": "2025-01-13T00:00:00.000Z",
+      "id": "2",
+      "name": "?쇱씪 由ы룷??
+    },
+    {
+      "createdAt": "2025-01-13T00:00:00.000Z",
+      "updatedAt": "2025-01-13T00:00:00.000Z",
+      "id": "3",
+      "name": "?대찓??
+    }
+  ],
+  "triggerCount": 1,
+  "updatedAt": "2025-01-13T00:00:00.000Z",
+  "versionId": "yagovibe-daily-email-v1",
+  "active": true
+}
+

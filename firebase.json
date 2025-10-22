@@ -1,0 +1,61 @@
+﻿{
+    "firestore":  {
+                      "rules":  "firestore.rules"
+                  },
+    "storage":  {
+                    "rules":  "storage.rules"
+                },
+    "hosting": {
+        "public": "dist",
+        "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
+        "headers": [
+            {
+                "source": "/assets/**",
+                "headers": [{"key": "Cache-Control", "value": "public,max-age=31536000,immutable"}]
+            }
+        ],
+        "rewrites": [
+            { "source": "/verifyPayment", "function": "verifyPayment" },
+            { "source": "/sendFcm", "function": "sendFcm" },
+            { "source": "/fanoutAck", "function": "fanoutAck" },
+            { "source": "/healthz", "function": "healthz" },
+            { "source": "/ackz", "function": "ackStats" },
+            { "source": "/api/blogs", "function": "getBlogs" },
+            { "source": "/api/blogs/:id", "function": "getBlog" },
+            { "source": "/api/blogs/:blogId/comments", "function": "getComments" },
+            { "source": "/status", "destination": "/status.html" },
+            { "source": "**", "destination": "/index.html" }
+        ]
+    },
+    "functions": [
+        {
+            "source": "functions",
+            "codebase": "default",
+            "runtime": "nodejs20",
+            "env": {
+                "FB_BUCKET": "jaeman-vibe-platform.firebasestorage.app",
+                "FB_REGION": "asia-northeast3"
+            }
+        }
+    ],
+
+    "emulators":  {
+                      "singleProjectMode":  true,
+                      "firestore":  {
+                                        "host":  "127.0.0.1",
+                                        "port":  58081
+                                    },
+                       "ui":  {
+                                  "host":  "127.0.0.1",
+                                  "port":  54010
+                              },
+                      "storage":  {
+                                      "host":  "127.0.0.1",
+                                      "port":  59200
+                                  },
+                      "auth":  {
+                                   "host":  "127.0.0.1",
+                                   "port":  50199
+                               }
+                  }
+}

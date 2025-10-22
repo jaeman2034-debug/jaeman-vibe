@@ -1,0 +1,120 @@
+{
+  "name": "YAGO VIBE - Complete Voice Assistant",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "yago-voice-assistant",
+        "responseMode": "onReceived",
+        "responseData": "={{$json}}"
+      },
+      "name": "Voice Assistant Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [300, 200],
+      "webhookId": "yago-voice-assistant",
+      "id": "voice-assistant-webhook"
+    },
+    {
+      "parameters": {
+        "authentication": "headerAuth",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "responseFormat": "json",
+        "options": {},
+        "headerParametersJson": "{ \"Authorization\": \"Bearer {{$env.OPENAI_API_KEY}}\", \"Content-Type\": \"application/json\" }",
+        "bodyParametersJson": "={\"model\":\"gpt-4o-mini\",\"messages\":[{\"role\":\"system\",\"content\":\"당신은 YAGO VIBE 스포츠 마켓의 AI 음성 비서입니다. 형님께 친근하고 자연스럽게 대화하며, 상품 등록, 마켓 조회, 재고 분석 등을 도와드립니다.\\n\\n사용 가능한 기능:\\n- 상품 등록: navigate_upload\\n- 마켓 조회: navigate_market\\n- 재고 보고서: navigate_report\\n- 상품 검색: search_items\\n\\n응답 형식: {\\\"reply\\\": \\\"자연스러운 한국어 응답\\\", \\\"action\\\": \\\"액션코드 또는 null\\\"}\"},{\"role\":\"user\",\"content\":\"사용자 발화: {{$json.message}}\\n\\n최근 상품 데이터:\\n- 전체 상품: {{$json.items.length}}개\\n- 오늘 등록: {{$json.todayItems.length}}개\\n- 활성 상품: {{$json.activeItems.length}}개\\n\\n상품 목록:\\n{{JSON.stringify($json.items.slice(0, 5), null, 2)}}\\n\\n사용자의 의도를 분석해서 자연스럽게 대답하고, 필요시 적절한 액션을 제안해주세요.\"}]}"
+      },
+      "name": "OpenAI Voice Assistant",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [600, 200],
+      "id": "openai-assistant"
+    },
+    {
+      "parameters": {
+        "functionCode": "const aiResponse = $json.choices[0].message.content;\n\n// JSON 파싱 시도\nlet parsedResponse;\ntry {\n  parsedResponse = JSON.parse(aiResponse);\n} catch (e) {\n  // JSON 파싱 실패 시 기본 응답\n  parsedResponse = {\n    reply: aiResponse,\n    action: null\n  };\n}\n\n// 응답 검증 및 정리\nconst reply = parsedResponse.reply || aiResponse || \"무슨 뜻인지 다시 말씀해주실래요?\";\nconst action = parsedResponse.action || null;\n\nreturn {\n  reply: reply,\n  action: action,\n  timestamp: new Date().toISOString(),\n  processed: true\n};"
+      },
+      "name": "Parse AI Response",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [900, 200],
+      "id": "parse-response"
+    },
+    {
+      "parameters": {
+        "responseBody": "={{$json}}",
+        "responseCode": 200,
+        "options": {}
+      },
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1200, 200],
+      "id": "respond-webhook"
+    },
+    {
+      "parameters": {
+        "functionCode": "// 대화 맥락 분석 및 응답 생성\nconst userMessage = $json.message;\nconst items = $json.items || [];\nconst todayItems = $json.todayItems || [];\nconst activeItems = $json.activeItems || [];\n\n// 키워드 기반 의도 분석\nlet intent = \"general\";\nlet action = null;\nlet reply = \"\";\n\nif (userMessage.includes(\"등록\") || userMessage.includes(\"올리\") || userMessage.includes(\"새 상품\")) {\n  intent = \"register\";\n  action = \"navigate_upload\";\n  reply = `형님, 새 상품 등록을 도와드리겠습니다. 현재 등록된 상품은 총 ${items.length}개입니다. 등록 페이지로 이동할까요?`;\n} else if (userMessage.includes(\"오늘\") || userMessage.includes(\"어제\") || userMessage.includes(\"최근\")) {\n  intent = \"status\";\n  reply = `형님, 오늘 등록된 상품은 ${todayItems.length}개입니다. 전체 활성 상품은 ${activeItems.length}개입니다.`;\n} else if (userMessage.includes(\"마켓\") || userMessage.includes(\"상품\") || userMessage.includes(\"목록\")) {\n  intent = \"market\";\n  action = \"navigate_market\";\n  reply = `형님, 현재 등록된 상품은 총 ${items.length}개입니다. 마켓 페이지로 이동할까요?`;\n} else if (userMessage.includes(\"보고서\") || userMessage.includes(\"분석\") || userMessage.includes(\"통계\")) {\n  intent = \"report\";\n  action = \"navigate_report\";\n  reply = `형님, 재고 보고서를 확인해드리겠습니다. 보고서 페이지로 이동할까요?`;\n} else if (userMessage.includes(\"검색\") || userMessage.includes(\"찾\") || userMessage.includes(\"어디\")) {\n  intent = \"search\";\n  action = \"search_items\";\n  reply = `형님, 상품 검색을 도와드리겠습니다. 검색 페이지로 이동할까요?`;\n} else {\n  intent = \"general\";\n  reply = `형님, \"${userMessage}\"에 대해 더 자세히 말씀해주세요. 상품 등록, 마켓 조회, 보고서 확인 등을 도와드릴 수 있습니다.`;\n}\n\nreturn {\n  reply: reply,\n  action: action,\n  intent: intent,\n  timestamp: new Date().toISOString()\n};"
+      },
+      "name": "Fallback Response Generator",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [600, 400],
+      "id": "fallback-generator"
+    }
+  ],
+  "connections": {
+    "Voice Assistant Webhook": {
+      "main": [
+        [
+          {
+            "node": "OpenAI Voice Assistant",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Fallback Response Generator",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Voice Assistant": {
+      "main": [
+        [
+          {
+            "node": "Parse AI Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse AI Response": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fallback Response Generator": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {},
+  "versionId": "1.0.0"
+}

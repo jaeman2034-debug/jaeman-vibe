@@ -1,0 +1,14 @@
+﻿/ firestore.rules.production
+// 프로덕션 환경용 Firestore 보안 규칙 (간소화 버전)
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{db}/documents {
+    match /market_items/{id} {
+      allow read: if true;
+      allow create: if request.auth != null
+                    && request.resource.data.ownerId == request.auth.uid;
+      allow update, delete: if request.auth != null
+                            && resource.data.ownerId == request.auth.uid;
+    }
+  }
+} 

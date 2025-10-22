@@ -1,0 +1,157 @@
+import {
+  collection,
+  addDoc,
+  updateDoc,
+  deleteDoc,
+  doc,
+  query,
+  where,
+  onSnapshot,
+  serverTimestamp,
+  Timestamp,
+} from "firebase/firestore";
+import { db } from "./firebase";
+
+export interface CalendarEvent {
+  id?: string;
+  title: string;
+  start: Date;
+  end: Date;
+  allDay?: boolean;
+  type?: "team" | "academy" | "tournament" | "other";
+  location?: string;
+  description?: string;
+  createdBy?: string;
+  color?: string;
+  teamId?: string;
+}
+
+const COLLECTION = "schedules";
+
+/**
+ * ?ºÏ†ï ?ùÏÑ±
+ */
+export async function createSchedule(event: Omit<CalendarEvent, "id">) {
+  const docData = {
+    ...event,
+    start: Timestamp.fromDate(event.start),
+    end: Timestamp.fromDate(event.end),
+    createdAt: serverTimestamp(),
+  };
+  const docRef = await addDoc(collection(db, COLLECTION), docData);
+  console.log("??Schedule created:", docRef.id);
+  return docRef.id;
+}
+
+/**
+ * ?ºÏ†ï ?òÏ†ï
+ */
+export async function updateSchedule(id: string, event: Partial<CalendarEvent>) {
+  const docRef = doc(db, COLLECTION, id);
+  const updateData: any = { ...event };
+  
+  if (event.start) {
+    updateData.start = Timestamp.fromDate(event.start);
+  }
+  if (event.end) {
+    updateData.end = Timestamp.fromDate(event.end);
+  }
+  
+  updateData.updatedAt = serverTimestamp();
+  
+  await updateDoc(docRef, updateData);
+  console.log("??Schedule updated:", id);
+}
+
+/**
+ * ?ºÏ†ï ??†ú
+ */
+export async function deleteSchedule(id: string) {
+  const docRef = doc(db, COLLECTION, id);
+  await deleteDoc(docRef);
+  console.log("??Schedule deleted:", id);
+}
+
+/**
+ * ?ÄÎ≥??ºÏ†ï ?§ÏãúÍ∞?Íµ¨ÎèÖ
+ */
+export function subscribeSchedules(
+  teamId: string | null,
+  callback: (events: CalendarEvent[]) => void
+) {
+  let q;
+  
+  if (teamId) {
+    q = query(collection(db, COLLECTION), where("teamId", "==", teamId));
+  } else {
+    // ?ÑÏ≤¥ ?ºÏ†ï Ï°∞Ìöå (Í¥ÄÎ¶¨Ïûê)
+    q = query(collection(db, COLLECTION));
+  }
+
+  return onSnapshot(q, (snapshot) => {
+    const events: CalendarEvent[] = snapshot.docs.map((doc) => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        title: data.title || "",
+        start: data.start?.toDate() || new Date(),
+        end: data.end?.toDate() || new Date(),
+        allDay: data.allDay || false,
+        type: data.type || "other",
+        location: data.location || "",
+        description: data.description || "",
+        createdBy: data.createdBy || "",
+        color: data.color || "#3b82f6",
+        teamId: data.teamId || "",
+      };
+    });
+    
+    callback(events);
+  });
+}
+
+/**
+ * ?åÏä§???∞Ïù¥???ùÏÑ±
+ */
+export async function seedDemoSchedules() {
+  const base = new Date();
+  base.setHours(10, 0, 0, 0);
+
+  await createSchedule({
+    title: "?åÌùòFC60 ?àÎ†®",
+    allDay: false,
+    start: base,
+    end: new Date(base.getTime() + 2 * 60 * 60 * 1000),
+    type: "team",
+    location: "?¨Ï≤úÏ¢ÖÌï©?¥Îèô??,
+    createdBy: "system",
+    color: "#3b82f6",
+    teamId: "soheul60",
+  });
+
+  await createSchedule({
+    title: "U-12 ?ÑÏπ¥?∞Î? ?àÏä®",
+    allDay: false,
+    start: new Date(base.getTime() + 24 * 60 * 60 * 1000),
+    end: new Date(base.getTime() + 26 * 60 * 60 * 1000),
+    type: "academy",
+    location: "?åÌùòÍµ¨Ïû• A",
+    createdBy: "system",
+    color: "#8b5cf6",
+    teamId: "academy",
+  });
+
+  await createSchedule({
+    title: "Î™®ÎπÑ?§Î∞∞ ?àÏÑ†",
+    allDay: true,
+    start: new Date(base.getTime() + 3 * 24 * 60 * 60 * 1000),
+    end: new Date(base.getTime() + 4 * 24 * 60 * 60 * 1000),
+    type: "tournament",
+    location: "?¨Ï≤úB",
+    createdBy: "system",
+    color: "#f59e0b",
+  });
+
+  console.log("??Demo schedules created!");
+}
+

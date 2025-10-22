@@ -1,0 +1,1 @@
+{"version":3,"file":"naver.d.ts","sourceRoot":"","sources":["../src/naver.ts"],"names":[],"mappings":"AAAA,OAAO,UAAU,CAAC;AAClB,OAAO,iBAAiB,CAAC;AAsCzB,mBAAmB;AACnB,eAAO,MAAM,IAAI,qDAEf,CAAC;AAEH,gBAAgB;AAChB,eAAO,MAAM,UAAU,qDAoBtB,CAAC;AAEF,YAAY;AACZ,eAAO,MAAM,aAAa,qDA0GzB,CAAC;AAEF,cAAc;AACd,eAAO,MAAM,eAAe,qDA8B1B,CAAC;AAEH,gBAAgB;AAChB,eAAO,MAAM,SAAS,qDAuDpB,CAAC"}

@@ -1,0 +1,218 @@
+{
+  "name": "YAGO • Academy Monthly Report",
+  "nodes": [
+    {
+      "parameters": {
+        "triggerTimes": {
+          "item": [
+            {
+              "mode": "everyMonth",
+              "hour": 9,
+              "minute": 0,
+              "daysOfMonth": [1]
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.cron",
+      "typeVersion": 1,
+      "position": [-600, 0],
+      "name": "Cron Monthly"
+    },
+    {
+      "parameters": {
+        "url": "https://asia-northeast3-jaeman-vibe-platform.cloudfunctions.net/listMonthlyReports?month={{$json.month}}",
+        "options": {
+          "headers": {
+            "entries": [
+              {
+                "name": "X-Internal-Key",
+                "value": "={{$env.INTERNAL_KEY}}"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [-400, 0],
+      "name": "Fetch Students"
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "data"
+      },
+      "type": "n8n-nodes-base.itemLists",
+      "typeVersion": 1,
+      "position": [-200, 0],
+      "name": "Items From Array"
+    },
+    {
+      "parameters": {
+        "functionCode": "const s = item;\nconst html = `<!doctype html><html><head><meta charset=\"utf-8\"><title>${s.student.name} ${$json.month}</title><style>body{font-family:sans-serif;padding:24px}h1{margin:0 0 8px}table{width:100%;border-collapse:collapse}td,th{border:1px solid #ddd;padding:8px}</style></head><body><h1>${s.student.name} 월간 리포트</h1><p>학년: ${s.student.grade} / 출석: ${s.metrics.attendance}%</p><table><tr><th>세션</th><th>골</th><th>도움</th></tr><tr><td>${s.metrics.sessions}</td><td>${s.metrics.goals}</td><td>${s.metrics.assists}</td></tr></table><h3>코치 노트</h3><p>${s.metrics.coachNote||''}</p></body></html>`;\nreturn [{ json: { path: `reports/${s.student.id}/${$json.month}.pdf`, html, student: s.student, month: $json.month } }];"
+      },
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 2,
+      "position": [0, 0],
+      "name": "Build HTML"
+    },
+    {
+      "parameters": {
+        "url": "https://api.html-pdf-node.com/convert",
+        "options": {
+          "sendBinaryData": true,
+          "responseFormat": "file",
+          "bodyParameters": {
+            "entries": [
+              {
+                "name": "html",
+                "value": "={{$json.html}}",
+                "type": "formData"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [200, 0],
+      "name": "HTML→PDF (API)"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.moveBinaryData",
+      "typeVersion": 1,
+      "position": [420, 0],
+      "name": "Binary→Base64",
+      "notesInFlow": true,
+      "notes": "PDF를 base64로 변환"
+    },
+    {
+      "parameters": {
+        "url": "https://asia-northeast3-jaeman-vibe-platform.cloudfunctions.net/uploadReport",
+        "options": {
+          "bodyContentType": "json",
+          "headers": {
+            "entries": [
+              {
+                "name": "X-Internal-Key",
+                "value": "={{$env.INTERNAL_KEY}}"
+              }
+            ]
+          }
+        },
+        "jsonParameters": true,
+        "sendBody": true,
+        "bodyParametersJson": "={ \n  \"path\": \"{{$json.path}}\",\n  \"base64\": \"={{$binary.data.data}}\",\n  \"contentType\": \"application/pdf\"\n}"
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [640, 0],
+      "name": "Upload PDF"
+    },
+    {
+      "parameters": {
+        "url": "https://asia-northeast3-jaeman-vibe-platform.cloudfunctions.net/sendKakaoReport",
+        "options": {
+          "bodyContentType": "json",
+          "headers": {
+            "entries": [
+              {
+                "name": "X-Internal-Key",
+                "value": "={{$env.INTERNAL_KEY}}"
+              }
+            ]
+          }
+        },
+        "jsonParameters": true,
+        "sendBody": true,
+        "bodyParametersJson": "={ \n  \"guardianPhone\": \"={{$json.student.guardianPhone}}\",\n  \"studentName\": \"={{$json.student.name}}\",\n  \"month\": \"={{$json.month}}\",\n  \"url\": \"={{$json.url}}\"\n}"
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [860, 0],
+      "name": "Send Kakao"
+    }
+  ],
+  "connections": {
+    "Cron Monthly": {
+      "main": [
+        [
+          {
+            "node": "Fetch Students",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Students": {
+      "main": [
+        [
+          {
+            "node": "Items From Array",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Items From Array": {
+      "main": [
+        [
+          {
+            "node": "Build HTML",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build HTML": {
+      "main": [
+        [
+          {
+            "node": "HTML→PDF (API)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTML→PDF (API)": {
+      "main": [
+        [
+          {
+            "node": "Binary→Base64",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Binary→Base64": {
+      "main": [
+        [
+          {
+            "node": "Upload PDF",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload PDF": {
+      "main": [
+        [
+          {
+            "node": "Send Kakao",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

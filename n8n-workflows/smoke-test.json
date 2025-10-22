@@ -1,0 +1,130 @@
+{
+  "name": "Smoke Test (Self-Diagnosis)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "smoke-test"
+      },
+      "id": "Webhook",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [220, 200]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Test all critical endpoints\nconst tests = [\n  {\n    name: 'MCP Server Health',\n    url: `${$env.MCP_HEALTH_URL}/tools`,\n    expectedStatus: 200\n  },\n  {\n    name: 'Session Event Endpoint',\n    url: $env.FN_SESSION_EVENT,\n    expectedStatus: 200\n  },\n  {\n    name: 'n8n API Health',\n    url: `${$env.N8N_BASE}/api/v1/workflows`,\n    expectedStatus: 200,\n    headers: {\n      'Authorization': `Bearer ${$env.N8N_API_KEY}`\n    }\n  }\n];\n\nreturn tests.map(test => ({\n  json: test\n}));"
+      },
+      "id": "Function",
+      "name": "Prepare Tests",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 2,
+      "position": [460, 200]
+    },
+    {
+      "parameters": {
+        "url": "={{$json.url}}",
+        "options": {
+          "headers": "={{$json.headers}}",
+          "timeout": 10000,
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "HTTP Request",
+      "name": "Run Test",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [720, 200]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Analyze test results\nconst results = $input.all();\nconst total = results.length;\nconst passed = results.filter(r => r.json.statusCode >= 200 && r.json.statusCode < 300).length;\nconst failed = total - passed;\n\nconst details = results.map(r => {\n  const status = r.json.statusCode >= 200 && r.json.statusCode < 300 ? '✅' : '❌';\n  return `${status} ${r.json.name}: ${r.json.statusCode}`;\n}).join('\\n');\n\nconst summary = `🧪 Smoke Test Results\\n\\nTotal: ${total} | Passed: ${passed} | Failed: ${failed}\\n\\n${details}`;\n\nreturn [{\n  json: {\n    summary: summary,\n    total: total,\n    passed: passed,\n    failed: failed,\n    details: details\n  }\n}];"
+      },
+      "id": "Analyze",
+      "name": "Analyze Results",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 2,
+      "position": [980, 200]
+    },
+    {
+      "parameters": {
+        "channel": "#kpi",
+        "text": "={{$json.summary}}"
+      },
+      "id": "Slack Report",
+      "name": "Slack Report",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 1,
+      "position": [1240, 200]
+    },
+    {
+      "parameters": {
+        "responseBody": "={{$json.summary}}"
+      },
+      "id": "Respond",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1240, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Prepare Tests",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Tests": {
+      "main": [
+        [
+          {
+            "node": "Run Test",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Run Test": {
+      "main": [
+        [
+          {
+            "node": "Analyze Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analyze Results": {
+      "main": [
+        [
+          {
+            "node": "Slack Report",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {},
+  "staticData": {}
+}

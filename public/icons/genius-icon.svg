@@ -1,0 +1,8 @@
+<!-- Genius Pack V1 브랜딩 아이콘 - 512/192/96/64/48/32/16 PNG로 내보내기 -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="84" fill="#0B0B0D"/>
+  <circle cx="256" cy="256" r="160" fill="#A3E635"/>
+  <path d="M256 126a130 130 0 100 260 130 130 0 000-260zm0 24a106 106 0 110 212 106 106 0 010-212z" fill="#0B0B0D"/>
+  <rect x="236" y="80" width="40" height="64" rx="8" fill="#A3E635"/>
+  <text x="256" y="420" text-anchor="middle" fill="#A3E635" font-family="Arial, sans-serif" font-size="48" font-weight="bold">V1</text>
+</svg>

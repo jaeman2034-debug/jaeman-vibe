@@ -1,0 +1,103 @@
+﻿{
+  "name": "YAGO VIBE - IR Report Email Sender",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "ir-report",
+        "options": {
+          "responseMode": "onReceived",
+          "responseData": {
+            "success": true,
+            "message": "IR Report email queued"
+          }
+        }
+      },
+      "id": "webhook_ir_report",
+      "name": "IR Report Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300],
+      "webhookId": "ir-report"
+    },
+    {
+      "parameters": {
+        "fromEmail": "yagovibe@company.com",
+        "toEmail": "={{$json[\"to\"]}}",
+        "subject": "={{$json[\"subject\"]}}",
+        "emailFormat": "text",
+        "text": "?덈뀞?섏꽭??\n\nYAGO VIBE IR 由ы룷?멸? ?앹꽦?섏뿀?듬땲??\n\n?뱤 AI ?붿빟:\n{{$json[\"summary\"]}}\n\n?뱞 ?꾩껜 由ы룷??蹂닿린:\n{{$json[\"reportUrl\"]}}\n\n媛먯궗?⑸땲??\nYAGO VIBE Team"
+      },
+      "id": "send_email",
+      "name": "Send IR Email",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2,
+      "position": [500, 300],
+      "credentials": {
+        "smtp": {
+          "id": "1",
+          "name": "SMTP account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{$json[\"reportUrl\"]}}",
+              "operation": "isNotEmpty"
+            },
+            {
+              "value1": "={{$json[\"to\"]}}",
+              "operation": "isNotEmpty"
+            }
+          ]
+        }
+      },
+      "id": "validate_data",
+      "name": "Validate Data",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [375, 300]
+    }
+  ],
+  "connections": {
+    "IR Report Webhook": {
+      "main": [
+        [
+          {
+            "node": "Validate Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Data": {
+      "main": [
+        [
+          {
+            "node": "Send IR Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "timezone": "Asia/Seoul"
+  },
+  "tags": [
+    {
+      "name": "YAGO VIBE",
+      "id": "yago-vibe"
+    },
+    {
+      "name": "IR Report",
+      "id": "ir-report"
+    }
+  ]
+}
+

@@ -1,0 +1,239 @@
+{
+  "name": "YAGO VIBE KakaoTalk Biz API 리포트 전송",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 8 * * *"
+            }
+          ]
+        }
+      },
+      "id": "kakao-trigger",
+      "name": "매일 오전 8시 실행",
+      "type": "n8n-nodes-base.cron",
+      "typeVersion": 1,
+      "position": [200, 300],
+      "webhookDescription": "매일 오전 8시에 실행되어 KakaoTalk으로 리포트 요약을 전송합니다"
+    },
+    {
+      "parameters": {
+        "projectId": "jaeman-vibe-platform",
+        "collection": "reports",
+        "operation": "getMany",
+        "limit": 1
+      },
+      "id": "firestore-latest-report",
+      "name": "Firestore: 최신 리포트 조회",
+      "type": "n8n-nodes-base.googleFirebase",
+      "typeVersion": 1,
+      "position": [600, 300]
+    },
+    {
+      "parameters": {
+        "functionCode": "// 최신 리포트 데이터 처리\nconst reports = $input.all().map(item => item.json);\nconst latestReport = reports[0];\n\nif (!latestReport) {\n  return [{\n    json: {\n      error: \"리포트 데이터가 없습니다.\",\n      hasData: false\n    }\n  }];\n}\n\n// 카카오톡 메시지용 요약 생성\nconst totalNotifications = (latestReport.stats?.FCM || 0) + \n                         (latestReport.stats?.Slack || 0) + \n                         (latestReport.stats?.Kakao || 0) + \n                         (latestReport.stats?.message || 0) + \n                         (latestReport.stats?.comment || 0) + \n                         (latestReport.stats?.market || 0) + \n                         (latestReport.stats?.system || 0);\n\nconst reportDate = new Date(latestReport.date).toLocaleDateString('ko-KR', {\n  month: 'long',\n  day: 'numeric',\n  weekday: 'short'\n});\n\n// 카카오톡 메시지 템플릿\nconst kakaoMessage = `⚽ YAGO VIBE 일일 리포트\n\n📅 ${reportDate}\n📊 총 알림: ${totalNotifications}건\n\n📱 FCM: ${latestReport.stats?.FCM || 0}건\n📢 Slack: ${latestReport.stats?.Slack || 0}건\n💌 Kakao: ${latestReport.stats?.Kakao || 0}건\n\n🤖 AI 요약:\n${latestReport.summary ? latestReport.summary.substring(0, 150) + '...' : '요약 데이터 없음'}\n\n📈 자세한 내용은 관리자 대시보드에서 확인하세요!`;\n\nconsole.log('📱 카카오톡 메시지 준비 완료:', kakaoMessage.length, '자');\n\nreturn [{\n  json: {\n    hasData: true,\n    reportDate: latestReport.date,\n    totalNotifications,\n    kakaoMessage,\n    stats: latestReport.stats,\n    summary: latestReport.summary\n  }\n}];"
+      },
+      "id": "js-kakao-message",
+      "name": "JavaScript: 카카오톡 메시지 생성",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [1000, 300]
+    },
+    {
+      "parameters": {
+        "url": "https://kapi.kakao.com/v2/api/talk/memo/default/send",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer {{$env.KAKAO_ACCESS_TOKEN}}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/x-www-form-urlencoded"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "template_object",
+              "value": "={{JSON.stringify({\"object_type\": \"text\", \"text\": $json.kakaoMessage, \"link\": {\"web_url\": \"http://localhost:5183/admin/reports\", \"mobile_web_url\": \"http://localhost:5183/admin/reports\"}, \"button_title\": \"관리자 대시보드\"})}}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "id": "kakao-api-send",
+      "name": "KakaoTalk API: 메시지 전송",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1400, 300]
+    },
+    {
+      "parameters": {
+        "url": "https://kapi.kakao.com/v1/api/talk/friends",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer {{$env.KAKAO_ACCESS_TOKEN}}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "id": "kakao-friends-list",
+      "name": "KakaoTalk: 친구 목록 조회",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1400, 500]
+    },
+    {
+      "parameters": {
+        "functionCode": "// 친구 목록에서 특정 친구에게 메시지 전송\nconst friendsData = $input.first().json;\nconst messageData = $input.last().json;\n\nif (!friendsData.elements || friendsData.elements.length === 0) {\n  return [{\n    json: {\n      error: \"친구 목록이 없습니다.\",\n      success: false\n    }\n  }];\n}\n\n// 특정 친구 찾기 (예: '관리자' 또는 '형님'이라는 이름의 친구)\nconst targetFriend = friendsData.elements.find(friend => \n  friend.profile_nickname && \n  (friend.profile_nickname.includes('관리자') || \n   friend.profile_nickname.includes('형님') ||\n   friend.profile_nickname.includes('jaeman'))\n);\n\nif (!targetFriend) {\n  return [{\n    json: {\n      error: \"대상 친구를 찾을 수 없습니다.\",\n      success: false,\n      availableFriends: friendsData.elements.map(f => f.profile_nickname)\n    }\n  }];\n}\n\nconst kakaoMessage = messageData.kakaoMessage;\n\nreturn [{\n  json: {\n    success: true,\n    targetFriend: targetFriend.profile_nickname,\n    targetUuid: targetFriend.uuid,\n    message: kakaoMessage,\n    reportDate: messageData.reportDate,\n    totalNotifications: messageData.totalNotifications\n  }\n}];"
+      },
+      "id": "js-find-friend",
+      "name": "JavaScript: 대상 친구 찾기",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [1800, 400]
+    },
+    {
+      "parameters": {
+        "url": "https://kapi.kakao.com/v1/api/talk/friends/message/default/send",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer {{$env.KAKAO_ACCESS_TOKEN}}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/x-www-form-urlencoded"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "receiver_uuids",
+              "value": "=[\"{{$json.targetUuid}}\"]"
+            },
+            {
+              "name": "template_object",
+              "value": "={{JSON.stringify({\"object_type\": \"text\", \"text\": $json.message, \"link\": {\"web_url\": \"http://localhost:5183/admin/reports\", \"mobile_web_url\": \"http://localhost:5183/admin/reports\"}, \"button_title\": \"관리자 대시보드\"})}}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "id": "kakao-friend-message",
+      "name": "KakaoTalk: 친구에게 메시지 전송",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [2200, 400]
+    },
+    {
+      "parameters": {
+        "channel": "#yago-vibe-reports",
+        "text": "📱 **KakaoTalk Biz API 리포트 전송 완료!**\\n\\n📅 **리포트 날짜**: {{$('JavaScript: 카카오톡 메시지 생성').item.json.reportDate}}\\n📊 **총 알림 수**: {{$('JavaScript: 카카오톡 메시지 생성').item.json.totalNotifications}}건\\n\\n✅ **전송 결과**:\\n- 카카오톡 메시지 전송: 성공\\n- 대상: {{$('JavaScript: 대상 친구 찾기').item.json.targetFriend || '기본 메시지'}}\\n\\n💬 **메시지 미리보기**:\\n{{$('JavaScript: 카카오톡 메시지 생성').item.json.kakaoMessage.substring(0, 100)}}...\\n\\n🚀 형님의 카카오톡으로 매일 오전 8시에 자동 전송됩니다!"
+      },
+      "id": "slack-kakao-notify",
+      "name": "Slack: 카카오톡 전송 알림",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 1,
+      "position": [2200, 200]
+    }
+  ],
+  "connections": {
+    "매일 오전 8시 실행": {
+      "main": [
+        [
+          {
+            "node": "Firestore: 최신 리포트 조회",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Firestore: 최신 리포트 조회": {
+      "main": [
+        [
+          {
+            "node": "JavaScript: 카카오톡 메시지 생성",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "KakaoTalk: 친구 목록 조회",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "JavaScript: 카카오톡 메시지 생성": {
+      "main": [
+        [
+          {
+            "node": "KakaoTalk API: 메시지 전송",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "KakaoTalk: 친구 목록 조회": {
+      "main": [
+        [
+          {
+            "node": "JavaScript: 대상 친구 찾기",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "JavaScript: 대상 친구 찾기": {
+      "main": [
+        [
+          {
+            "node": "KakaoTalk: 친구에게 메시지 전송",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Slack: 카카오톡 전송 알림",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": ["yago-vibe", "kakao", "biz-api", "automation", "mobile"],
+  "triggerCount": 0,
+  "meta": {
+    "description": "매일 오전 8시에 실행되어 최신 리포트 요약을 KakaoTalk Biz API를 통해 카카오톡으로 전송하는 워크플로우입니다."
+  }
+}

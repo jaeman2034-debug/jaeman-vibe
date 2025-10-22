@@ -1,0 +1,30 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    
+    // === 🎧 스마트 스피커 브리핑 시스템 ===
+    
+    // ai_voice_reports 오디오 파일 공개 읽기
+    match /ai_voice_reports/{allPaths=**} {
+      allow read: if true;
+      allow write: if request.auth != null && request.auth.token.admin == true;
+    }
+    
+    // notification_reports 관련 파일
+    match /notification_reports/{allPaths=**} {
+      allow read: if true;
+      allow write: if request.auth != null && request.auth.token.admin == true;
+    }
+    
+    // market_items 이미지 파일
+    match /market_items/{allPaths=**} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+    
+    // 기타 파일들은 인증된 사용자만 접근
+    match /{allPaths=**} {
+      allow read, write: if request.auth != null;
+    }
+  }
+}

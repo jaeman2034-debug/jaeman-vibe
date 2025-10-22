@@ -1,0 +1,32 @@
+@import "tailwindcss";
+
+/* 글로벌 스타일 */
+img { max-width: 100%; height: auto; display: block; }
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* 카드 썸네일 강제 비율 */
+.thumb {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  border-radius: 8px;
+}
+
+/* 점수 팝 애니메이션 */
+@keyframes pop { 
+  0% { transform: scale(1); } 
+  30% { transform: scale(1.25); } 
+  100% { transform: scale(1); } 
+}
+.animate-pop, .score-pop.animate-pop { 
+  animation: pop .25s ease-out; 
+}
+
+/* 라이브 보드 테마 */
+body[data-board-theme="club"] {
+  background: radial-gradient(1200px 600px at 20% -10%, #7028e4 0%, rgba(0,0,0,0) 70%),
+              radial-gradient(1000px 500px at 120% 30%, #e5ff00 0%, rgba(0,0,0,0) 65%),
+              #000;
+  color: #fff;
+}

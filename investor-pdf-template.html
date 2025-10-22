@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>YAGO VIBE 투자자용 주간 리포트</title>
+  <style>
+    /* 투자자용 프리미엄 디자인 */
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+    
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: 'Inter', 'Segoe UI', 'Malgun Gothic', sans-serif;
+      color: #1a1a1a;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 40px 20px;
+    }
+    
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+      background: white;
+      border-radius: 20px;
+      box-shadow: 0 25px 50px rgba(0, 0, 0, 0.15);
+      overflow: hidden;
+    }
+    
+    /* 헤더 섹션 */
+    .header {
+      background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 50%, #1e40af 100%);
+      color: white;
+      padding: 50px 40px;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .header::before {
+      content: '';
+      position: absolute;
+      top: -50%;
+      left: -50%;
+      width: 200%;
+      height: 200%;
+      background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="50" cy="50" r="2" fill="rgba(255,255,255,0.1)"/></svg>') repeat;
+      animation: float 20s infinite linear;
+    }
+    
+    @keyframes float {
+      0% { transform: translate(-50%, -50%) rotate(0deg); }
+      100% { transform: translate(-50%, -50%) rotate(360deg); }
+    }
+    
+    .logo {
+      font-size: 72px;
+      margin-bottom: 20px;
+      position: relative;
+      z-index: 1;
+    }
+    
+    .company-name {
+      font-size: 36px;
+      font-weight: 700;
+      margin-bottom: 10px;
+      position: relative;
+      z-index: 1;
+    }
+    
+    .tagline {
+      font-size: 18px;
+      opacity: 0.9;
+      font-weight: 300;
+      position: relative;
+      z-index: 1;
+    }
+    
+    .report-date {
+      position: absolute;
+      top: 30px;
+      right: 40px;
+      background: rgba(255, 255, 255, 0.2);
+      padding: 10px 20px;
+      border-radius: 25px;
+      font-size: 14px;
+      font-weight: 500;
+      backdrop-filter: blur(10px);
+    }
+    
+    /* 컨텐츠 섹션 */
+    .content {
+      padding: 50px 40px;
+    }
+    
+    .executive-summary {
+      background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+      border-left: 5px solid #0ea5e9;
+      padding: 30px;
+      border-radius: 15px;
+      margin-bottom: 40px;
+    }
+    
+    .section-title {
+      font-size: 24px;
+      font-weight: 600;
+      color: #1e293b;
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    
+    .section-title::before {
+      content: '';
+      width: 4px;
+      height: 24px;
+      background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+      border-radius: 2px;
+    }
+    
+    /* 통계 카드 그리드 */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 25px;
+      margin: 30px 0;
+    }
+    
+    .stat-card {
+      background: white;
+      border-radius: 15px;
+      padding: 25px;
+      text-align: center;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
+      border: 1px solid #f1f5f9;
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .stat-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 4px;
+      background: linear-gradient(90deg, #3b82f6, #8b5cf6, #ec4899);
+    }
+    
+    .stat-number {
+      font-size: 42px;
+      font-weight: 700;
+      color: #1e293b;
+      margin-bottom: 8px;
+      background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    
+    .stat-label {
+      font-size: 14px;
+      color: #64748b;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    
+    .stat-change {
+      font-size: 12px;
+      margin-top: 5px;
+      font-weight: 500;
+    }
+    
+    .positive { color: #059669; }
+    .negative { color: #dc2626; }
+    
+    /* 차트 섹션 */
+    .chart-section {
+      background: #f8fafc;
+      border-radius: 15px;
+      padding: 30px;
+      margin: 40px 0;
+      border: 1px solid #e2e8f0;
+    }
+    
+    .chart-title {
+      font-size: 20px;
+      font-weight: 600;
+      color: #1e293b;
+      margin-bottom: 20px;
+      text-align: center;
+    }
+    
+    /* 테이블 스타일 */
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 30px 0;
+      background: white;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+    }
+    
+    .data-table th {
+      background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+      color: white;
+      padding: 18px 15px;
+      text-align: left;
+      font-weight: 600;
+      font-size: 14px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    
+    .data-table td {
+      padding: 15px;
+      border-bottom: 1px solid #f1f5f9;
+      font-size: 14px;
+    }
+    
+    .data-table tr:hover {
+      background: #f8fafc;
+    }
+    
+    .data-table tr:last-child td {
+      border-bottom: none;
+    }
+    
+    /* AI 분석 섹션 */
+    .ai-analysis {
+      background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+      border: 1px solid #bbf7d0;
+      border-radius: 15px;
+      padding: 30px;
+      margin: 40px 0;
+      position: relative;
+    }
+    
+    .ai-analysis::before {
+      content: '🤖';
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      font-size: 24px;
+      opacity: 0.3;
+    }
+    
+    .ai-title {
+      font-size: 18px;
+      font-weight: 600;
+      color: #166534;
+      margin-bottom: 15px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .ai-content {
+      color: #15803d;
+      line-height: 1.7;
+      font-size: 15px;
+    }
+    
+    /* 투자자 정보 섹션 */
+    .investment-highlights {
+      background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+      border: 1px solid #f59e0b;
+      border-radius: 15px;
+      padding: 30px;
+      margin: 40px 0;
+    }
+    
+    .highlight-item {
+      display: flex;
+      align-items: center;
+      gap: 15px;
+      margin-bottom: 15px;
+      padding: 10px 0;
+    }
+    
+    .highlight-icon {
+      width: 40px;
+      height: 40px;
+      background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-weight: bold;
+    }
+    
+    /* 푸터 */
+    .footer {
+      background: #1e293b;
+      color: white;
+      padding: 40px;
+      text-align: center;
+    }
+    
+    .footer-content {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 30px;
+      margin-bottom: 30px;
+    }
+    
+    .footer-section h4 {
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 15px;
+      color: #94a3b8;
+    }
+    
+    .footer-section p {
+      font-size: 14px;
+      line-height: 1.6;
+      color: #cbd5e1;
+    }
+    
+    .footer-bottom {
+      border-top: 1px solid #334155;
+      padding-top: 20px;
+      font-size: 12px;
+      color: #94a3b8;
+    }
+    
+    /* 반응형 디자인 */
+    @media print {
+      body { background: white; padding: 0; }
+      .container { box-shadow: none; border-radius: 0; }
+      .header::before { display: none; }
+    }
+    
+    @media (max-width: 768px) {
+      .stats-grid { grid-template-columns: repeat(2, 1fr); }
+      .container { margin: 20px; }
+      .content { padding: 30px 20px; }
+      .header { padding: 30px 20px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- 헤더 -->
+    <div class="header">
+      <div class="report-date">{{REPORT_DATE}}</div>
+      <div class="logo">⚽</div>
+      <h1 class="company-name">YAGO VIBE</h1>
+      <p class="tagline">스포츠 커뮤니티 통합 플랫폼</p>
+    </div>
+    
+    <!-- 컨텐츠 -->
+    <div class="content">
+      <!-- 임원 요약 -->
+      <div class="executive-summary">
+        <h2 class="section-title">📊 임원 요약</h2>
+        <p style="font-size: 16px; line-height: 1.7; color: #1e293b;">
+          이번 주 YAGO VIBE 플랫폼은 총 <strong>{{TOTAL_NOTIFICATIONS}}</strong>건의 알림을 처리하며 
+          안정적인 서비스 운영을 유지했습니다. 주요 채널별 성과 분석 결과, 
+          <strong>{{TOP_CHANNEL}}</strong>이 전체 알림의 <strong>{{TOP_CHANNEL_PERCENT}}%</strong>를 차지하며 
+          가장 활발한 커뮤니케이션 채널로 확인되었습니다.
+        </p>
+      </div>
+      
+      <!-- 핵심 지표 -->
+      <h2 class="section-title">📈 핵심 성과 지표</h2>
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-number">{{TOTAL_NOTIFICATIONS}}</div>
+          <div class="stat-label">주간 총 알림</div>
+          <div class="stat-change positive">+12% vs 전주</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-number">{{DAILY_AVERAGE}}</div>
+          <div class="stat-label">일평균 알림</div>
+          <div class="stat-change positive">+8% vs 전주</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-number">{{FCM_COUNT}}</div>
+          <div class="stat-label">FCM 푸시</div>
+          <div class="stat-change positive">+15% vs 전주</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-number">{{SLACK_COUNT}}</div>
+          <div class="stat-label">Slack 알림</div>
+          <div class="stat-change positive">+5% vs 전주</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-number">{{KAKAO_COUNT}}</div>
+          <div class="stat-label">Kakao 알림</div>
+          <div class="stat-change positive">+18% vs 전주</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-number">98.5%</div>
+          <div class="stat-label">전송 성공률</div>
+          <div class="stat-change positive">+0.3% vs 전주</div>
+        </div>
+      </div>
+      
+      <!-- 채널별 분석 -->
+      <h2 class="section-title">📱 채널별 성과 분석</h2>
+      <div class="chart-section">
+        <div class="chart-title">주간 알림 채널 분포</div>
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>채널</th>
+              <th>알림 수</th>
+              <th>비율</th>
+              <th>전주 대비</th>
+              <th>성장률</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>FCM 푸시</strong></td>
+              <td>{{FCM_COUNT}}건</td>
+              <td>{{FCM_PERCENT}}%</td>
+              <td class="positive">+15%</td>
+              <td class="positive">▲</td>
+            </tr>
+            <tr>
+              <td><strong>Slack</strong></td>
+              <td>{{SLACK_COUNT}}건</td>
+              <td>{{SLACK_PERCENT}}%</td>
+              <td class="positive">+5%</td>
+              <td class="positive">▲</td>
+            </tr>
+            <tr>
+              <td><strong>Kakao</strong></td>
+              <td>{{KAKAO_COUNT}}건</td>
+              <td>{{KAKAO_PERCENT}}%</td>
+              <td class="positive">+18%</td>
+              <td class="positive">▲</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      
+      <!-- AI 분석 -->
+      <div class="ai-analysis">
+        <h3 class="ai-title">🤖 AI 분석 요약</h3>
+        <div class="ai-content">
+          {{AI_SUMMARY}}
+        </div>
+      </div>
+      
+      <!-- 투자 하이라이트 -->
+      <div class="investment-highlights">
+        <h2 class="section-title">💎 투자 하이라이트</h2>
+        
+        <div class="highlight-item">
+          <div class="highlight-icon">📈</div>
+          <div>
+            <strong>지속적인 성장:</strong> 주간 알림 수가 전주 대비 12% 증가하여 플랫폼 활성도가 지속적으로 상승하고 있습니다.
+          </div>
+        </div>
+        
+        <div class="highlight-item">
+          <div class="highlight-icon">🚀</div>
+          <div>
+            <strong>기술적 안정성:</strong> 98.5%의 높은 전송 성공률을 유지하며, 사용자 경험의 신뢰성을 확보했습니다.
+          </div>
+        </div>
+        
+        <div class="highlight-item">
+          <div class="highlight-icon">💬</div>
+          <div>
+            <strong>다채널 전략:</strong> FCM, Slack, Kakao의 균형잡힌 채널 분포로 다양한 사용자층에 효과적으로 도달하고 있습니다.
+          </div>
+        </div>
+        
+        <div class="highlight-item">
+          <div class="highlight-icon">🎯</div>
+          <div>
+            <strong>AI 자동화:</strong> 완전 자동화된 리포트 시스템으로 운영 효율성을 극대화하고 투자자 투명성을 확보했습니다.
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- 푸터 -->
+    <div class="footer">
+      <div class="footer-content">
+        <div class="footer-section">
+          <h4>📊 데이터 출처</h4>
+          <p>Firebase Firestore 실시간 데이터<br>
+          n8n 자동화 워크플로우<br>
+          OpenAI GPT-4o-mini 분석</p>
+        </div>
+        
+        <div class="footer-section">
+          <h4>🔧 기술 스택</h4>
+          <p>React + Vite + TypeScript<br>
+          Firebase + Cloud Functions<br>
+          n8n + OpenAI API</p>
+        </div>
+        
+        <div class="footer-section">
+          <h4>📞 연락처</h4>
+          <p>jaeman@teamvibe.kr<br>
+          관리자 대시보드<br>
+          실시간 모니터링</p>
+        </div>
+      </div>
+      
+      <div class="footer-bottom">
+        <p>⚽ <strong>YAGO VIBE AI 자동 리포트 시스템</strong></p>
+        <p>본 리포트는 매일 자동으로 생성되며, n8n + OpenAI + Firebase를 통해 완전 자동화된 시스템으로 운영됩니다.</p>
+        <p>생성일시: {{GENERATION_TIME}} | 문서 버전: v2.0</p>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

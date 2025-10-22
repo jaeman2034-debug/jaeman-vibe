@@ -1,0 +1,65 @@
+{
+  "name": "Dues – Checkout Link",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "dues-checkout"
+      },
+      "id": "wh",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [-620, 60]
+    },
+    {
+      "parameters": {
+        "resource": "checkoutSession",
+        "operation": "create",
+        "priceIds": ["={{$env.STRIPE_PRICE_ID}}"],
+        "successUrl": "https://yago.app/thanks",
+        "cancelUrl": "https://yago.app/cancel"
+      },
+      "id": "stripe",
+      "name": "Stripe Checkout",
+      "type": "n8n-nodes-base.stripe",
+      "typeVersion": 2,
+      "position": [-410, 60],
+      "credentials": {
+        "stripeApi": {
+          "id": "REPLACE",
+          "name": "Stripe"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "fromEmail": "={{$env.GMAIL_SENDER}}",
+        "toEmail": "={{$json.parentEmail}}",
+        "subject": "[YAGO] 회비 결제 링크",
+        "text": "=안녕하세요. 아래 링크로 회비 결제를 완료해 주세요:\n{{$json[\"Stripe Checkout\"].data.url}}"
+      },
+      "id": "mail",
+      "name": "Send Gmail",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2,
+      "position": [-200, 60],
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "REPLACE",
+          "name": "Gmail"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [[{"node": "Stripe Checkout", "type": "main", "index": 0}]]
+    },
+    "Stripe Checkout": {
+      "main": [[{"node": "Send Gmail", "type": "main", "index": 0}]]
+    }
+  },
+  "settings": {
+    "timezone": "Asia/Seoul"
+  }
+}

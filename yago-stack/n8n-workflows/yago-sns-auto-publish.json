@@ -1,0 +1,312 @@
+{
+  "name": "YAGO • SNS 자동배포",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "post-published",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-post-published",
+      "name": "Webhook - Post Published",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [-200, 0],
+      "webhookId": "post-published"
+    },
+    {
+      "parameters": {
+        "functionCode": "// 입력 데이터 검증 및 포맷팅\nconst { id, title, summary, url, ogUrl, coverImageUrl } = $input.first().json;\n\nif (!id || !title) {\n  throw new Error('id와 title이 필요합니다');\n}\n\n// 캡션 및 해시태그 포맷팅\nconst hashtags = '#YAGOVIBE #스포츠 #클럽';\nconst caption = `${title}\\n\\n${summary}\\n\\n${hashtags}\\n\\n${url}`;\n\nreturn [{\n  json: {\n    id,\n    title,\n    summary,\n    url,\n    ogUrl,\n    coverImageUrl,\n    caption,\n    hashtags\n  }\n}];"
+      },
+      "id": "format-content",
+      "name": "콘텐츠 포맷팅",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 2,
+      "position": [0, 0]
+    },
+    {
+      "parameters": {
+        "url": "https://api.twitter.com/2/media/upload",
+        "options": {
+          "headers": {
+            "entries": [
+              {
+                "name": "Authorization",
+                "value": "Bearer {{$env.X_BEARER_TOKEN}}"
+              }
+            ]
+          },
+          "sendBinaryData": true,
+          "binaryPropertyName": "image"
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "entries": [
+            {
+              "name": "media",
+              "value": "={{$json.ogUrl}}"
+            }
+          ]
+        }
+      },
+      "id": "twitter-upload-media",
+      "name": "X(Twitter) - 미디어 업로드",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [200, 0]
+    },
+    {
+      "parameters": {
+        "url": "https://api.twitter.com/2/tweets",
+        "options": {
+          "headers": {
+            "entries": [
+              {
+                "name": "Authorization",
+                "value": "Bearer {{$env.X_BEARER_TOKEN}}"
+              },
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              }
+            ]
+          }
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "entries": [
+            {
+              "name": "text",
+              "value": "={{$json.caption}}"
+            },
+            {
+              "name": "media.media_ids",
+              "value": "=[{{$json.media_id}}]"
+            }
+          ]
+        }
+      },
+      "id": "twitter-post",
+      "name": "X(Twitter) - 포스트",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [400, 0]
+    },
+    {
+      "parameters": {
+        "url": "https://graph.facebook.com/v18.0/{{$env.FACEBOOK_PAGE_ID}}/photos",
+        "options": {
+          "headers": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              }
+            ]
+          }
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "entries": [
+            {
+              "name": "access_token",
+              "value": "={{$env.FACEBOOK_ACCESS_TOKEN}}"
+            },
+            {
+              "name": "url",
+              "value": "={{$json.ogUrl}}"
+            },
+            {
+              "name": "message",
+              "value": "={{$json.caption}}"
+            }
+          ]
+        }
+      },
+      "id": "facebook-post",
+      "name": "Facebook - 포스트",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [200, 200]
+    },
+    {
+      "parameters": {
+        "url": "https://graph.facebook.com/v18.0/{{$env.INSTAGRAM_BUSINESS_ID}}/media",
+        "options": {
+          "headers": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              }
+            ]
+          }
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "entries": [
+            {
+              "name": "access_token",
+              "value": "={{$env.INSTAGRAM_ACCESS_TOKEN}}"
+            },
+            {
+              "name": "image_url",
+              "value": "={{$json.ogUrl}}"
+            },
+            {
+              "name": "caption",
+              "value": "={{$json.caption}}"
+            }
+          ]
+        }
+      },
+      "id": "instagram-create-container",
+      "name": "Instagram - 미디어 컨테이너 생성",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [400, 200]
+    },
+    {
+      "parameters": {
+        "url": "https://graph.facebook.com/v18.0/{{$env.INSTAGRAM_BUSINESS_ID}}/media_publish",
+        "options": {
+          "headers": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              }
+            ]
+          }
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "entries": [
+            {
+              "name": "access_token",
+              "value": "={{$env.INSTAGRAM_ACCESS_TOKEN}}"
+            },
+            {
+              "name": "creation_id",
+              "value": "={{$json.id}}"
+            }
+          ]
+        }
+      },
+      "id": "instagram-publish",
+      "name": "Instagram - 게시",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [600, 200]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { success: true, message: 'SNS 자동배포 완료', platforms: ['twitter', 'facebook', 'instagram'] } }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "respond-success",
+      "name": "성공 응답",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [800, 0]
+    }
+  ],
+  "connections": {
+    "Webhook - Post Published": {
+      "main": [
+        [
+          {
+            "node": "콘텐츠 포맷팅",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "콘텐츠 포맷팅": {
+      "main": [
+        [
+          {
+            "node": "X(Twitter) - 미디어 업로드",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Facebook - 포스트",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "X(Twitter) - 미디어 업로드": {
+      "main": [
+        [
+          {
+            "node": "X(Twitter) - 포스트",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "X(Twitter) - 포스트": {
+      "main": [
+        [
+          {
+            "node": "성공 응답",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Facebook - 포스트": {
+      "main": [
+        [
+          {
+            "node": "Instagram - 미디어 컨테이너 생성",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Instagram - 미디어 컨테이너 생성": {
+      "main": [
+        [
+          {
+            "node": "Instagram - 게시",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Instagram - 게시": {
+      "main": [
+        [
+          {
+            "node": "성공 응답",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "1",
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "id": "yago-sns-auto-publish",
+  "tags": []
+}

@@ -1,0 +1,308 @@
+{
+  "name": "🎧 최신 음성 캐스트 웹훅",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "cast-latest",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "🔗 Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "condition-1",
+              "leftValue": "={{ $json.headers['x-api-key'] }}",
+              "rightValue": "={{ $env.N8N_WEBHOOK_SECRET }}",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "security-check",
+      "name": "🔒 보안 키 확인",
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://firebase-emulator:8080/v1/projects/{{ $env.FIREBASE_PROJECT_ID }}/databases/(default)/documents/ai_voice_reports",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer {{ $env.FIREBASE_TOKEN }}"
+            }
+          ]
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "pageSize",
+              "value": "1"
+            },
+            {
+              "name": "orderBy",
+              "value": "createdAt desc"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "get-latest-report",
+      "name": "📊 최신 리포트 조회",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "condition-1",
+              "leftValue": "={{ $json.documents?.length }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "check-report-exists",
+      "name": "🔍 리포트 존재 확인",
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// 최신 리포트에서 audioUrl 추출\nconst doc = $input.first().json.documents[0];\nconst fields = doc.fields;\n\nconst audioUrl = fields.audioUrl?.stringValue;\nconst summary = fields.summary?.stringValue || fields.ttsSummary?.stringValue || 'AI 음성 리포트';\nconst reportDate = fields.reportDate?.stringValue || '오늘';\nconst totalCount = fields.stats?.mapValue?.fields?.totalCount?.integerValue || 0;\nconst totalValue = fields.stats?.mapValue?.fields?.totalValue?.integerValue || 0;\n\nreturn {\n  audioUrl: audioUrl,\n  summary: summary,\n  reportDate: reportDate,\n  totalCount: parseInt(totalCount),\n  totalValue: parseInt(totalValue),\n  hasAudio: !!audioUrl\n};"
+      },
+      "id": "extract-audio-url",
+      "name": "🎵 오디오 URL 추출",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1120, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "condition-1",
+              "leftValue": "={{ $json.hasAudio }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equal"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "check-audio-exists",
+      "name": "🎧 오디오 파일 확인",
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2,
+      "position": [1340, 300]
+    },
+    {
+      "parameters": {
+        "url": "{{ $env.CAST_BRIDGE_URL }}/cast",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"host\": \"{{ $json.speaker || '192.168.1.100' }}\",\n  \"url\": \"{{ $json.audioUrl }}\",\n  \"metadata\": {\n    \"title\": \"🎧 {{ $json.reportDate }} YAGO 브리핑\",\n    \"subtitle\": \"{{ $json.summary.slice(0, 100) }}...\",\n    \"albumArt\": \"https://yago-vibe.firebaseapp.com/icon-512.png\"\n  }\n}",
+        "options": {}
+      },
+      "id": "cast-to-speaker",
+      "name": "🔊 스피커로 캐스트",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1560, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": true,\n  \"message\": \"스피커에서 브리핑 재생 시작\",\n  \"audioUrl\": \"{{ $('extract-audio-url').first().json.audioUrl }}\",\n  \"reportDate\": \"{{ $('extract-audio-url').first().json.reportDate }}\",\n  \"totalCount\": {{ $('extract-audio-url').first().json.totalCount }},\n  \"totalValue\": {{ $('extract-audio-url').first().json.totalValue }},\n  \"timestamp\": \"{{ new Date().toISOString() }}\"\n}"
+      },
+      "id": "success-response",
+      "name": "✅ 성공 응답",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1780, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": false,\n  \"message\": \"재생할 브리핑이 없습니다\",\n  \"error\": \"no_report_found\",\n  \"timestamp\": \"{{ new Date().toISOString() }}\"\n}"
+      },
+      "id": "no-report-response",
+      "name": "❌ No Report Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [900, 500]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": false,\n  \"message\": \"오디오 파일이 준비되지 않았습니다\",\n  \"error\": \"no_audio_file\",\n  \"timestamp\": \"{{ new Date().toISOString() }}\"\n}"
+      },
+      "id": "no-audio-response",
+      "name": "❌ No Audio Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1340, 500]
+    }
+  ],
+  "connections": {
+    "🔗 Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "🔒 보안 키 확인",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔒 보안 키 확인": {
+      "main": [
+        [
+          {
+            "node": "📊 최신 리포트 조회",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📊 최신 리포트 조회": {
+      "main": [
+        [
+          {
+            "node": "🔍 리포트 존재 확인",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔍 리포트 존재 확인": {
+      "main": [
+        [
+          {
+            "node": "🎵 오디오 URL 추출",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "❌ No Report Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🎵 오디오 URL 추출": {
+      "main": [
+        [
+          {
+            "node": "🎧 오디오 파일 확인",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🎧 오디오 파일 확인": {
+      "main": [
+        [
+          {
+            "node": "🔊 스피커로 캐스트",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "❌ No Audio Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔊 스피커로 캐스트": {
+      "main": [
+        [
+          {
+            "node": "✅ 성공 응답",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "1",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "cast-latest-webhook"
+  },
+  "id": "cast-latest-webhook",
+  "tags": ["yago-vibe", "smart-speaker", "cast-bridge", "webhook"]
+}

@@ -1,0 +1,237 @@
+﻿{
+  "name": "?? Market Image AI Analyzer (Production)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "market-image-analyze",
+        "responseMode": "lastNode",
+        "options": {
+          "rawBody": false
+        }
+      },
+      "id": "webhook_entry",
+      "name": "?뱿 Webhook: market-image-analyze",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [240, 300],
+      "webhookId": "market-image-analyze"
+    },
+    {
+      "parameters": {
+        "jsCode": "// ?뵇 ?낅젰 ?곗씠??寃利?nconst input = $input.all()[0].json;\n\nconsole.log('?벂 ?섏떊??Firebase Functions ?곗씠??', input);\n\n// ?꾩닔 ?꾨뱶 寃利?nif (!input.fileUrl) {\n  throw new Error('??fileUrl???꾨씫?섏뿀?듬땲??);\n}\n\nif (!input.filename) {\n  throw new Error('??filename???꾨씫?섏뿀?듬땲??);\n}\n\n// 蹂댁븞 ??寃利?(?좏깮?ы빆)\nconst internalKey = $input.all()[0].headers['x-internal-key'];\nconst expectedKey = $env.N8N_INTERNAL_KEY;\n\nif (expectedKey && internalKey !== expectedKey) {\n  console.warn('?좑툘 ?대? ??遺덉씪移?);\n}\n\nconsole.log('???곗씠??寃利??꾨즺');\n\nreturn {\n  event: input.event || 'MARKET_IMAGE_UPLOADED',\n  fileUrl: input.fileUrl,\n  filename: input.filename,\n  contentType: input.contentType || 'image/jpeg',\n  size: input.size || 0,\n  filePath: input.filePath || '',\n  bucket: input.bucket || '',\n  timestamp: input.timestamp || new Date().toISOString(),\n  source: input.source || 'firebase-functions'\n};"
+      },
+      "id": "function_validate",
+      "name": "?㎥ ?곗씠??寃利?,
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// ?쨼 OpenAI Vision API ?몄텧 (GPT-4o-mini Vision)\nconst input = $input.all()[0].json;\nconst apiKey = $env.OPENAI_API_KEY;\n\nif (!apiKey) {\n  console.warn('?좑툘 OPENAI_API_KEY媛 ?ㅼ젙?섏? ?딆쓬 - AI 遺꾩꽍 嫄대꼫?');\n  return {\n    ...input,\n    aiAnalysis: {\n      skipped: true,\n      reason: 'API ??誘몄꽕??,\n      category: '湲고?',\n      brand: '?????놁쓬',\n      condition: '以묎퀬',\n      tags: [],\n      suggestedPrice: 0,\n      caption: '遺꾩꽍 嫄대꼫?'\n    }\n  };\n}\n\ntry {\n  console.log('?뵇 AI 遺꾩꽍 ?쒖옉:', input.fileUrl);\n\n  const response = await fetch('https://api.openai.com/v1/chat/completions', {\n    method: 'POST',\n    headers: {\n      'Content-Type': 'application/json',\n      'Authorization': `Bearer ${apiKey}`\n    },\n    body: JSON.stringify({\n      model: 'gpt-4o-mini',\n      messages: [\n        {\n          role: 'system',\n          content: `?덈뒗 ?ㅽ룷痢??⑺뭹 ?대?吏 遺꾩꽍 ?꾨Ц媛?? ?대?吏瑜?蹂닿퀬 ?ㅼ쓬 ?뺣낫瑜?JSON?쇰줈 諛섑솚?댁쨾:\n{\n  \"category\": \"移댄뀒怨좊━ (異뺢뎄???좊땲??怨?湲고?)\",\n  \"brand\": \"釉뚮옖?쒕챸 (?섏씠???꾨뵒?ㅼ뒪/湲고?)\",\n  \"condition\": \"?곹깭 (?덉긽??嫄곗쓽?덇쾬/?ъ슜媛먯엳??以묎퀬)\",\n  \"tags\": [\"?뱀쭠1\", \"?뱀쭠2\", \"?뱀쭠3\"],\n  \"suggestedPrice\": ?レ옄 (???⑥쐞),\n  \"caption\": \"??以??ㅻ챸\"\n}\n諛섎뱶??JSON留?諛섑솚?섍퀬 ?ㅻⅨ ?띿뒪?몃뒗 ?ы븿?섏? 留덉꽭??`\n        },\n        {\n          role: 'user',\n          content: [\n            {\n              type: 'text',\n              text: '???ㅽ룷痢??⑺뭹 ?대?吏瑜?遺꾩꽍?댁꽌 JSON?쇰줈 ?뚮젮以?'\n            },\n            {\n              type: 'image_url',\n              image_url: {\n                url: input.fileUrl,\n                detail: 'low'\n              }\n            }\n          ]\n        }\n      ],\n      max_tokens: 500,\n      temperature: 0.3\n    })\n  });\n\n  if (!response.ok) {\n    throw new Error(`OpenAI API ?ㅻ쪟: ${response.status} ${response.statusText}`);\n  }\n\n  const result = await response.json();\n  const aiText = result.choices[0].message.content;\n  \n  console.log('?쨼 AI ?먮낯 ?묐떟:', aiText);\n\n  // JSON ?뚯떛 ?쒕룄\n  let aiData = {};\n  try {\n    // JSON 釉붾줉 異붿텧 (```json ... ``` ?먮뒗 { ... } ?뺥깭)\n    const jsonMatch = aiText.match(/```json\\s*([\\s\\S]*?)\\s*```/) || \n                     aiText.match(/```\\s*([\\s\\S]*?)\\s*```/) ||\n                     aiText.match(/\\{[\\s\\S]*\\}/);\n    \n    if (jsonMatch) {\n      const jsonStr = jsonMatch[1] || jsonMatch[0];\n      aiData = JSON.parse(jsonStr);\n      console.log('??JSON ?뚯떛 ?깃났:', aiData);\n    } else {\n      throw new Error('JSON 釉붾줉??李얠쓣 ???놁쓬');\n    }\n  } catch (parseError) {\n    console.warn('?좑툘 JSON ?뚯떛 ?ㅽ뙣, 湲곕낯媛??ъ슜:', parseError.message);\n    aiData = { \n      category: '湲고?', \n      brand: '?????놁쓬',\n      condition: '以묎퀬',\n      tags: [],\n      suggestedPrice: 0,\n      caption: aiText.substring(0, 100)\n    };\n  }\n\n  return {\n    ...input,\n    aiAnalysis: {\n      success: true,\n      category: aiData.category || '湲고?',\n      brand: aiData.brand || '?????놁쓬',\n      condition: aiData.condition || '以묎퀬',\n      tags: Array.isArray(aiData.tags) ? aiData.tags : [],\n      suggestedPrice: Number(aiData.suggestedPrice) || 0,\n      caption: aiData.caption || '遺꾩꽍 ?꾨즺',\n      rawText: aiText,\n      analyzedAt: new Date().toISOString(),\n      model: 'gpt-4o-mini'\n    }\n  };\n\n} catch (error) {\n  console.error('??AI 遺꾩꽍 ?ㅻ쪟:', error.message);\n  return {\n    ...input,\n    aiAnalysis: {\n      success: false,\n      error: error.message,\n      category: '湲고?',\n      brand: '?????놁쓬',\n      condition: '以묎퀬',\n      tags: [],\n      suggestedPrice: 0,\n      caption: '遺꾩꽍 ?ㅽ뙣',\n      analyzedAt: new Date().toISOString()\n    }\n  };\n}"
+      },
+      "id": "function_ai_vision",
+      "name": "?쨼 AI Vision 遺꾩꽍 (GPT-4o-mini)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "content": "=?뤇截?**??留덉폆 ?대?吏 ?낅줈?쒕맖!**\n\n?뱚 **?뚯씪紐?** `{{ $json.filename }}`\n?뵕 **URL:** {{ $json.fileUrl }}\n?벀 **?ш린:** {{ $json.size }} bytes\n\n?쨼 **AI 遺꾩꽍 寃곌낵:**\n{{ $json.aiAnalysis.success ? '??遺꾩꽍 ?깃났' : '??遺꾩꽍 ?ㅽ뙣' }}\n\n??**移댄뀒怨좊━:** {{ $json.aiAnalysis.category }}\n??**釉뚮옖??** {{ $json.aiAnalysis.brand }}\n??**?곹깭:** {{ $json.aiAnalysis.condition }}\n??**異붿쿇 媛寃?** ??{ $json.aiAnalysis.suggestedPrice.toLocaleString() }}\n??**?쒓렇:** {{ $json.aiAnalysis.tags.join(', ') || '?놁쓬' }}\n??**?ㅻ챸:** {{ $json.aiAnalysis.caption }}\n\n??{{ $json.timestamp }}",
+        "channel": "={{$env.SLACK_CHANNEL || '#market-uploads'}}",
+        "username": "YAGO VIBE Bot",
+        "icon_emoji": ":soccer:"
+      },
+      "id": "slack_notify",
+      "name": "?뮠 Slack ?뚮┝",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.1,
+      "position": [900, 200],
+      "credentials": {
+        "slackApi": {
+          "id": "1",
+          "name": "Slack account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "=?? **??留덉폆 ?대?吏 ?낅줈?쒕맖!**\n\n**?뚯씪紐?** `{{ $json.filename }}`\n**?ш린:** {{ $json.size }} bytes\n\n**?쨼 AI 遺꾩꽍:**\n{{ $json.aiAnalysis.success ? '??遺꾩꽍 ?깃났' : '??遺꾩꽍 ?ㅽ뙣' }}\n\n- **移댄뀒怨좊━:** {{ $json.aiAnalysis.category }}\n- **釉뚮옖??** {{ $json.aiAnalysis.brand }}\n- **?곹깭:** {{ $json.aiAnalysis.condition }}\n- **異붿쿇 媛寃?** ??{ $json.aiAnalysis.suggestedPrice.toLocaleString() }}\n- **?ㅻ챸:** {{ $json.aiAnalysis.caption }}\n\n[?대?吏 蹂닿린]({{ $json.fileUrl }})",
+        "webhookUrl": "={{$env.DISCORD_WEBHOOK_URL}}"
+      },
+      "id": "discord_notify",
+      "name": "?렜 Discord ?뚮┝",
+      "type": "n8n-nodes-base.discord",
+      "typeVersion": 2,
+      "position": [900, 400]
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "projectId": "={{$env.FIREBASE_PROJECT_ID || 'jaeman-vibe-platform'}}",
+        "collection": "ai-analysis-results",
+        "documentId": "={{$json.filename.replace(/[^a-zA-Z0-9_-]/g, '_')}}_{{$now.toUnixInteger()}}",
+        "documentFields": "={{ {\n  filename: $json.filename,\n  fileUrl: $json.fileUrl,\n  filePath: $json.filePath,\n  event: $json.event,\n  contentType: $json.contentType,\n  size: $json.size,\n  bucket: $json.bucket,\n  source: $json.source,\n  uploadTimestamp: $json.timestamp,\n  aiCategory: $json.aiAnalysis.category,\n  aiBrand: $json.aiAnalysis.brand,\n  aiCondition: $json.aiAnalysis.condition,\n  aiTags: $json.aiAnalysis.tags,\n  aiSuggestedPrice: $json.aiAnalysis.suggestedPrice,\n  aiCaption: $json.aiAnalysis.caption,\n  aiSuccess: $json.aiAnalysis.success,\n  aiModel: $json.aiAnalysis.model || 'gpt-4o-mini',\n  analyzedAt: $json.aiAnalysis.analyzedAt,\n  createdAt: $now.toISO()\n} }}"
+      },
+      "id": "firestore_save",
+      "name": "?뵦 Firestore AI 寃곌낵 ???,
+      "type": "n8n-nodes-base.googleFirebaseRealtimeDatabase",
+      "typeVersion": 1,
+      "position": [900, 600],
+      "credentials": {
+        "googleFirebaseRealtimeDatabaseOAuth2Api": {
+          "id": "2",
+          "name": "Google Firebase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "success",
+              "name": "status",
+              "value": "completed",
+              "type": "string"
+            },
+            {
+              "id": "message",
+              "name": "message",
+              "value": "=???대?吏 遺꾩꽍 ?꾨즺: {{ $json.filename }}",
+              "type": "string"
+            },
+            {
+              "id": "analysis",
+              "name": "analysis",
+              "value": "={{ $json.aiAnalysis }}",
+              "type": "object"
+            },
+            {
+              "id": "timestamp",
+              "name": "completedAt",
+              "value": "={{ $now.toISO() }}",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "id": "response_complete",
+      "name": "???꾨즺 ?묐떟",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.3,
+      "position": [1120, 300]
+    }
+  ],
+  "connections": {
+    "?뱿 Webhook: market-image-analyze": {
+      "main": [
+        [
+          {
+            "node": "?㎥ ?곗씠??寃利?,
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "?㎥ ?곗씠??寃利?: {
+      "main": [
+        [
+          {
+            "node": "?쨼 AI Vision 遺꾩꽍 (GPT-4o-mini)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "?쨼 AI Vision 遺꾩꽍 (GPT-4o-mini)": {
+      "main": [
+        [
+          {
+            "node": "?뮠 Slack ?뚮┝",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "?렜 Discord ?뚮┝",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "?뵦 Firestore AI 寃곌낵 ???,
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "?뮠 Slack ?뚮┝": {
+      "main": [
+        [
+          {
+            "node": "???꾨즺 ?묐떟",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "?렜 Discord ?뚮┝": {
+      "main": [
+        [
+          {
+            "node": "???꾨즺 ?묐떟",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "?뵦 Firestore AI 寃곌낵 ???: {
+      "main": [
+        [
+          {
+            "node": "???꾨즺 ?묐떟",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": ""
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "createdAt": "2025-01-09T00:00:00.000Z",
+      "updatedAt": "2025-01-09T00:00:00.000Z",
+      "id": "1",
+      "name": "market"
+    },
+    {
+      "createdAt": "2025-01-09T00:00:00.000Z",
+      "updatedAt": "2025-01-09T00:00:00.000Z",
+      "id": "2",
+      "name": "ai"
+    },
+    {
+      "createdAt": "2025-01-09T00:00:00.000Z",
+      "updatedAt": "2025-01-09T00:00:00.000Z",
+      "id": "3",
+      "name": "firebase"
+    }
+  ],
+  "triggerCount": 1,
+  "updatedAt": "2025-01-09T00:00:00.000Z",
+  "versionId": "1"
+}

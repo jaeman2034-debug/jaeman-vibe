@@ -1,0 +1,105 @@
+{
+  email {$CADDY_EMAIL}
+  # 자동 HTTPS·OCSP·HTTP/3 활성화
+  auto_https off
+}
+
+{$YAGO_DOMAIN} {
+  # 압축 활성화
+  encode zstd gzip
+
+  # 헬스체크 엔드포인트 (빠른 응답)
+  @health path /healthz
+  respond @health 200 {
+    header X-Version "caddy"
+    header X-Service "yago-stack"
+  }
+
+  # 메트릭 엔드포인트 (보호된 경로)
+  @metrics path /metrics
+  basicauth {
+    admin $2a$14$your_bcrypt_hash_here
+  }
+  reverse_proxy @metrics webhook:3001 {
+    header_up Host {host}
+    header_up X-Real-IP {remote}
+    header_up X-Forwarded-For {remote}
+    header_up X-Forwarded-Proto {scheme}
+  }
+
+  # API 및 웹훅 경로를 webhook 서비스로 프록시
+  @api path /api* /webhook* /og* /sitemap.xml /robots.txt /checkin* /ticket* /ics* /payments* /webhook/payments* /webhook/team-blog-create
+  reverse_proxy @api webhook:3001 {
+    header_up Host {host}
+    header_up X-Real-IP {remote}
+    header_up X-Forwarded-For {remote}
+    header_up X-Forwarded-Proto {scheme}
+  }
+
+  # CSV 다운로드 (권한 가드된 관리자 경로)
+  @csv path_regexp csv ^/clubs/.+?/meetups/.+?/attendees\.csv$
+  reverse_proxy @csv webhook:3001 {
+    header_up Host {host}
+    header_up X-Real-IP {remote}
+    header_up X-Forwarded-For {remote}
+    header_up X-Forwarded-Proto {scheme}
+  }
+
+  # OG 이미지 정적 서빙
+  handle_path /og/* {
+    root * /data/public/og
+    file_server
+  }
+
+  # 리포트 이미지 정적 서빙
+  handle_path /reports/* {
+    root * /data/public/reports
+    file_server
+  }
+
+  # 팀 OG 이미지 정적 서빙
+  handle_path /og/teams/* {
+    root * /data/public/og/teams
+    file_server
+  }
+
+  # 나머지는 정적 파일 서빙 (SPA)
+  root * /usr/share/caddy
+  try_files {path} /index.html
+  file_server
+
+  # 보안 헤더
+  header {
+    Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+    X-Content-Type-Options nosniff
+    X-Frame-Options SAMEORIGIN
+    X-XSS-Protection "1; mode=block"
+    Referrer-Policy strict-origin-when-cross-origin
+    Permissions-Policy "geolocation=(), camera=(), microphone=(self)"
+    Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://apis.google.com https://accounts.google.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://*.googleapis.com https://*.firebaseapp.com wss:;"
+  }
+
+  # PWA 관련 헤더 설정
+  @sw path /sw.js
+  header @sw Cache-Control "no-store"
+  
+  @manifest path /manifest.webmanifest
+  header @manifest Content-Type "application/manifest+json"
+
+  # 캐싱 설정
+  @static {
+    path *.js *.css *.png *.jpg *.jpeg *.gif *.ico *.svg *.woff *.woff2
+  }
+  header @static Cache-Control "public, max-age=31536000"
+
+  # 로그 설정
+  log {
+    output file /var/log/caddy/access.log
+    format single_field common_log
+  }
+}
+
+# HTTP에서 HTTPS로 리다이렉트 (선택적)
+http://{$YAGO_DOMAIN} {
+  redir https://{$YAGO_DOMAIN}{uri} permanent
+}

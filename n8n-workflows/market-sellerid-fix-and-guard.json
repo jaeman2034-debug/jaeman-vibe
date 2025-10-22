@@ -1,0 +1,188 @@
+﻿{
+  "name": "market-sellerId-fix-and-guard",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "1",
+      "name": "Start Manual",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [200, 300]
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "collection": "marketItems"
+      },
+      "id": "2",
+      "name": "Get Market Items",
+      "type": "n8n-nodes-base.googleFirebaseFirestore",
+      "typeVersion": 1,
+      "position": [450, 300],
+      "credentials": {
+        "googleFirebaseAccount": "Firebase Admin"
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [],
+          "number": [],
+          "string": [
+            {
+              "value1": "={{$json[\"sellerUid\"]}}",
+              "operation": "isEmpty"
+            }
+          ]
+        }
+      },
+      "id": "3",
+      "name": "Check Missing sellerUid",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [700, 300]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "collection": "marketItems",
+        "documentId": "={{$json[\"id\"]}}",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "sellerUid",
+              "fieldValue": "kohXYANy9sVX0o4dJWxkhWHdYOm2"
+            },
+            {
+              "fieldId": "updatedAt",
+              "fieldValue": "={{new Date().toISOString()}}"
+            }
+          ]
+        }
+      },
+      "id": "4",
+      "name": "Update sellerUid",
+      "type": "n8n-nodes-base.googleFirebaseFirestore",
+      "typeVersion": 1,
+      "position": [950, 200],
+      "credentials": {
+        "googleFirebaseAccount": "Firebase Admin"
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.item.json;\nconst title = item.title || 'Unknown';\nconst id = item.id || 'Unknown';\n\nconsole.log(`??Updated missing sellerUid for: ${title} (${id})`);\n\nreturn {\n  json: {\n    success: true,\n    itemId: id,\n    title: title,\n    message: `sellerUid updated for ${title}`\n  }\n};"
+      },
+      "id": "5",
+      "name": "Log Success",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1150, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.item.json;\nconst title = item.title || 'Unknown';\nconst id = item.id || 'Unknown';\n\nconsole.log(`?뱄툘 Already has sellerUid: ${title} (${id})`);\n\nreturn {\n  json: {\n    skipped: true,\n    itemId: id,\n    title: title,\n    message: `sellerUid already exists for ${title}`\n  }\n};"
+      },
+      "id": "6",
+      "name": "Log Skip",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [950, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\n\nconst updated = items.filter(i => i.json.success).length;\nconst skipped = items.filter(i => i.json.skipped).length;\nconst total = items.length;\n\nconsole.log('\\n?뱤 理쒖쥌 ?붿빟:');\nconsole.log(`  ?꾩껜 ?곹뭹: ${total}媛?);\nconsole.log(`  ???낅뜲?댄듃: ${updated}媛?);\nconsole.log(`  ?뱄툘 ?ㅽ궢: ${skipped}媛?);\n\nreturn {\n  json: {\n    total,\n    updated,\n    skipped,\n    message: `sellerUid 蹂댁젙 ?꾨즺: ${updated}媛??낅뜲?댄듃, ${skipped}媛??ㅽ궢`\n  }\n};"
+      },
+      "id": "7",
+      "name": "Final Summary",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1400, 300]
+    }
+  ],
+  "connections": {
+    "Start Manual": {
+      "main": [
+        [
+          {
+            "node": "Get Market Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Market Items": {
+      "main": [
+        [
+          {
+            "node": "Check Missing sellerUid",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Missing sellerUid": {
+      "main": [
+        [
+          {
+            "node": "Update sellerUid",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Log Skip",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update sellerUid": {
+      "main": [
+        [
+          {
+            "node": "Log Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Success": {
+      "main": [
+        [
+          {
+            "node": "Final Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Skip": {
+      "main": [
+        [
+          {
+            "node": "Final Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 0,
+  "updatedAt": "2025-10-09T03:00:00.000Z",
+  "versionId": "1"
+}
+

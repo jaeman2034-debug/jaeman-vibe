@@ -1,0 +1,242 @@
+﻿{
+  "name": "YAGO VIBE - ?몄떆 ?뚮┝ ?쒖뒪??,
+  "nodes": [
+    {
+      "parameters": {
+        "path": "new-item-webhook",
+        "options": {
+          "responseData": {
+            "status": 200,
+            "message": "???곹뭹 ?뚮┝ 泥섎━ ?꾨즺"
+          }
+        }
+      },
+      "id": "Webhook_Entry",
+      "name": "???곹뭹 ?뱁썒",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "operation": "lookup",
+        "sheetId": "your-google-sheet-id",
+        "range": "subscriptions!A:F",
+        "options": {}
+      },
+      "id": "Read_Subscriptions",
+      "name": "援щ룆??議고쉶",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 3,
+      "position": [500, 300],
+      "credentials": {
+        "googleApi": {
+          "id": "your-google-credential-id"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "keyword_match",
+              "leftValue": "={{ $json.autoTags }}",
+              "rightValue": "={{ $json.keyword }}",
+              "operator": {
+                "type": "array",
+                "operation": "contains",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "Filter_Matching",
+      "name": "?ㅼ썙??留ㅼ묶 ?꾪꽣",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [750, 300]
+    },
+    {
+      "parameters": {
+        "model": "gpt-4o-mini",
+        "prompt": "?ㅼ쓬 ?곹뭹 ?뺣낫瑜?諛뷀깢?쇰줈 ?몄떆 ?뚮┝ 硫붿떆吏瑜??묒꽦?댁＜?몄슂.\n\n?곹뭹紐? {{ $json.title }}\n?쒓렇: {{ $json.autoTags }}\n?ㅻ챸: {{ $json.autoDescription }}\n\n異쒕젰 ?뺤떇:\n?쒕ぉ: [媛꾨떒???쒕ぉ]\n?댁슜: [?ъ슜??移쒗솕?곸씤 硫붿떆吏]",
+        "options": {
+          "temperature": 0.7
+        }
+      },
+      "id": "Generate_Message",
+      "name": "?뚮┝ 硫붿떆吏 ?앹꽦",
+      "type": "n8n-nodes-base.openAi",
+      "typeVersion": 2,
+      "position": [1000, 200],
+      "credentials": {
+        "openAiApi": {
+          "id": "your-openai-credential-id"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "https://exp.host/--/api/v2/push/send",
+        "authentication": "none",
+        "requestMethod": "POST",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "to",
+              "value": "={{ $json.fcmToken }}"
+            },
+            {
+              "name": "title",
+              "value": "={{ $json.choices[0].message.content.split('?쒕ぉ: ')[1].split('\\n')[0] }}"
+            },
+            {
+              "name": "body",
+              "value": "={{ $json.choices[0].message.content.split('?댁슜: ')[1] }}"
+            },
+            {
+              "name": "data",
+              "value": "={{ JSON.stringify({ itemId: $json.itemId, keyword: $json.keyword, type: 'new_item' }) }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "Send_Expo_Push",
+      "name": "Expo ?몄떆 諛쒖넚",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1250, 200]
+    },
+    {
+      "parameters": {
+        "url": "https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK",
+        "authentication": "none",
+        "requestMethod": "POST",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "text",
+              "value": "?뵒 ???곹뭹 ?뚮┝ 諛쒖넚\n?곹뭹: {{ $json.title }}\n?쒓렇: {{ $json.autoTags }}\n援щ룆?? {{ $json.uid }} ({{ $json.keyword }})"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "Slack_Notification",
+      "name": "Slack ?뚮┝",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1250, 400]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "sheetId": "your-google-sheet-id",
+        "range": "notification_logs!A:G",
+        "options": {},
+        "valueInputMode": "USER_ENTERED",
+        "fields": "={{ [ $json.itemId, $json.title, $json.autoTags.join(', '), $json.uid, $json.keyword, $json.fcmToken, new Date().toLocaleString('ko-KR') ] }}"
+      },
+      "id": "Log_Notification",
+      "name": "?뚮┝ 濡쒓렇 湲곕줉",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 3,
+      "position": [1500, 300],
+      "credentials": {
+        "googleApi": {
+          "id": "your-google-credential-id"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "???곹뭹 ?뱁썒": {
+      "main": [
+        [
+          {
+            "node": "援щ룆??議고쉶",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "援щ룆??議고쉶": {
+      "main": [
+        [
+          {
+            "node": "?ㅼ썙??留ㅼ묶 ?꾪꽣",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "?ㅼ썙??留ㅼ묶 ?꾪꽣": {
+      "main": [
+        [
+          {
+            "node": "?뚮┝ 硫붿떆吏 ?앹꽦",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "?뚮┝ 硫붿떆吏 ?앹꽦": {
+      "main": [
+        [
+          {
+            "node": "Expo ?몄떆 諛쒖넚",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Slack ?뚮┝",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "?뚮┝ 濡쒓렇 湲곕줉",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "timezone": "Asia/Seoul"
+  }
+}

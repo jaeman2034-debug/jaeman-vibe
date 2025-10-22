@@ -1,0 +1,45 @@
+﻿/**
+ * ?㏏ Storage ?먮룞 ?뺣━ ?쒖뒪?? *
+ * Firestore 臾몄꽌媛 ??젣?????곌???Storage ?대?吏瑜??먮룞?쇰줈 ??젣?⑸땲??
+ * ?대? ?듯빐 遺덊븘?뷀븳 Storage ?꾩쟻??諛⑹??섍퀬 鍮꾩슜???덇컧?⑸땲??
+ */
+import * as functions from "firebase-functions";
+/**
+ * ?㏏ 留덉폆 ?곹뭹 ??젣 ???대?吏 ?먮룞 ?뺣━
+ *
+ * Firestore: marketItems/{itemId} 臾몄꽌 ??젣 ?? * ??Storage: imagePath ?꾨뱶???뚯씪 ?먮룞 ??젣
+ */
+export declare const cleanUpMarketImages: any;
+/**
+ * ?㏏ ?ъ슜????젣 ???꾨줈???대?吏 ?먮룞 ?뺣━ (?좏깮 ?ы빆)
+ *
+ * Firestore: users/{userId} 臾몄꽌 ??젣 ?? * ??Storage: photoURL ?꾨뱶???뚯씪 ?먮룞 ??젣
+ */
+export declare const cleanUpUserImages: any;
+/**
+ * ?㏏ 梨꾪똿諛???젣 ??泥⑤? ?뚯씪 ?먮룞 ?뺣━ (?좏깮 ?ы빆)
+ *
+ * Firestore: chatRooms/{roomId} 臾몄꽌 ??젣 ?? * ??Storage: chatRooms/{roomId}/* ?대뜑 ?꾩껜 ??젣
+ */
+export declare const cleanUpChatAttachments: any;
+/**
+ * ?㏏ ?섎룞 Storage ?뺣━ ?⑥닔 (愿由ъ옄 ?꾩슜)
+ *
+ * Firestore???녿뒗 怨좎븘 ?뚯씪(orphan files)??李얠븘????젣?⑸땲??
+ *
+ * ?ъ슜踰?
+ * ```typescript
+ * const cleanOrphans = httpsCallable(functions, 'cleanOrphanFiles');
+ * const result = await cleanOrphans({ dryRun: true });
+ * ```
+ */
+export declare const cleanOrphanFiles: functions.https.CallableFunction<any, Promise<{
+    success: boolean;
+    dryRun: any;
+    totalFiles: number;
+    activeFiles: number;
+    orphanFiles: number;
+    deletedFiles: number;
+    orphanList: string[];
+}>, unknown>;
+//# sourceMappingURL=storageCleanup.d.ts.map

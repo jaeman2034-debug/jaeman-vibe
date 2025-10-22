@@ -1,0 +1,15 @@
+<svg width="64" height="64" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+  <!-- 축구공 배경 -->
+  <circle cx="32" cy="32" r="30" fill="#4CAF50" stroke="#2E7D32" stroke-width="3"/>
+  
+  <!-- 축구공 패턴 -->
+  <path d="M32 4 L32 60 M4 32 L60 32 M17 17 L47 47 M47 17 L17 47" 
+        stroke="white" stroke-width="2" opacity="0.8"/>
+  
+  <!-- 중앙 원 -->
+  <circle cx="32" cy="32" r="6" fill="white" opacity="0.9"/>
+  
+  <!-- YAGO 텍스트 -->
+  <text x="32" y="40" font-family="Arial, sans-serif" font-size="12" font-weight="bold" 
+        text-anchor="middle" fill="white">YAGO</text>
+</svg>

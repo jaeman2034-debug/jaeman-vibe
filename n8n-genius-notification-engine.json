@@ -1,0 +1,358 @@
+{
+  "name": "YAGO VIBE 천재 모드 알림 엔진",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "webhook/market-created",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "webhook-market-created",
+      "name": "🚨 Webhook - Market Created",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 300],
+      "webhookId": "market-created"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "condition-1",
+              "leftValue": "={{ $json.event }}",
+              "rightValue": "market_item_created",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "filter-market-event",
+      "name": "🎯 Filter - Market Event",
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// 🚨 천재 모드 데이터 정제 엔진\nconst data = items[0].json;\nconst item = data.item;\n\n// 거리 포맷팅\nconst distanceKm = data.distance_m < 1000 \n  ? `${data.distance_m}m` \n  : `${(data.distance_m / 1000).toFixed(1)}km`;\n\n// 가격 포맷팅\nconst priceFormatted = item.price \n  ? `💰 ${item.price.toLocaleString()}원` \n  : '💰 가격 미정';\n\n// 시간 포맷팅\nconst timeFormatted = new Date(item.createdAt).toLocaleString('ko-KR');\n\n// 지도 링크 생성\nconst mapUrl = `https://www.google.com/maps?q=${item.location.lat},${item.location.lng}`;\n\n// 🎨 Slack 리치 메시지 생성\nconst slackMessage = {\n  text: `🛍️ 새 거래 알림 (${distanceKm})`,\n  blocks: [\n    {\n      type: \"header\",\n      text: {\n        type: \"plain_text\",\n        text: `🛍️ 새 거래 알림 (${distanceKm})`\n      }\n    },\n    {\n      type: \"section\",\n      fields: [\n        {\n          type: \"mrkdwn\",\n          text: `*🏷️ 제목:* ${item.title}`\n        },\n        {\n          type: \"mrkdwn\",\n          text: `*${priceFormatted}*`\n        },\n        {\n          type: \"mrkdwn\",\n          text: `*📍 주소:* ${item.address || '주소 미등록'}`\n        },\n        {\n          type: \"mrkdwn\",\n          text: `*⏰ 등록시간:* ${timeFormatted}`\n        },\n        {\n          type: \"mrkdwn\",\n          text: `*📏 거리:* ${distanceKm}`\n        },\n        {\n          type: \"mrkdwn\",\n          text: `*🏷️ 카테고리:* ${item.category || '기타'}`\n        }\n      ]\n    },\n    {\n      type: \"actions\",\n      elements: [\n        {\n          type: \"button\",\n          text: {\n            type: \"plain_text\",\n            text: \"🗺️ 지도에서 보기\"\n          },\n          url: mapUrl,\n          style: \"primary\"\n        }\n      ]\n    }\n  ]\n};\n\n// 📱 텔레그램 메시지 생성\nconst telegramMessage = `🛍️ *새 거래 알림* (${distanceKm})\n\n` +\n  `🏷️ *제목:* ${item.title}\n` +\n  `${priceFormatted}\n` +\n  `📍 *주소:* ${item.address || '주소 미등록'}\n` +\n  `📏 *거리:* ${distanceKm}\n` +\n  `🏷️ *카테고리:* ${item.category || '기타'}\n` +\n  `⏰ *등록시간:* ${timeFormatted}\n\n` +\n  `🗺️ [지도에서 보기](${mapUrl})`;\n\n// 🎯 카카오 메시지 생성 (간단한 텍스트)\nconst kakaoMessage = `🛍️ 새 거래 알림 (${distanceKm})\n\n` +\n  `🏷️ ${item.title}\n` +\n  `${priceFormatted}\n` +\n  `📍 ${item.address || '주소 미등록'}\n` +\n  `📏 거리: ${distanceKm}\n` +\n  `⏰ ${timeFormatted}`;\n\nreturn [{\n  json: {\n    ...data,\n    slackMessage,\n    telegramMessage,\n    kakaoMessage,\n    distanceFormatted: distanceKm,\n    mapUrl,\n    timeFormatted,\n    priceFormatted\n  }\n}];"
+      },
+      "id": "data-processor",
+      "name": "🧠 Data Processor",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "url": "https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json.slackMessage }}",
+        "options": {}
+      },
+      "id": "slack-notification",
+      "name": "💬 Slack - Rich Notification",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [900, 200]
+    },
+    {
+      "parameters": {
+        "url": "https://api.telegram.org/bot{{ $credentials.telegramBotToken }}/sendMessage",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"chat_id\": \"{{ $credentials.telegramChatId }}\",\n  \"text\": \"{{ $json.telegramMessage }}\",\n  \"parse_mode\": \"Markdown\",\n  \"disable_web_page_preview\": false\n}",
+        "options": {}
+      },
+      "id": "telegram-notification",
+      "name": "📱 Telegram - Smart Notification",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [900, 400]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "condition-1",
+              "leftValue": "={{ $json.item.price }}",
+              "rightValue": 50000,
+              "operator": {
+                "type": "number",
+                "operation": "gte"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "filter-high-price",
+      "name": "💎 Filter - High Value Items",
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2,
+      "position": [680, 500]
+    },
+    {
+      "parameters": {
+        "url": "https://api.telegram.org/bot{{ $credentials.telegramBotToken }}/sendMessage",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"chat_id\": \"{{ $credentials.telegramChatId }}\",\n  \"text\": \"💎 *고가 상품 알림*\\n\\n{{ $json.telegramMessage }}\\n\\n🚨 높은 가치의 상품이 등록되었습니다!\",\n  \"parse_mode\": \"Markdown\"\n}",
+        "options": {}
+      },
+      "id": "telegram-high-price",
+      "name": "💎 Telegram - High Value Alert",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [900, 600]
+    },
+    {
+      "parameters": {
+        "url": "https://firestore.googleapis.com/v1/projects/{{ $env.FIREBASE_PROJECT_ID }}/databases/(default)/documents/notification_logs",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer {{ $env.FIREBASE_ACCESS_TOKEN }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"fields\": {\n    \"title\": { \"stringValue\": \"{{ $json.item.title }}\" },\n    \"price\": { \"integerValue\": \"{{ $json.item.price || 0 }}\" },\n    \"address\": { \"stringValue\": \"{{ $json.item.address || '주소 미등록' }}\" },\n    \"distance_m\": { \"integerValue\": \"{{ $json.distance_m }}\" },\n    \"timestamp\": { \"timestampValue\": \"{{ $json.timestamp }}\" },\n    \"source\": { \"stringValue\": \"functions-onCreate\" },\n    \"category\": { \"stringValue\": \"{{ $json.item.category || '기타' }}\" },\n    \"condition\": { \"stringValue\": \"{{ $json.item.condition || '중고' }}\" },\n    \"location\": {\n      \"mapValue\": {\n        \"fields\": {\n          \"lat\": { \"doubleValue\": {{ $json.item.location.lat }} },\n          \"lng\": { \"doubleValue\": {{ $json.item.location.lng }} }\n        }\n      }\n    }\n  }\n}",
+        "options": {}
+      },
+      "id": "firestore-logger",
+      "name": "📄 Firestore - Log Notification",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1120, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"ok\": true,\n  \"message\": \"천재 모드 알림 전송 완료\",\n  \"timestamp\": \"{{ $json.timestamp }}\",\n  \"item\": \"{{ $json.item.title }}\",\n  \"distance\": \"{{ $json.distanceFormatted }}\",\n  \"price\": \"{{ $json.priceFormatted }}\",\n  \"channels\": [\"slack\", \"telegram\"],\n  \"firestore_logged\": true\n}"
+      },
+      "id": "webhook-response",
+      "name": "✅ Webhook Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1340, 400]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "condition-1",
+              "leftValue": "={{ new Date($json.item.createdAt).getHours() }}",
+              "rightValue": 9,
+              "operator": {
+                "type": "number",
+                "operation": "gte"
+              }
+            },
+            {
+              "id": "condition-2",
+              "leftValue": "={{ new Date($json.item.createdAt).getHours() }}",
+              "rightValue": 18,
+              "operator": {
+                "type": "number",
+                "operation": "lt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "filter-business-hours",
+      "name": "🕘 Filter - Business Hours",
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2,
+      "position": [680, 100]
+    },
+    {
+      "parameters": {
+        "url": "https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"text\": \"🏢 업무시간 새 거래 알림\",\n  \"blocks\": [\n    {\n      \"type\": \"header\",\n      \"text\": {\n        \"type\": \"plain_text\",\n        \"text\": \"🏢 업무시간 새 거래 알림\"\n      }\n    },\n    {\n      \"type\": \"section\",\n      \"text\": {\n        \"type\": \"mrkdwn\",\n        \"text\": \"{{ $json.slackMessage.blocks[1].fields[0].text }}\\n{{ $json.slackMessage.blocks[1].fields[1].text }}\\n{{ $json.slackMessage.blocks[1].fields[2].text }}\"\n      }\n    }\n  ]\n}",
+        "options": {}
+      },
+      "id": "slack-business-hours",
+      "name": "🏢 Slack - Business Hours",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [900, 100]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "🚨 Webhook - Market Created": {
+      "main": [
+        [
+          {
+            "node": "🎯 Filter - Market Event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🎯 Filter - Market Event": {
+      "main": [
+        [
+          {
+            "node": "🕘 Filter - Business Hours",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "🧠 Data Processor",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🧠 Data Processor": {
+      "main": [
+        [
+          {
+            "node": "💬 Slack - Rich Notification",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "📱 Telegram - Smart Notification",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "💎 Filter - High Value Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "💎 Filter - High Value Items": {
+      "main": [
+        [
+          {
+            "node": "💎 Telegram - High Value Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🕘 Filter - Business Hours": {
+      "main": [
+        [
+          {
+            "node": "🏢 Slack - Business Hours",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "💬 Slack - Rich Notification": {
+      "main": [
+        [
+          {
+            "node": "📄 Firestore - Log Notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📱 Telegram - Smart Notification": {
+      "main": [
+        [
+          {
+            "node": "📄 Firestore - Log Notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "💎 Telegram - High Value Alert": {
+      "main": [
+        [
+          {
+            "node": "📄 Firestore - Log Notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🏢 Slack - Business Hours": {
+      "main": [
+        [
+          {
+            "node": "📄 Firestore - Log Notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📄 Firestore - Log Notification": {
+      "main": [
+        [
+          {
+            "node": "✅ Webhook Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "1",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "genius-notification-engine"
+  },
+  "id": "genius-notification-engine",
+  "tags": ["yago-vibe", "genius-mode", "notification", "automation", "slack", "telegram"]
+}

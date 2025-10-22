@@ -1,0 +1,37 @@
+﻿{
+  "indexes": [
+    {
+      "collectionGroup": "market",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "published", "order": "ASCENDING"},
+        {"fieldPath": "createdAt", "order": "DESCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "market",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "published", "order": "ASCENDING"},
+        {"fieldPath": "region", "order": "ASCENDING"},
+        {"fieldPath": "price", "order": "ASCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "market",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "published", "order": "ASCENDING"},
+        {"fieldPath": "region", "order": "ASCENDING"},
+        {"fieldPath": "price", "order": "DESCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "meetups",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "timeStart", "order": "ASCENDING"}
+      ]
+    }
+  ]
+}

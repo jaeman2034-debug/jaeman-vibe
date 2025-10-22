@@ -1,0 +1,141 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() { return request.auth != null; }
+    function isClubAdmin(clubId) {
+      return signedIn()
+        && exists(/databases/$(database)/documents/clubs/$(clubId))
+        && (
+          get(/databases/$(database)/documents/clubs/$(clubId)).data.ownerUid == request.auth.uid
+          || (
+            get(/databases/$(database)/documents/clubs/$(clubId)).data.admins is list
+            && request.auth.uid in get(/databases/$(database)/documents/clubs/$(clubId)).data.admins
+          )
+        );
+    }
+
+    match /clubs/{clubId} {
+      allow read: if true;
+      allow create: if signedIn()
+        && request.resource.data.ownerUid == request.auth.uid
+        && request.resource.data.admins is list
+        && request.resource.data.name is string
+        && request.resource.data.name.size() > 0;
+      allow update, delete: if isClubAdmin(clubId);
+
+      // 하위컬렉션: posts
+      match /posts/{postId} {
+        allow read: if true;
+        allow create: if isClubAdmin(clubId)
+          && request.resource.data.authorUid == request.auth.uid
+          && request.resource.data.title is string
+          && request.resource.data.title.size() > 0
+          && request.resource.data.content is string;
+        allow update, delete: if isClubAdmin(clubId)
+          || (signedIn() && request.auth.uid == resource.data.authorUid);
+      }
+
+      // 하위컬렉션: blog (현재 UI가 이 경로를 쓸 수도 있음)
+      match /blog/{postId} {
+        allow read: if true;
+        allow create: if isClubAdmin(clubId)
+          && request.resource.data.authorUid == request.auth.uid
+          && request.resource.data.title is string
+          && request.resource.data.content is string;
+        allow update, delete: if isClubAdmin(clubId)
+          || (request.auth != null && request.auth.uid == resource.data.authorUid);
+      }
+
+      // 대기열(민감) → 읽기/쓰기 모두 관리자만
+      match /blogPending/{postId} {
+        allow read, write: if isClubAdmin(clubId);
+      }
+
+      // 페이지 컬렉션 (blogHome 등)
+      match /pages/{pageId} {
+        allow read: if true;
+        allow create, update, delete: if isClubAdmin(clubId);
+      }
+
+      // 회원 기여 제안 컬렉션 (팀 블로그 자동 생성용)
+      match /publicContribs/{contribId} {
+        allow read: if isClubAdmin(clubId) 
+          || (signedIn() && request.auth.uid == resource.data.uid);
+        allow create: if signedIn()
+          && request.resource.data.uid == request.auth.uid
+          && request.resource.data.status == 'requested'
+          && request.resource.data.patch is map;
+        allow update: if isClubAdmin(clubId)
+          && request.resource.data.status in ['approved', 'rejected']
+          && request.resource.data.decidedBy == request.auth.uid;
+        allow delete: if isClubAdmin(clubId);
+      }
+    }
+
+    // meetups 컬렉션 (팀 블로그 생성용)
+    match /meetups/{meetupId} {
+      allow read: if true;
+      allow create: if signedIn()
+        && request.resource.data.hostUid == request.auth.uid;
+      allow update: if signedIn()
+        && (resource.data.hostUid == request.auth.uid
+            || request.auth.token.admin == true);
+      allow delete: if signedIn()
+        && (resource.data.hostUid == request.auth.uid
+            || request.auth.token.admin == true);
+    }
+
+    // 팀 문서
+    match /teams/{teamId} {
+      allow read: if true;
+
+      // 팀 최초 생성: 본인이 ownerUid로 생성하는 경우만
+      allow create: if request.auth != null
+                    && request.resource.data.ownerUid == request.auth.uid;
+
+      // 수정: 관리자(오너/어드민)
+      allow update: if request.auth != null && isTeamAdmin(teamId)
+                    || (request.auth != null && request.auth.uid == resource.data.ownerUid); // ← 부트스트랩 허용(옵션)
+
+      // 팀 멤버 컬렉션
+      match /members/{memberUid} {
+
+        // 멤버 문서 최초 생성 허용(팀 owner 자신이거나 이미 관리자)
+        allow create: if request.auth != null && (
+          (memberUid == request.auth.uid &&
+           get(/databases/$(database)/documents/teams/$(teamId)).data.ownerUid == request.auth.uid)
+          || isTeamAdmin(teamId)
+        );
+
+        // 읽기: 본인 or 관리자
+        allow read: if request.auth != null && (
+            memberUid == request.auth.uid || isTeamAdmin(teamId)
+        );
+
+        allow update: if request.auth != null && (isTeamAdmin(teamId) ||
+          (memberUid == request.auth.uid && (!('roles' in request.resource.data) ||
+           request.resource.data.roles == resource.data.roles)));
+
+        // 삭제: 관리자만
+        allow delete: if request.auth != null && isTeamAdmin(teamId);
+      }
+
+      // 공개정보 기여(선택 기능)
+      match /publicContribs/{id} {
+        allow create: if request.auth != null;
+        allow read: if isTeamAdmin(teamId) || (request.auth != null && request.auth.uid == resource.data.uid);
+        allow update, delete: if isTeamAdmin(teamId);
+      }
+    }
+
+    function isTeamAdmin(teamId) {
+      return request.auth != null
+        && exists(/databases/$(database)/documents/teams/$(teamId)/members/$(request.auth.uid))
+        && get(/databases/$(database)/documents/teams/$(teamId)/members/$(request.auth.uid))
+             .data.roles.hasAny(['owner','admin']);
+    }
+
+    match /{document=**} { allow read, write: if false; }
+  }
+}

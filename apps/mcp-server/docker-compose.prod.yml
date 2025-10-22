@@ -1,0 +1,75 @@
+version: '3.8'
+
+services:
+  # MCP Server
+  mcp-server:
+    build: .
+    environment:
+      - PORT=7331
+      - N8N_TOKEN=${N8N_TOKEN}
+      - N8N_WEBHOOK_MEETUP_CREATED=${N8N_WEBHOOK_MEETUP_CREATED}
+      - N8N_WEBHOOK_MARKET_CREATED=${N8N_WEBHOOK_MARKET_CREATED}
+      - N8N_WEBHOOK_SESSION_EVENT=${N8N_WEBHOOK_SESSION_EVENT}
+    env_file:
+      - .env
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:7331/tools', (res) => { process.exit(res.statusCode === 200 ? 0 : 1) })"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - mcp-network
+    labels:
+      - "traefik.enable=false"  # Disable Traefik if present
+
+  # Caddy Reverse Proxy
+  caddy:
+    image: caddy:2-alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - caddy_data:/data
+      - caddy_config:/config
+      - ./logs:/var/log/caddy
+    environment:
+      - CADDY_INGRESS_NETWORKS=mcp-network
+    restart: unless-stopped
+    networks:
+      - mcp-network
+    depends_on:
+      - mcp-server
+
+  # Optional: n8n for local testing
+  n8n:
+    image: n8nio/n8n:latest
+    ports:
+      - "5678:5678"
+    environment:
+      - N8N_BASIC_AUTH_ACTIVE=true
+      - N8N_BASIC_AUTH_USER=admin
+      - N8N_BASIC_AUTH_PASSWORD=${N8N_BASIC_AUTH_PASSWORD:-admin123}
+      - N8N_HOST=${N8N_HOST:-localhost}
+      - N8N_PORT=5678
+      - N8N_PROTOCOL=http
+      - WEBHOOK_URL=${N8N_WEBHOOK_URL:-http://localhost:5678}
+      - GENERIC_TIMEZONE=Asia/Seoul
+    volumes:
+      - n8n_data:/home/node/.n8n
+    restart: unless-stopped
+    networks:
+      - mcp-network
+    profiles:
+      - local  # Only start with --profile local
+
+volumes:
+  caddy_data:
+  caddy_config:
+  n8n_data:
+
+networks:
+  mcp-network:
+    driver: bridge

@@ -1,0 +1,127 @@
+name: CI - Advanced Academy Tests
+
+on:
+  pull_request:
+    branches: [ "main", "develop" ]
+  push:
+    branches: [ "develop" ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        node-version: [18, 20]
+
+    steps:
+      # 1) 저장소 체크아웃
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # 2) Node.js 환경 세팅
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+
+      # 3) Firebase Emulator 설치
+      - name: Install Firebase Emulator
+        run: |
+          npm install -g firebase-tools
+          firebase setup:emulators:firestore
+
+      # 4) 의존성 설치
+      - name: Install dependencies
+        run: npm install --legacy-peer-deps
+
+      # 5) 환경변수 설정
+      - name: Set environment variables
+        run: |
+          echo "VITE_FB_PROJECT_ID=demo-test" >> $GITHUB_ENV
+          echo "N8N_WEBHOOK_ENROLL=http://localhost:5678/webhook/enroll" >> $GITHUB_ENV
+          echo "N8N_WEBHOOK_PAYMENT=http://localhost:5678/webhook/payment" >> $GITHUB_ENV
+
+      # 6) Firestore Emulator 실행 (백그라운드)
+      - name: Start Firestore Emulator
+        run: |
+          nohup firebase emulators:start --only firestore --project demo-test --import=./firestore-data --export-on-exit &
+          sleep 10 # Emulator 시작 대기
+
+      # 7) 시드 데이터 생성
+      - name: Seed Firestore Data
+        run: npm run seed:academy
+
+      # 8) Cypress 테스트 실행
+      - name: Run Cypress Tests
+        uses: cypress-io/github-action@v6
+        with:
+          install: false
+          start: npm run test:academy-alerts
+          wait-on: 'http://localhost:5173'
+          wait-on-timeout: 120
+
+      # 9) 테스트 결과 업로드
+      - name: Upload Cypress Screenshots
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: cypress-screenshots
+          path: cypress/screenshots
+
+      - name: Upload Cypress Videos
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: cypress-videos
+          path: cypress/videos
+
+  # 별도 작업: 코드 품질 검사
+  lint:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm install --legacy-peer-deps
+
+      - name: Run ESLint
+        run: npm run lint
+
+      - name: Run Prettier
+        run: npm run format:check
+
+  # 별도 작업: 빌드 테스트
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm install --legacy-peer-deps
+
+      - name: Build project
+        run: npm run build
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-files
+          path: dist/

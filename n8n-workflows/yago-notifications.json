@@ -1,0 +1,309 @@
+﻿{
+  "name": "YAGO Assistant ?뚮┝ ?쒖뒪??,
+  "nodes": [
+    {
+      "parameters": {
+        "path": "yago-session",
+        "options": {
+          "responseData": {
+            "status": 200,
+            "message": "Webhook received successfully"
+          }
+        }
+      },
+      "id": "webhook-session",
+      "name": "?뚯꽦 ?몄뀡 ?뱁썒",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "path": "yago-nlu",
+        "options": {
+          "responseData": {
+            "status": 200,
+            "message": "NLU correction received"
+          }
+        }
+      },
+      "id": "webhook-nlu",
+      "name": "NLU ?섏젙 ?뱁썒",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 500]
+    },
+    {
+      "parameters": {
+        "path": "yago-error",
+        "options": {
+          "responseData": {
+            "status": 200,
+            "message": "Error logged"
+          }
+        }
+      },
+      "id": "webhook-error",
+      "name": "?ㅻ쪟 濡쒓렇 ?뱁썒",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 700]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "session-condition",
+              "leftValue": "={{$json.type}}",
+              "rightValue": "voice_session_created",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-session",
+      "name": "?몄뀡 ???泥댄겕",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "nlu-condition",
+              "leftValue": "={{$json.type}}",
+              "rightValue": "nlu_correction",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-nlu",
+      "name": "NLU ???泥댄겕",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [450, 500]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "error-condition",
+              "leftValue": "={{$json.type}}",
+              "rightValue": "error_log",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-error",
+      "name": "?ㅻ쪟 ???泥댄겕",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [450, 700]
+    },
+    {
+      "parameters": {
+        "channel": "#yago-assistant",
+        "text": "?럺截??덈줈???뚯꽦 ?몄뀡\n\n?몄뀡 ID: {{$json.sessionId}}\n?ъ슜?? {{$json.createdBy}}\n湲곌린: {{$json.device}}\n?쒓컙: {{$json.createdAt}}",
+        "otherOptions": {}
+      },
+      "id": "slack-session",
+      "name": "Slack ?몄뀡 ?뚮┝",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2,
+      "position": [650, 200],
+      "credentials": {
+        "slackOAuth2Api": {
+          "id": "slack-oauth2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "channel": "#yago-assistant",
+        "text": "?쭬 NLU ?숈뒿 ?곗씠??異붽?\n\n?낅젰: \"{{$json.inputText}}\"\n?섏젙???쒓렇: [{{$json.correctedTags.join(', ')}}]\n?쒓컙: {{new Date().toLocaleString()}}",
+        "otherOptions": {}
+      },
+      "id": "slack-nlu",
+      "name": "Slack NLU ?뚮┝",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2,
+      "position": [650, 400],
+      "credentials": {
+        "slackOAuth2Api": {
+          "id": "slack-oauth2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "channel": "#yago-errors",
+        "text": "???ㅻ쪟 諛쒖깮\n\n?ㅻ쪟: {{$json.error}}\n?ъ슜?? {{$json.userId}}\n?몄뀡: {{$json.sessionId}}\n?ㅽ깮: ```{{$json.stack}}```\n?쒓컙: {{new Date().toLocaleString()}}",
+        "otherOptions": {}
+      },
+      "id": "slack-error",
+      "name": "Slack ?ㅻ쪟 ?뚮┝",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2,
+      "position": [650, 600],
+      "credentials": {
+        "slackOAuth2Api": {
+          "id": "slack-oauth2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "chatId": "{{$vars.TELEGRAM_CHAT_ID}}",
+        "text": "?럺截??덈줈???뚯꽦 ?몄뀡\n\n?몄뀡 ID: {{$json.sessionId}}\n?ъ슜?? {{$json.createdBy}}\n湲곌린: {{$json.device}}",
+        "additionalFields": {}
+      },
+      "id": "telegram-session",
+      "name": "Telegram ?몄뀡 ?뚮┝",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1,
+      "position": [650, 300],
+      "credentials": {
+        "telegramApi": {
+          "id": "telegram-bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "chatId": "{{$vars.TELEGRAM_CHAT_ID}}",
+        "text": "???ㅻ쪟 諛쒖깮\n\n?ㅻ쪟: {{$json.error}}\n?ъ슜?? {{$json.userId}}\n?몄뀡: {{$json.sessionId}}",
+        "additionalFields": {}
+      },
+      "id": "telegram-error",
+      "name": "Telegram ?ㅻ쪟 ?뚮┝",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1,
+      "position": [650, 700],
+      "credentials": {
+        "telegramApi": {
+          "id": "telegram-bot"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "?뚯꽦 ?몄뀡 ?뱁썒": {
+      "main": [
+        [
+          {
+            "node": "?몄뀡 ???泥댄겕",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "NLU ?섏젙 ?뱁썒": {
+      "main": [
+        [
+          {
+            "node": "NLU ???泥댄겕",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "?ㅻ쪟 濡쒓렇 ?뱁썒": {
+      "main": [
+        [
+          {
+            "node": "?ㅻ쪟 ???泥댄겕",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "?몄뀡 ???泥댄겕": {
+      "main": [
+        [
+          {
+            "node": "Slack ?몄뀡 ?뚮┝",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Telegram ?몄뀡 ?뚮┝",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "NLU ???泥댄겕": {
+      "main": [
+        [
+          {
+            "node": "Slack NLU ?뚮┝",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "?ㅻ쪟 ???泥댄겕": {
+      "main": [
+        [
+          {
+            "node": "Slack ?ㅻ쪟 ?뚮┝",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Telegram ?ㅻ쪟 ?뚮┝",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "timezone": "Asia/Seoul"
+  }
+}

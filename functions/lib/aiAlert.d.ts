@@ -1,0 +1,7 @@
+﻿/**
+ * AI ?ㅼ떆媛??댁긽 ?먯? ?쒖뒪?? * - Firestore metrics 而щ젆??蹂寃?媛먯?
+ * - ?????곗씠??鍮꾧탳 諛?蹂?붿쑉 怨꾩궛
+ * - AI 遺꾩꽍 諛?Slack 寃쎈낫 諛쒖넚
+ */
+export declare const aiAnomalyWatcher: any;
+//# sourceMappingURL=aiAlert.d.ts.map

@@ -1,0 +1,62 @@
+version: '3.9'
+name: yago-stack
+
+services:
+  web:
+    image: ghcr.io/${GHCR_OWNER}/yago-web:${IMAGE_TAG}
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      - YAGO_DOMAIN=${DOMAIN}
+      - CADDY_EMAIL=${CADDY_EMAIL}
+    networks:
+      - yago-net
+    volumes:
+      - caddy_data:/data
+      - caddy_config:/config
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/healthz"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  webhook:
+    image: ghcr.io/${GHCR_OWNER}/yago-webhook:${IMAGE_TAG}
+    restart: unless-stopped
+    environment:
+      - DOMAIN=${DOMAIN}
+      - DATA_PUBLIC=/data/public
+      - DATA_CACHE=/data/cache
+      - N8N_URL=${N8N_URL}
+      - TOSS_SECRET_KEY=${TOSS_SECRET_KEY}
+      - PORTONE_API_KEY=${PORTONE_API_KEY}
+      - PORTONE_API_SECRET=${PORTONE_API_SECRET}
+      - FIREBASE_SERVICE_ACCOUNT_JSON_PATH=/secrets/fb-service-account.json
+      - VERSION=${IMAGE_TAG}
+      - COMMIT=${IMAGE_TAG}
+      - NODE_ENV=production
+    networks:
+      - yago-net
+    volumes:
+      - data_public:/data/public
+      - data_cache:/data/cache
+      - ./secrets/fb-service-account.json:/secrets/fb-service-account.json:ro
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/healthz"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+networks:
+  yago-net:
+    driver: bridge
+
+volumes:
+  caddy_data:
+  caddy_config:
+  data_public:
+  data_cache:

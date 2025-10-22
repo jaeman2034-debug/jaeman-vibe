@@ -1,0 +1,285 @@
+name: Deploy Slack Approval System
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deployment environment'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+          - staging
+          - production
+
+env:
+  NODE_VERSION: '18'
+  FIREBASE_PROJECT_STAGING: 'jaeman-vibe-staging'
+  FIREBASE_PROJECT_PRODUCTION: 'jaeman-vibe-prod'
+
+jobs:
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: |
+          cd functions
+          npm ci
+          cd ..
+          npm ci
+
+      - name: Run linting
+        run: |
+          cd functions
+          npm run lint
+          cd ..
+          npm run lint
+
+      - name: Run unit tests
+        run: |
+          cd functions
+          npm test -- --coverage
+          cd ..
+          npm test -- --coverage
+
+      - name: Upload coverage reports
+        uses: codecov/codecov-action@v3
+        with:
+          files: ./functions/coverage/lcov.info,./coverage/lcov.info
+          flags: unittests
+          name: codecov-umbrella
+
+  build:
+    name: Build Application
+    runs-on: ubuntu-latest
+    needs: test
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: |
+          cd functions
+          npm ci
+          cd ..
+          npm ci
+
+      - name: Build frontend
+        run: npm run build
+
+      - name: Build functions
+        run: |
+          cd functions
+          npm run build
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: build-artifacts
+          path: |
+            dist/
+            functions/lib/
+
+  deploy-staging:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    needs: [test, build]
+    if: github.ref == 'refs/heads/develop' || (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'staging')
+    environment: staging
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: build-artifacts
+
+      - name: Setup Firebase CLI
+        uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          repoToken: '${{ secrets.GITHUB_TOKEN }}'
+          firebaseServiceAccount: '${{ secrets.FIREBASE_SERVICE_ACCOUNT_STAGING }}'
+          projectId: ${{ env.FIREBASE_PROJECT_STAGING }}
+
+      - name: Deploy Firebase Functions
+        run: |
+          cd functions
+          npm ci
+          firebase deploy --only functions --project ${{ env.FIREBASE_PROJECT_STAGING }}
+
+      - name: Deploy Firebase Hosting
+        run: |
+          firebase deploy --only hosting --project ${{ env.FIREBASE_PROJECT_STAGING }}
+
+      - name: Run E2E tests
+        run: |
+          chmod +x e2e_smoke_test.sh
+          export INTERNAL_KEY="${{ secrets.INTERNAL_KEY_STAGING }}"
+          export PROJECT_ID="${{ env.FIREBASE_PROJECT_STAGING }}"
+          export SLACK_APPROVER_CHANNEL="${{ secrets.SLACK_APPROVER_CHANNEL_STAGING }}"
+          ./e2e_smoke_test.sh
+
+      - name: Notify deployment
+        uses: 8398a7/action-slack@v3
+        with:
+          status: success
+          channel: '#deployments'
+          text: '🚀 Staging deployment completed successfully!'
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+
+  deploy-production:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: [test, build]
+    if: github.ref == 'refs/heads/main' || (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'production')
+    environment: production
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: build-artifacts
+
+      - name: Setup Firebase CLI
+        uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          repoToken: '${{ secrets.GITHUB_TOKEN }}'
+          firebaseServiceAccount: '${{ secrets.FIREBASE_SERVICE_ACCOUNT_PRODUCTION }}'
+          projectId: ${{ env.FIREBASE_PROJECT_PRODUCTION }}
+
+      - name: Deploy Firebase Functions
+        run: |
+          cd functions
+          npm ci
+          firebase deploy --only functions --project ${{ env.FIREBASE_PROJECT_PRODUCTION }}
+
+      - name: Deploy Firebase Hosting
+        run: |
+          firebase deploy --only hosting --project ${{ env.FIREBASE_PROJECT_PRODUCTION }}
+
+      - name: Run E2E tests
+        run: |
+          chmod +x e2e_smoke_test.sh
+          export INTERNAL_KEY="${{ secrets.INTERNAL_KEY_PRODUCTION }}"
+          export PROJECT_ID="${{ env.FIREBASE_PROJECT_PRODUCTION }}"
+          export SLACK_APPROVER_CHANNEL="${{ secrets.SLACK_APPROVER_CHANNEL_PRODUCTION }}"
+          ./e2e_smoke_test.sh
+
+      - name: Notify deployment
+        uses: 8398a7/action-slack@v3
+        with:
+          status: success
+          channel: '#deployments'
+          text: '🎉 Production deployment completed successfully!'
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    needs: test
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+
+      - name: Upload Trivy scan results
+        uses: github/codeql-action/upload-sarif@v2
+        with:
+          sarif_file: 'trivy-results.sarif'
+
+      - name: Run npm audit
+        run: |
+          cd functions
+          npm audit --audit-level=moderate
+          cd ..
+          npm audit --audit-level=moderate
+
+  performance-test:
+    name: Performance Test
+    runs-on: ubuntu-latest
+    needs: deploy-staging
+    if: github.ref == 'refs/heads/develop'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install k6
+        run: |
+          sudo apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys C5AD17C747E3415A3642D57D77C6C491D6AC1D69
+          echo "deb https://dl.k6.io/deb stable main" | sudo tee /etc/apt/sources.list.d/k6.list
+          sudo apt-get update
+          sudo apt-get install k6
+
+      - name: Run performance tests
+        run: |
+          k6 run tests/performance/load-test.js
+        env:
+          BASE_URL: https://asia-northeast3-${{ env.FIREBASE_PROJECT_STAGING }}.cloudfunctions.net/slack
+          INTERNAL_KEY: ${{ secrets.INTERNAL_KEY_STAGING }}
+
+  cleanup:
+    name: Cleanup
+    runs-on: ubuntu-latest
+    needs: [deploy-staging, deploy-production]
+    if: always()
+    
+    steps:
+      - name: Cleanup old deployments
+        run: |
+          echo "Cleaning up old deployment artifacts..."
+          # Add cleanup logic here

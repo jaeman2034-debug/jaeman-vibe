@@ -1,0 +1,14 @@
+﻿rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    // 개발 중엔 일단 공개 읽기 허용(이미지 썸네일 확인용)
+    match /market/{allPaths=**} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+    match /{path=**} {
+      allow read: if false;
+      allow write: if request.auth != null;
+    }
+  }
+}

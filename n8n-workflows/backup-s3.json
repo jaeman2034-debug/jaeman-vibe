@@ -1,0 +1,167 @@
+{
+  "name": "YAGO – Backup → S3 (03:00)",
+  "nodes": [
+    {
+      "parameters": {
+        "mode": "custom",
+        "cronExpression": "0 0 3 * * *"
+      },
+      "id": "cron",
+      "name": "03:00 KST",
+      "type": "n8n-nodes-base.cron",
+      "typeVersion": 2,
+      "position": [-860, 60]
+    },
+    {
+      "parameters": {
+        "keepOnlySet": false,
+        "values": {
+          "string": [
+            {
+              "name": "idsRaw",
+              "value": "={{$env.BACKUP_WORKFLOW_IDS}}"
+            },
+            {
+              "name": "date",
+              "value": "={{$now.toFormat('yyyy-LL-dd')}}"
+            },
+            {
+              "name": "bucket",
+              "value": "={{$env.S3_BUCKET}}"
+            },
+            {
+              "name": "prefix",
+              "value": "={{$env.S3_PREFIX || 'backups'}}"
+            }
+          ]
+        }
+      },
+      "id": "set",
+      "name": "Set Vars",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [-630, 60]
+    },
+    {
+      "parameters": {
+        "functionCode": "const ids=($json.idsRaw||'').split(',').map(s=>s.trim()).filter(Boolean);return ids.map(id=>({json:{id,date:$json.date,bucket:$json.bucket,prefix:$json.prefix}}));"
+      },
+      "id": "fn1",
+      "name": "Split IDs",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 2,
+      "position": [-400, 60]
+    },
+    {
+      "parameters": {
+        "url": "={{$env.N8N_BASE}}/api/v1/workflows/{{$json.id}}",
+        "options": {
+          "response": "json",
+          "timeout": 30,
+          "headerParametersJson": "={\n  \"Authorization\": \"Bearer {{$env.N8N_API_KEY}}\"\n}"
+        }
+      },
+      "id": "http1",
+      "name": "GET Workflow JSON",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [-180, 60]
+    },
+    {
+      "parameters": {
+        "operation": "upload",
+        "binaryData": false,
+        "additionalFields": {
+          "fileContent": "={{JSON.stringify($json)}}",
+          "destinationPath": "=/{{$json.prefix}}/{{$json.date}}/workflow-{{$json.id}}.json",
+          "region": "={{$env.S3_REGION}}",
+          "contentType": "application/json"
+        }
+      },
+      "id": "s3",
+      "name": "S3 Upload",
+      "type": "n8n-nodes-base.amazonS3",
+      "typeVersion": 2,
+      "position": [40, 60],
+      "credentials": {
+        "amazonS3": {
+          "id": "REPLACE_WITH_S3_CREDENTIAL_ID",
+          "name": "Amazon S3"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "={{$env.SLACK_KPI_WEBHOOK}}",
+        "jsonParameters": true,
+        "sendBody": true,
+        "bodyParametersJson": "={\n  \"text\": \"✅ S3 backup: workflow {{$json.id}} → {{$json.prefix}}/{{$json.date}}/workflow-{{$json.id}}.json\"\n}"
+      },
+      "id": "slack",
+      "name": "Slack KPI",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [260, 60]
+    }
+  ],
+  "connections": {
+    "03:00 KST": {
+      "main": [
+        [
+          {
+            "node": "Set Vars",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Vars": {
+      "main": [
+        [
+          {
+            "node": "Split IDs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split IDs": {
+      "main": [
+        [
+          {
+            "node": "GET Workflow JSON",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GET Workflow JSON": {
+      "main": [
+        [
+          {
+            "node": "S3 Upload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "S3 Upload": {
+      "main": [
+        [
+          {
+            "node": "Slack KPI",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "timezone": "Asia/Seoul"
+  }
+}

@@ -1,0 +1,62 @@
+name: CI - Kakao 성공/실패 알림 테스트
+
+on:
+  push:
+    branches: [ "develop" ]
+  workflow_dispatch: # 수동 실행 가능
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1) 저장소 체크아웃
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # 2) Node.js 세팅
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      # 3) 의존성 설치
+      - name: Install deps
+        run: npm install --legacy-peer-deps
+
+      # 4) ✅ 성공 알림 테스트
+      - name: Notify n8n Kakao Success
+        run: |
+          curl -X POST https://<YOUR_N8N_URL>/webhook/ci-kakao-alert \
+          -H "Content-Type: application/json" \
+          -d '{
+            "status": "success",
+            "repo": "jaeman-vibe",
+            "branch": "develop",
+            "author": "형님"
+          }'
+
+      # 5) ❌ 실패 알림 테스트
+      - name: Notify n8n Kakao Failure
+        run: |
+          curl -X POST https://<YOUR_N8N_URL>/webhook/ci-kakao-alert \
+          -H "Content-Type: application/json" \
+          -d '{
+            "status": "failure",
+            "repo": "jaeman-vibe",
+            "branch": "develop",
+            "author": "형님"
+          }'
+
+      # 6) 🚀 실제 CI 결과 알림 (선택사항)
+      - name: Notify n8n Kakao Real CI Result
+        if: always()
+        run: |
+          curl -X POST https://<YOUR_N8N_URL>/webhook/ci-kakao-alert \
+          -H "Content-Type: application/json" \
+          -d '{
+            "status": "${{ job.status }}",
+            "repo": "${{ github.repository }}",
+            "branch": "${{ github.ref_name }}",
+            "author": "${{ github.actor }}"
+          }'

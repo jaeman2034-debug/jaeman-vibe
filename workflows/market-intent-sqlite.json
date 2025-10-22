@@ -1,0 +1,145 @@
+{
+  "name": "market-intent-sqlite",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "chat-final",
+        "options": {}
+      },
+      "id": "Webhook",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [200, 300]
+    },
+    {
+      "parameters": {
+        "functionCode": "return [{ json: { intent: $json.intent || 'unknown', payload: $json.payload || {} } }];"
+      },
+      "id": "Code1",
+      "name": "Extract Intent",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [400, 300]
+    },
+    {
+      "parameters": {
+        "propertyName": "intent",
+        "rules": [
+          { "operation": "equal", "value": "market.create" },
+          { "operation": "equal", "value": "market.get" },
+          { "operation": "equal", "value": "market.list" },
+          { "operation": "equal", "value": "market.updateStatus" },
+          { "operation": "equal", "value": "market.delete" }
+        ]
+      },
+      "id": "Switch",
+      "name": "Switch Intent",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 1,
+      "position": [600, 300]
+    },
+    {
+      "parameters": {
+        "query": "INSERT INTO market (title, description, price) VALUES ({{ $json.payload.title }}, {{ $json.payload.description }}, {{ $json.payload.price }});"
+      },
+      "id": "SqliteCreate",
+      "name": "SQLite Create",
+      "type": "n8n-nodes-base.sqlite",
+      "typeVersion": 1,
+      "position": [850, 200],
+      "credentials": { "sqlite": "local-sqlite" }
+    },
+    {
+      "parameters": {
+        "query": "SELECT * FROM market WHERE id={{ $json.payload.id }};"
+      },
+      "id": "SqliteGet",
+      "name": "SQLite Get",
+      "type": "n8n-nodes-base.sqlite",
+      "typeVersion": 1,
+      "position": [850, 300],
+      "credentials": { "sqlite": "local-sqlite" }
+    },
+    {
+      "parameters": {
+        "query": "SELECT * FROM market;"
+      },
+      "id": "SqliteList",
+      "name": "SQLite List",
+      "type": "n8n-nodes-base.sqlite",
+      "typeVersion": 1,
+      "position": [850, 400],
+      "credentials": { "sqlite": "local-sqlite" }
+    },
+    {
+      "parameters": {
+        "query": "UPDATE market SET status={{ $json.payload.status }} WHERE id={{ $json.payload.id }};"
+      },
+      "id": "SqliteUpdate",
+      "name": "SQLite Update",
+      "type": "n8n-nodes-base.sqlite",
+      "typeVersion": 1,
+      "position": [850, 500],
+      "credentials": { "sqlite": "local-sqlite" }
+    },
+    {
+      "parameters": {
+        "query": "DELETE FROM market WHERE id={{ $json.payload.id }};"
+      },
+      "id": "SqliteDelete",
+      "name": "SQLite Delete",
+      "type": "n8n-nodes-base.sqlite",
+      "typeVersion": 1,
+      "position": [850, 600],
+      "credentials": { "sqlite": "local-sqlite" }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={ \"ok\": true, \"intent\": $json.intent, \"data\": $json }"
+      },
+      "id": "Respond",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1100, 350]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [[{ "node": "Extract Intent", "type": "main", "index": 0 }]]
+    },
+    "Extract Intent": {
+      "main": [[{ "node": "Switch Intent", "type": "main", "index": 0 }]]
+    },
+    "Switch Intent": {
+      "main": [
+        [{ "node": "SQLite Create", "type": "main", "index": 0 }],
+        [{ "node": "SQLite Get", "type": "main", "index": 0 }],
+        [{ "node": "SQLite List", "type": "main", "index": 0 }],
+        [{ "node": "SQLite Update", "type": "main", "index": 0 }],
+        [{ "node": "SQLite Delete", "type": "main", "index": 0 }]
+      ]
+    },
+    "SQLite Create": {
+      "main": [[{ "node": "Respond to Webhook", "type": "main", "index": 0 }]]
+    },
+    "SQLite Get": {
+      "main": [[{ "node": "Respond to Webhook", "type": "main", "index": 0 }]]
+    },
+    "SQLite List": {
+      "main": [[{ "node": "Respond to Webhook", "type": "main", "index": 0 }]]
+    },
+    "SQLite Update": {
+      "main": [[{ "node": "Respond to Webhook", "type": "main", "index": 0 }]]
+    },
+    "SQLite Delete": {
+      "main": [[{ "node": "Respond to Webhook", "type": "main", "index": 0 }]]
+    }
+  },
+  "active": false,
+  "settings": {},
+  "id": "market-intent-sqlite"
+}

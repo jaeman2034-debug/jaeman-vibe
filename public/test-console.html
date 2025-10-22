@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Firestore 테스트 콘솔</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
+        button { padding: 10px 15px; margin: 5px; background: #007bff; color: white; border: none; border-radius: 3px; cursor: pointer; }
+        button:hover { background: #0056b3; }
+        .result { margin: 10px 0; padding: 10px; background: #f8f9fa; border-radius: 3px; }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+    </style>
+</head>
+<body>
+    <h1>Firestore 테스트 콘솔</h1>
+    
+    <div class="test-section">
+        <h3>1. 컬렉션 통계 확인</h3>
+        <button onclick="checkStats()">통계 확인</button>
+        <div id="stats-result" class="result"></div>
+    </div>
+    
+    <div class="test-section">
+        <h3>2. 단일 문서 테스트</h3>
+        <input type="text" id="docId" placeholder="문서 ID 입력" style="width: 300px; padding: 5px;">
+        <button onclick="testSingle()">단일 문서 테스트</button>
+        <div id="single-result" class="result"></div>
+    </div>
+    
+    <div class="test-section">
+        <h3>3. 전체 문서 보정</h3>
+        <button onclick="backfillAll()">전체 보정 실행</button>
+        <div id="backfill-result" class="result"></div>
+    </div>
+    
+    <div class="test-section">
+        <h3>4. 콘솔 로그</h3>
+        <div id="console-log" class="result" style="height: 200px; overflow-y: auto; font-family: monospace; font-size: 12px;"></div>
+    </div>
+
+    <!-- Firebase SDK 로드 -->
+    <script type="module">
+        // Firebase 독립 초기화
+        import { ensureFirebase } from '/src/lib/firebaseStandalone.ts';
+        
+        // Firebase 초기화
+        let firebase = null;
+        try {
+            firebase = ensureFirebase();
+            window.fs = firebase.fs;
+            window.db = firebase.db;
+            window.auth = firebase.auth;
+            window.storage = firebase.storage;
+            console.log('✅ Firebase 독립 초기화 완료');
+        } catch (error) {
+            console.error('❌ Firebase 초기화 실패:', error);
+        }
+    </script>
+
+    <script>
+        // 콘솔 로그를 페이지에 표시
+        const originalLog = console.log;
+        const originalError = console.error;
+        const logDiv = document.getElementById('console-log');
+        
+        function addLog(message, type = 'log') {
+            const div = document.createElement('div');
+            div.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            div.style.color = type === 'error' ? '#721c24' : '#155724';
+            logDiv.appendChild(div);
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+        
+        console.log = function(...args) {
+            originalLog.apply(console, args);
+            addLog(args.join(' '));
+        };
+        
+        console.error = function(...args) {
+            originalError.apply(console, args);
+            addLog(args.join(' '), 'error');
+        };
+        
+        // 테스트 함수들
+        async function checkStats() {
+            const resultDiv = document.getElementById('stats-result');
+            resultDiv.innerHTML = '통계 확인 중...';
+            
+            try {
+                if (typeof window.fs === 'undefined' || typeof window.db === 'undefined') {
+                    throw new Error('Firebase가 로드되지 않았습니다. 메인 앱을 먼저 실행하세요.');
+                }
+                
+                const col = window.fs.collection(window.db, 'market_items');
+                const snap = await window.fs.getDocs(col);
+                
+                let total = 0;
+                let withThumbUrl = 0;
+                let withImages = 0;
+                let noImage = 0;
+                
+                snap.docs.forEach(doc => {
+                    const data = doc.data();
+                    total++;
+                    if (data.thumbUrl) withThumbUrl++;
+                    if (data.images?.[0]?.url) withImages++;
+                    if (!data.thumbUrl && !data.images?.[0]?.url) noImage++;
+                });
+                
+                resultDiv.innerHTML = `
+                    <div class="success">
+                        <strong>📊 market_items 컬렉션 통계:</strong><br>
+                        • 총 문서 수: ${total}<br>
+                        • thumbUrl 있는 문서: ${withThumbUrl} (${Math.round(withThumbUrl/total*100)}%)<br>
+                        • images[0].url 있는 문서: ${withImages} (${Math.round(withImages/total*100)}%)<br>
+                        • 이미지 없는 문서: ${noImage} (${Math.round(noImage/total*100)}%)
+                    </div>
+                `;
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error">❌ 오류: ${error.message}</div>`;
+            }
+        }
+        
+        async function testSingle() {
+            const docId = document.getElementById('docId').value;
+            const resultDiv = document.getElementById('single-result');
+            
+            if (!docId) {
+                resultDiv.innerHTML = '<div class="error">❌ 문서 ID를 입력하세요.</div>';
+                return;
+            }
+            
+            resultDiv.innerHTML = '단일 문서 테스트 중...';
+            
+            try {
+                if (typeof window.fs === 'undefined' || typeof window.db === 'undefined') {
+                    throw new Error('Firebase가 로드되지 않았습니다.');
+                }
+                
+                const ref = window.fs.doc(window.db, 'market_items', docId);
+                const d = await window.fs.getDoc(ref);
+                
+                if (!d.exists()) {
+                    throw new Error('문서를 찾을 수 없습니다.');
+                }
+                
+                const data = d.data();
+                const thumbUrl = data.thumbUrl || data.images?.[0]?.url || '';
+                
+                await window.fs.updateDoc(ref, { 
+                    thumbUrl: thumbUrl || '',
+                    isSold: data.isSold ?? false,
+                    deleted: data.deleted ?? false,
+                    createdAt: data.createdAt ?? window.fs.serverTimestamp(),
+                    updatedAt: window.fs.serverTimestamp(),
+                });
+                
+                resultDiv.innerHTML = `
+                    <div class="success">
+                        <strong>✅ 단일 문서 테스트 완료!</strong><br>
+                        • 문서 ID: ${docId}<br>
+                        • 제목: ${data.title || 'Untitled'}<br>
+                        • 기존 thumbUrl: ${data.thumbUrl || '없음'}<br>
+                        • 새 thumbUrl: ${thumbUrl || '없음'}<br>
+                        • isSold: ${data.isSold ?? false}<br>
+                        • deleted: ${data.deleted ?? false}
+                    </div>
+                `;
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error">❌ 오류: ${error.message}</div>`;
+            }
+        }
+        
+        async function backfillAll() {
+            const resultDiv = document.getElementById('backfill-result');
+            resultDiv.innerHTML = '전체 보정 실행 중...';
+            
+            try {
+                if (typeof window.fs === 'undefined' || typeof window.db === 'undefined') {
+                    throw new Error('Firebase가 로드되지 않았습니다.');
+                }
+                
+                const col = window.fs.collection(window.db, 'market_items');
+                const snap = await window.fs.getDocs(col);
+                
+                let processed = 0;
+                let updated = 0;
+                let skipped = 0;
+                let errors = 0;
+                
+                for (const docSnap of snap.docs) {
+                    try {
+                        const data = docSnap.data();
+                        const thumbUrl = data.thumbUrl || data.images?.[0]?.url || '';
+                        
+                        const updates = {
+                            thumbUrl: thumbUrl || '',
+                            isSold: data.isSold ?? false,
+                            deleted: data.deleted ?? false,
+                            updatedAt: window.fs.serverTimestamp(),
+                        };
+                        
+                        if (!data.createdAt) {
+                            updates.createdAt = window.fs.serverTimestamp();
+                        }
+                        
+                        const hasChanges = 
+                            !data.thumbUrl && thumbUrl ||
+                            data.isSold === undefined ||
+                            data.deleted === undefined ||
+                            !data.createdAt ||
+                            !data.updatedAt;
+                        
+                        if (hasChanges) {
+                            await window.fs.updateDoc(docSnap.ref, updates);
+                            updated++;
+                        } else {
+                            skipped++;
+                        }
+                        
+                        processed++;
+                        
+                        if (processed % 10 === 0) {
+                            resultDiv.innerHTML = `진행률: ${processed}/${snap.docs.length} (${Math.round(processed/snap.docs.length*100)}%)`;
+                        }
+                        
+                    } catch (error) {
+                        errors++;
+                        console.error(`문서 ${docSnap.id} 처리 실패:`, error);
+                    }
+                }
+                
+                resultDiv.innerHTML = `
+                    <div class="success">
+                        <strong>🎉 보정 완료!</strong><br>
+                        • 처리된 문서: ${processed}<br>
+                        • 업데이트된 문서: ${updated}<br>
+                        • 스킵된 문서: ${skipped}<br>
+                        • 오류: ${errors}
+                    </div>
+                `;
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error">❌ 오류: ${error.message}</div>`;
+            }
+        }
+        
+        // Firebase 상태 확인 함수
+        function checkFirebaseStatus() {
+            const resultDiv = document.getElementById('stats-result');
+            
+            if (typeof window.fs === 'undefined' || typeof window.db === 'undefined') {
+                resultDiv.innerHTML = `
+                    <div class="error">
+                        ❌ Firebase가 로드되지 않았습니다.<br>
+                        페이지를 새로고침하거나 잠시 후 다시 시도해주세요.
+                    </div>
+                `;
+                return false;
+            }
+            
+            resultDiv.innerHTML = `
+                <div class="success">
+                    ✅ Firebase 로드 완료!<br>
+                    • Firestore: ${typeof window.fs}<br>
+                    • Database: ${typeof window.db}<br>
+                    • Auth: ${typeof window.auth}<br>
+                    • Storage: ${typeof window.storage}
+                </div>
+            `;
+            return true;
+        }
+        
+        // 페이지 로드 시 Firebase 상태 확인
+        window.addEventListener('load', () => {
+            console.log('Firestore 테스트 콘솔 로드됨');
+            
+            // Firebase 로드 대기 (모듈 로드 시간 고려)
+            setTimeout(() => {
+                if (checkFirebaseStatus()) {
+                    checkStats();
+                }
+            }, 1000);
+        });
+    </script>
+</body>
+</html>

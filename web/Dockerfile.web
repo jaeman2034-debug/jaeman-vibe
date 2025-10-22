@@ -1,0 +1,44 @@
+# 1) Build (Vite)
+FROM node:20-alpine AS build
+WORKDIR /app
+
+# 패키지 설치
+COPY package*.json ./
+RUN npm ci --only=production
+
+# 소스 복사 및 빌드
+COPY . .
+
+# Vite 환경변수 주입 (빌드 타임)
+ARG VITE_FB_API_KEY
+ARG VITE_FB_AUTH_DOMAIN
+ARG VITE_FB_PROJECT_ID
+ARG VITE_FB_STORAGE
+ARG VITE_FB_SENDER_ID
+ARG VITE_FB_APP_ID
+
+ENV VITE_FB_API_KEY=$VITE_FB_API_KEY \
+    VITE_FB_AUTH_DOMAIN=$VITE_FB_AUTH_DOMAIN \
+    VITE_FB_PROJECT_ID=$VITE_FB_PROJECT_ID \
+    VITE_FB_STORAGE=$VITE_FB_STORAGE \
+    VITE_FB_SENDER_ID=$VITE_FB_SENDER_ID \
+    VITE_FB_APP_ID=$VITE_FB_APP_ID
+
+# Vite 빌드 실행
+RUN npm run build
+
+# 2) Serve (Caddy)
+FROM caddy:2-alpine
+
+# 빌드된 파일을 Caddy 정적 디렉토리로 복사
+COPY --from=build /app/dist /usr/share/caddy
+
+# Caddy 설정 파일 복사
+COPY --chown=caddy:caddy ../caddy/Caddyfile /etc/caddy/Caddyfile
+
+# Caddy는 자동 TLS/HTTP3 지원
+# 데이터/인증서는 볼륨으로 유지됨
+
+EXPOSE 80 443
+
+CMD ["caddy", "run", "--config", "/etc/caddy/Caddyfile", "--adapter", "caddyfile"]

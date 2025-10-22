@@ -1,0 +1,12 @@
+{
+  "version": "1.2",
+  "incident": {
+    "incident_id": "demo-123",
+    "policy_name": "[VIBE] Pending fanout ≥ 5 (5m)",
+    "condition_name": "pending_fanout >= 5",
+    "url": "https://console.cloud.google.com/monitoring/alerting",
+    "state": "open",
+    "summary": "pending_fanout metric exceeded threshold: mean > 5 in last 5m",
+    "started_at": 1731324000
+  }
+}

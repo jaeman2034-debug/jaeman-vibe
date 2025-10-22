@@ -1,0 +1,44 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // === 🎧 스마트 스피커 브리핑 시스템 ===
+    
+    // ai_voice_reports 컬렉션 - 스피커용 읽기 허용
+    match /ai_voice_reports/{docId} {
+      // 공개 읽기 허용 (Kakao Mini, Google Cast용)
+      allow read: if true;
+      
+      // 관리자만 쓰기 허용
+      allow write: if request.auth != null && 
+                      request.auth.token.admin == true;
+    }
+    
+    // notification_reports 컬렉션 - 스피커용 읽기 허용
+    match /notification_reports/{docId} {
+      // 공개 읽기 허용 (스마트 스피커용)
+      allow read: if true;
+      
+      // 관리자만 쓰기 허용
+      allow write: if request.auth != null && 
+                      request.auth.token.admin == true;
+    }
+    
+    // notification_logs 컬렉션 - 관리자 읽기, 인증된 사용자 쓰기
+    match /notification_logs/{docId} {
+      allow read: if request.auth != null && 
+                      request.auth.token.admin == true;
+      allow write: if request.auth != null;
+    }
+    
+    // market_items 컬렉션 - 기존 규칙 유지
+    match /market_items/{docId} {
+      allow read, write: if request.auth != null;
+    }
+    
+    // 기타 컬렉션들은 인증된 사용자만 접근
+    match /{document=**} {
+      allow read, write: if request.auth != null;
+    }
+  }
+}

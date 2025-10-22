@@ -1,0 +1,138 @@
+﻿{
+  "name": "YAGO VIBE - ?ㅼ?以??곹뭹 ?뺣━ (留ㅼ씪 ?덈꼍 3??",
+  "nodes": [
+    {
+      "id": "1",
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [250, 300],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 3 * * *"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "2",
+      "name": "Firestore - Get Products",
+      "type": "n8n-nodes-base.firestore",
+      "typeVersion": 1,
+      "position": [500, 300],
+      "parameters": {
+        "resource": "document",
+        "operation": "getAll",
+        "collection": "marketItems"
+      },
+      "credentials": {
+        "firebaseFirestoreOAuth2Api": "YAGO VIBE Firestore"
+      }
+    },
+    {
+      "id": "3",
+      "name": "Filter No Image Products",
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 1,
+      "position": [750, 300],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "condition1",
+              "leftValue": "={{$json.imageUrl}}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "isEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      }
+    },
+    {
+      "id": "4",
+      "name": "Batch Delete Products",
+      "type": "n8n-nodes-base.firestore",
+      "typeVersion": 1,
+      "position": [1000, 300],
+      "parameters": {
+        "resource": "document",
+        "operation": "delete",
+        "collection": "marketItems",
+        "documentId": "={{$json.id}}"
+      },
+      "credentials": {
+        "firebaseFirestoreOAuth2Api": "YAGO VIBE Firestore"
+      }
+    },
+    {
+      "id": "5",
+      "name": "Generate Report",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [1250, 300],
+      "parameters": {
+        "functionCode": "const deletedCount = items.length;\nconst deletedProducts = items.map(item => ({\n  id: item.json.id,\n  title: item.json.title || '?쒕ぉ ?놁쓬',\n  createdAt: item.json.createdAt || '?좎쭨 ?놁쓬'\n}));\n\nconst timestamp = new Date().toLocaleString('ko-KR', {\n  timeZone: 'Asia/Seoul',\n  year: 'numeric',\n  month: '2-digit',\n  day: '2-digit',\n  hour: '2-digit',\n  minute: '2-digit',\n  second: '2-digit'\n});\n\nreturn [{\n  json: {\n    success: true,\n    deletedCount,\n    deletedProducts,\n    timestamp,\n    message: `??YAGO VIBE ?먮룞 ?뺣━ ?꾨즺 - ${deletedCount}媛??곹뭹 ??젣??,\n    summary: `?뿊截???젣???곹뭹: ${deletedCount}媛?\n?뱟 ?ㅽ뻾 ?쒓컙: ${timestamp}`\n  }\n}];"
+      }
+    },
+    {
+      "id": "6",
+      "name": "Log to Console",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [1500, 300],
+      "parameters": {
+        "functionCode": "const report = items[0].json;\n\nconsole.log('='.repeat(50));\nconsole.log('?㏏ YAGO VIBE ?먮룞 ?뺣━ 由ы룷??);\nconsole.log('='.repeat(50));\nconsole.log(`?뱟 ?ㅽ뻾 ?쒓컙: ${report.timestamp}`);\nconsole.log(`?뿊截???젣???곹뭹 ?? ${report.deletedCount}媛?);\nconsole.log('\\n?뱥 ??젣???곹뭹 紐⑸줉:');\nreport.deletedProducts.forEach((product, index) => {\n  console.log(`  ${index + 1}. ${product.title} (ID: ${product.id})`);\n});\nconsole.log('='.repeat(50));\n\nreturn items;"
+      }
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": { 
+      "main": [ 
+        [{ "node": "Firestore - Get Products", "type": "main", "index": 0 }] 
+      ] 
+    },
+    "Firestore - Get Products": { 
+      "main": [ 
+        [{ "node": "Filter No Image Products", "type": "main", "index": 0 }] 
+      ] 
+    },
+    "Filter No Image Products": { 
+      "main": [ 
+        [{ "node": "Batch Delete Products", "type": "main", "index": 0 }] 
+      ] 
+    },
+    "Batch Delete Products": { 
+      "main": [ 
+        [{ "node": "Generate Report", "type": "main", "index": 0 }] 
+      ] 
+    },
+    "Generate Report": { 
+      "main": [ 
+        [{ "node": "Log to Console", "type": "main", "index": 0 }] 
+      ] 
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Asia/Seoul"
+  },
+  "meta": {
+    "description": "YAGO VIBE 留덉폆 ?먮룞 ?뺣━ - 留ㅼ씪 ?덈꼍 3???먮룞 ?ㅽ뻾",
+    "tags": ["yago-vibe", "firestore", "cleanup", "scheduled", "automation", "cron"]
+  }
+}

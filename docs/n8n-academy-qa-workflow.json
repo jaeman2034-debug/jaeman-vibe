@@ -1,0 +1,94 @@
+﻿{
+  "name": "Academy QA Chatbot",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "academy-qa",
+        "method": "POST"
+      },
+      "id": "1",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "functionCode": "return [{ json: { question: $json[\"question\"] } }];"
+      },
+      "id": "2",
+      "name": "Extract Question",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "model": "gpt-4o-mini",
+        "prompt": "吏덈Ц: {{$json[\"question\"]}}\n\n?꾩뭅?곕? 愿???듬????쒓뎅?대줈 ?쒓났??二쇱꽭??",
+        "temperature": 0.3
+      },
+      "id": "3",
+      "name": "OpenAI",
+      "type": "n8n-nodes-base.openAi",
+      "typeVersion": 1,
+      "position": [650, 300],
+      "credentials": {
+        "openAiApi": "OpenAI API Account"
+      }
+    },
+    {
+      "parameters": {
+        "functionCode": "return [{ json: { answer: $json.data } }];"
+      },
+      "id": "4",
+      "name": "Format Answer",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [850, 300]
+    },
+    {
+      "parameters": {
+        "responseBody": "={{$json}}"
+      },
+      "id": "5",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1050, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          { "node": "Extract Question", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Extract Question": {
+      "main": [
+        [
+          { "node": "OpenAI", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "OpenAI": {
+      "main": [
+        [
+          { "node": "Format Answer", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Format Answer": {
+      "main": [
+        [
+          { "node": "Respond to Webhook", "type": "main", "index": 0 }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {},
+  "id": "academy-qa-workflow"
+}

@@ -1,0 +1,34 @@
+name: IaC – Monitoring Policies
+on:
+  push:
+    paths: ["infra/**",".github/workflows/terraform.yml"]
+  workflow_dispatch:
+
+jobs:
+  terraform:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Auth to Google (WIF)
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}   # ex: projects/123/locations/global/workloadIdentityPools/gh-pool/providers/gh
+          service_account: ${{ secrets.GCP_TF_SA }}                    # ex: tf-deployer@<PROJECT_ID>.iam.gserviceaccount.com
+
+      - uses: hashicorp/setup-terraform@v3
+
+      - name: Terraform Init/Plan/Apply
+        working-directory: infra
+        env:
+          TF_VAR_project_id: ${{ secrets.GCP_PROJECT_ID }}
+          TF_VAR_region: asia-northeast3
+          TF_VAR_monitoring_relay_url: ${{ secrets.MONITORING_RELAY_URL }}  # functions: monitoringToSlack URL
+          TF_VAR_email_address: ${{ secrets.ALERT_EMAIL }}                  # optional
+        run: |
+          terraform init -input=false
+          terraform plan -input=false -out=tfplan
+          terraform apply -input=false -auto-approve tfplan

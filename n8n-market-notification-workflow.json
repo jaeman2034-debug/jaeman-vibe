@@ -1,0 +1,190 @@
+{
+  "name": "Market Item Notification",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "webhook/market-created",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "webhook-market-created",
+      "name": "Webhook - Market Created",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 300],
+      "webhookId": "market-created"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "condition-1",
+              "leftValue": "={{ $json.event }}",
+              "rightValue": "market_item_created",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "filter-market-event",
+      "name": "Filter - Market Event",
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "url": "https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"text\": \"🛍️ 새 거래 알림 (반경 {{ $json.radius_m }}m)\",\n  \"blocks\": [\n    {\n      \"type\": \"header\",\n      \"text\": {\n        \"type\": \"plain_text\",\n        \"text\": \"🛍️ 새 거래 알림\"\n      }\n    },\n    {\n      \"type\": \"section\",\n      \"fields\": [\n        {\n          \"type\": \"mrkdwn\",\n          \"text\": \"*제목:* {{ $json.item.title }}\"\n        },\n        {\n          \"type\": \"mrkdwn\",\n          \"text\": \"*가격:* {{ $json.item.price || '—' }}원\"\n        },\n        {\n          \"type\": \"mrkdwn\",\n          \"text\": \"*주소:* {{ $json.item.address || '—' }}\"\n        },\n        {\n          \"type\": \"mrkdwn\",\n          \"text\": \"*거리:* {{ $json.distance_m }}m\"\n        },\n        {\n          \"type\": \"mrkdwn\",\n          \"text\": \"*위치:* {{ $json.item.location.lat }}, {{ $json.item.location.lng }}\"\n        },\n        {\n          \"type\": \"mrkdwn\",\n          \"text\": \"*등록시간:* {{ $json.item.createdAt }}\"\n        }\n      ]\n    },\n    {\n      \"type\": \"actions\",\n      \"elements\": [\n        {\n          \"type\": \"button\",\n          \"text\": {\n            \"type\": \"plain_text\",\n            \"text\": \"지도에서 보기\"\n          },\n          \"url\": \"https://www.google.com/maps?q={{ $json.item.location.lat }},{{ $json.item.location.lng }}\"\n        }\n      ]\n    }\n  ]\n}",
+        "options": {}
+      },
+      "id": "slack-notification",
+      "name": "Slack - Send Notification",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"ok\": true,\n  \"message\": \"알림 전송 완료\",\n  \"item\": \"{{ $json.item.title }}\",\n  \"distance\": \"{{ $json.distance_m }}m\"\n}"
+      },
+      "id": "webhook-response",
+      "name": "Webhook Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "url": "https://api.telegram.org/bot{{ $credentials.telegramBotToken }}/sendMessage",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"chat_id\": \"{{ $credentials.telegramChatId }}\",\n  \"text\": \"🛍️ 새 거래 알림 (반경 {{ $json.radius_m }}m)\\n\\n제목: {{ $json.item.title }}\\n가격: {{ $json.item.price || '—' }}원\\n주소: {{ $json.item.address || '—' }}\\n거리: {{ $json.distance_m }}m\\n위치: {{ $json.item.location.lat }}, {{ $json.item.location.lng }}\\n등록시간: {{ $json.item.createdAt }}\\n\\n지도: https://www.google.com/maps?q={{ $json.item.location.lat }},{{ $json.item.location.lng }}\",\n  \"parse_mode\": \"HTML\"\n}",
+        "options": {}
+      },
+      "id": "telegram-notification",
+      "name": "Telegram - Send Notification",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [680, 480]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "condition-1",
+              "leftValue": "={{ $json.item.price }}",
+              "rightValue": 50000,
+              "operator": {
+                "type": "number",
+                "operation": "gte"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "filter-high-price",
+      "name": "Filter - High Price",
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2,
+      "position": [460, 480]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook - Market Created": {
+      "main": [
+        [
+          {
+            "node": "Filter - Market Event",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Filter - High Price",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter - Market Event": {
+      "main": [
+        [
+          {
+            "node": "Slack - Send Notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter - High Price": {
+      "main": [
+        [
+          {
+            "node": "Telegram - Send Notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Slack - Send Notification": {
+      "main": [
+        [
+          {
+            "node": "Webhook Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Telegram - Send Notification": {
+      "main": [
+        [
+          {
+            "node": "Webhook Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "1",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "market-notification"
+  },
+  "id": "market-notification",
+  "tags": ["market", "notification", "slack", "telegram"]
+}

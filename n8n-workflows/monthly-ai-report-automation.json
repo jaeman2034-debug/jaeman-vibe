@@ -1,0 +1,286 @@
+﻿{
+  "name": "YAGO VIBE - Monthly AI Report Automation",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 9 1 * *"
+            }
+          ]
+        }
+      },
+      "name": "Cron - First Day of Month 9AM",
+      "type": "n8n-nodes-base.cron",
+      "typeVersion": 1,
+      "position": [250, 400],
+      "id": "cron-monthly"
+    },
+    {
+      "parameters": {
+        "resource": "document",
+        "operation": "getAll",
+        "projectId": "={{$env.FIREBASE_PROJECT_ID}}",
+        "collection": "schedules",
+        "options": {
+          "filters": {
+            "field": "start",
+            "operator": ">=",
+            "value": "={{$now.minus(1, 'month').toISO()}}"
+          },
+          "orderBy": {
+            "field": "start",
+            "direction": "desc"
+          }
+        }
+      },
+      "name": "Firestore - Get Schedules",
+      "type": "n8n-nodes-base.googleFirestore",
+      "typeVersion": 1,
+      "position": [470, 400],
+      "id": "firestore-schedules"
+    },
+    {
+      "parameters": {
+        "functionCode": "// ?쇱젙 ?듦퀎 怨꾩궛\nconst schedules = items.map(i => i.json);\n\nconst stats = {\n  totalEvents: schedules.length,\n  matches: schedules.filter(s => s.type === 'team').length,\n  academies: schedules.filter(s => s.type === 'academy').length,\n  tournaments: schedules.filter(s => s.type === 'tournament').length,\n};\n\nconsole.log('?뱤 ?붽컙 ?듦퀎:', stats);\n\nreturn [{ json: { stats, schedules } }];"
+      },
+      "name": "Function - Calculate Stats",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [690, 400],
+      "id": "function-stats"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer {{$env.OPENAI_API_KEY}}"
+            }
+          ]
+        },
+        "options": {
+          "bodyContentType": "json"
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "model",
+              "value": "gpt-4o-mini"
+            },
+            {
+              "name": "messages",
+              "value": "=[{\"role\":\"system\",\"content\":\"?뱀떊? ?ㅽ룷痢?? 愿由ъ옄瑜??꾪븳 AI 由ы룷???앹꽦 ?꾨Ц媛?낅땲??\"},{\"role\":\"user\",\"content\":\"?꾨옒 ?듦퀎瑜?諛뷀깢?쇰줈 ?붽컙 ?쒕룞 ?붿빟 由ы룷?몃? ?묒꽦?섏꽭??\\n\\n珥??쇱젙: {{$json.stats.totalEvents}}媛?\n寃쎄린: {{$json.stats.matches}}媛?\n?꾩뭅?곕?: {{$json.stats.academies}}媛?\n??? {{$json.stats.tournaments}}媛?\n\\n?붽뎄?ы빆:\\n1. ?꾩껜?곸씤 ?쒕룞 ?붿빟 (2-3臾몄옣)\\n2. 二쇱슂 ?쒕룞 ?섏씠?쇱씠??\n3. ?ㅼ쓬 ??沅뚯옣 ?ы빆\\n4. 湲띿젙?곸씠怨??숆린遺?щ릺????"}]"
+            },
+            {
+              "name": "temperature",
+              "value": "0.7"
+            },
+            {
+              "name": "max_tokens",
+              "value": "500"
+            }
+          ]
+        }
+      },
+      "name": "OpenAI - Generate Summary",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [910, 400],
+      "id": "openai-summary"
+    },
+    {
+      "parameters": {
+        "functionCode": "const aiResponse = items[0].json;\nconst summary = aiResponse.choices[0]?.message?.content || '?붿빟 ?앹꽦 ?ㅽ뙣';\nconst stats = $node['Function - Calculate Stats'].json.stats;\n\nconsole.log('??AI ?붿빟 ?앹꽦 ?꾨즺:', summary.substring(0, 100));\n\nreturn [{ json: { summary, stats } }];"
+      },
+      "name": "Function - Extract Summary",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [1130, 400],
+      "id": "function-extract"
+    },
+    {
+      "parameters": {
+        "resource": "document",
+        "operation": "create",
+        "projectId": "={{$env.FIREBASE_PROJECT_ID}}",
+        "collection": "reports",
+        "documentFields": {
+          "fields": [
+            {
+              "name": "summary",
+              "value": "={{$json.summary}}"
+            },
+            {
+              "name": "stats",
+              "value": "={{JSON.stringify($json.stats)}}"
+            },
+            {
+              "name": "type",
+              "value": "monthly"
+            },
+            {
+              "name": "generatedBy",
+              "value": "ai-system"
+            },
+            {
+              "name": "teamId",
+              "value": "all"
+            },
+            {
+              "name": "month",
+              "value": "={{$now.format('yyyy-MM')}}"
+            }
+          ]
+        }
+      },
+      "name": "Firestore - Save Report",
+      "type": "n8n-nodes-base.googleFirestore",
+      "typeVersion": 1,
+      "position": [1350, 400],
+      "id": "firestore-save"
+    },
+    {
+      "parameters": {
+        "url": "https://us-central1-{{$env.FIREBASE_PROJECT_ID}}.cloudfunctions.net/sendAdminPush",
+        "options": {
+          "bodyContentType": "json"
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "title",
+              "value": "?룇 ?붽컙 AI 由ы룷???앹꽦 ?꾨즺!"
+            },
+            {
+              "name": "body",
+              "value": "?대쾲 ???쒕룞 ?붿빟??以鍮꾨릺?덉뒿?덈떎."
+            },
+            {
+              "name": "url",
+              "value": "/admin/reports/ai"
+            }
+          ]
+        }
+      },
+      "name": "Firebase Function - Push Notification",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1350, 600],
+      "id": "fcm-push"
+    },
+    {
+      "parameters": {
+        "url": "={{$env.SLACK_WEBHOOK_URL}}",
+        "options": {
+          "bodyContentType": "json"
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "text",
+              "value": "?룇 *YAGO VIBE ?붽컙 AI 由ы룷???앹꽦 ?꾨즺!*\\n\\n?뱤 ?대쾲 ???듦퀎:\\n??珥??쇱젙: {{$json.stats.totalEvents}}媛?\n??? ?덈젴: {{$json.stats.matches}}媛?\n???꾩뭅?곕?: {{$json.stats.academies}}媛?\n????? {{$json.stats.tournaments}}媛?\n\\n?쭬 AI ?붿빟:\\n{{$json.summary}}"
+            }
+          ]
+        }
+      },
+      "name": "Slack - Monthly Summary",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1570, 400],
+      "id": "slack-monthly"
+    }
+  ],
+  "connections": {
+    "Cron - First Day of Month 9AM": {
+      "main": [
+        [
+          {
+            "node": "Firestore - Get Schedules",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Firestore - Get Schedules": {
+      "main": [
+        [
+          {
+            "node": "Function - Calculate Stats",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Function - Calculate Stats": {
+      "main": [
+        [
+          {
+            "node": "OpenAI - Generate Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI - Generate Summary": {
+      "main": [
+        [
+          {
+            "node": "Function - Extract Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Function - Extract Summary": {
+      "main": [
+        [
+          {
+            "node": "Firestore - Save Report",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Firebase Function - Push Notification",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Slack - Monthly Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [
+    {
+      "id": "1",
+      "name": "YAGO VIBE"
+    },
+    {
+      "id": "2",
+      "name": "AI Report"
+    }
+  ]
+}
+

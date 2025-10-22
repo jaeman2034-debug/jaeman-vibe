@@ -1,0 +1,98 @@
+{
+  "name": "Club – Create Blog (GitHub Pages)",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "club-create",
+        "options": {}
+      },
+      "id": "wh",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [-620, 60]
+    },
+    {
+      "parameters": {
+        "keepOnlySet": false,
+        "values": {
+          "string": [
+            {"name": "clubId", "value": "={{$json.clubId}}"},
+            {"name": "name", "value": "={{$json.name}}"},
+            {"name": "slug", "value": "={{$json.slug}}"},
+            {"name": "owner", "value": "={{$env.GH_OWNER}}"}
+          ]
+        }
+      },
+      "id": "set",
+      "name": "Set",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [-410, 60]
+    },
+    {
+      "parameters": {
+        "url": "=https://api.github.com/orgs/{{$json.owner}}/repos",
+        "method": "POST",
+        "sendBody": true,
+        "jsonParameters": true,
+        "options": {
+          "headerParametersJson": "={\n  \"Authorization\": \"token {{$env.GH_TOKEN}}\",\n  \"Accept\": \"application/vnd.github+json\"\n}",
+          "bodyParametersJson": "={\n  \"name\": \"club-{{$json.slug}}\",\n  \"description\": \"{{$json.name}} – YAGO Club Blog\",\n  \"private\": false,\n  \"auto_init\": true\n}"
+        }
+      },
+      "id": "repo",
+      "name": "Create Repo",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [-200, 60]
+    },
+    {
+      "parameters": {
+        "url": "=https://api.github.com/repos/{{$json.owner}}/club-{{$json.slug}}/contents/index.html",
+        "method": "PUT",
+        "sendBody": true,
+        "jsonParameters": true,
+        "options": {
+          "headerParametersJson": "={\n  \"Authorization\": \"token {{$env.GH_TOKEN}}\",\n  \"Accept\": \"application/vnd.github+json\"\n}",
+          "bodyParametersJson": "={\n  \"message\": \"init: club landing\",\n  \"content\": \"{{(Buffer.from(`<html><head><meta charset=\\\"utf-8\\\"/><title>${$json.name}</title></head><body><h1>${$json.name}</h1><p>Welcome to our club!</p></body></html>`,'utf8')).toString('base64')}}\"\n}"
+        }
+      },
+      "id": "putIndex",
+      "name": "Put index.html",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [10, 60]
+    },
+    {
+      "parameters": {
+        "url": "={{$env.SLACK_KPI_WEBHOOK}}",
+        "jsonParameters": true,
+        "sendBody": true,
+        "bodyParametersJson": "={\n  \"text\": \"✅ Club blog created: {{$json.name}} (repo: club-{{$json.slug}})\"\n}"
+      },
+      "id": "slack",
+      "name": "Slack",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [220, 60]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [[{"node": "Set", "type": "main", "index": 0}]]
+    },
+    "Set": {
+      "main": [[{"node": "Create Repo", "type": "main", "index": 0}]]
+    },
+    "Create Repo": {
+      "main": [[{"node": "Put index.html", "type": "main", "index": 0}]]
+    },
+    "Put index.html": {
+      "main": [[{"node": "Slack", "type": "main", "index": 0}]]
+    }
+  },
+  "settings": {
+    "timezone": "Asia/Seoul"
+  }
+}

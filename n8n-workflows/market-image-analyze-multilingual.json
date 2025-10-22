@@ -1,0 +1,261 @@
+﻿{
+  "name": "?뙇 Market Image AI Analyzer (Multilingual)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "market-image-analyze",
+        "responseMode": "lastNode",
+        "options": {
+          "rawBody": false
+        }
+      },
+      "id": "webhook_entry",
+      "name": "?뱿 Webhook: market-image-analyze",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [240, 300],
+      "webhookId": "market-image-analyze"
+    },
+    {
+      "parameters": {
+        "jsCode": "// ?뵇 ?낅젰 ?곗씠??寃利?nconst input = $input.all()[0].json;\n\nconsole.log('?벂 ?섏떊??Firebase Functions ?곗씠??', input);\n\nif (!input.fileUrl || !input.filename) {\n  throw new Error('??fileUrl ?먮뒗 filename???꾨씫?섏뿀?듬땲??);\n}\n\nconsole.log('???곗씠??寃利??꾨즺');\n\nreturn {\n  event: input.event || 'MARKET_IMAGE_UPLOADED',\n  fileUrl: input.fileUrl,\n  filename: input.filename,\n  contentType: input.contentType || 'image/jpeg',\n  size: input.size || 0,\n  filePath: input.filePath || '',\n  bucket: input.bucket || '',\n  timestamp: input.timestamp || new Date().toISOString(),\n  source: input.source || 'firebase-functions'\n};"
+      },
+      "id": "function_validate",
+      "name": "?㎥ ?곗씠??寃利?,
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// ?쨼 OpenAI Vision API ?몄텧 (GPT-4o-mini Vision) - ?곸뼱濡?遺꾩꽍\nconst input = $input.all()[0].json;\nconst apiKey = $env.OPENAI_API_KEY;\n\nif (!apiKey) {\n  console.warn('?좑툘 OPENAI_API_KEY媛 ?ㅼ젙?섏? ?딆쓬 - AI 遺꾩꽍 嫄대꼫?');\n  return {\n    ...input,\n    caption_en: 'Analysis skipped',\n    caption_ko: '遺꾩꽍 嫄대꼫?',\n    aiAnalysis: {\n      skipped: true,\n      reason: 'API ??誘몄꽕??,\n      category: '湲고?',\n      brand: '?????놁쓬',\n      condition: '以묎퀬',\n      tags: [],\n      suggestedPrice: 0\n    }\n  };\n}\n\ntry {\n  console.log('?뵇 AI Vision 遺꾩꽍 ?쒖옉 (?곸뼱):', input.fileUrl);\n\n  const response = await fetch('https://api.openai.com/v1/chat/completions', {\n    method: 'POST',\n    headers: {\n      'Content-Type': 'application/json',\n      'Authorization': `Bearer ${apiKey}`\n    },\n    body: JSON.stringify({\n      model: 'gpt-4o-mini',\n      messages: [\n        {\n          role: 'system',\n          content: `You are a sports equipment image analyst. Analyze the image and return JSON with:\n{\n  \"category\": \"category in Korean (異뺢뎄???좊땲??怨?湲고?)\",\n  \"brand\": \"brand name\",\n  \"condition\": \"condition in Korean (?덉긽??嫄곗쓽?덇쾬/?ъ슜媛먯엳??以묎퀬)\",\n  \"tags\": [\"feature1\", \"feature2\"],\n  \"suggestedPrice\": number,\n  \"caption_en\": \"English description\"\n}\nOnly return JSON, no other text.`\n        },\n        {\n          role: 'user',\n          content: [\n            {\n              type: 'text',\n              text: 'Analyze this sports equipment image and provide details in JSON format. The caption should be in English.'\n            },\n            {\n              type: 'image_url',\n              image_url: {\n                url: input.fileUrl,\n                detail: 'low'\n              }\n            }\n          ]\n        }\n      ],\n      max_tokens: 500,\n      temperature: 0.3\n    })\n  });\n\n  if (!response.ok) {\n    throw new Error(`OpenAI API ?ㅻ쪟: ${response.status}`);\n  }\n\n  const result = await response.json();\n  const aiText = result.choices[0].message.content;\n  \n  console.log('?쨼 AI ?먮낯 ?묐떟 (?곸뼱):', aiText);\n\n  let aiData = {};\n  try {\n    const jsonMatch = aiText.match(/```json\\s*([\\s\\S]*?)\\s*```/) || \n                     aiText.match(/```\\s*([\\s\\S]*?)\\s*```/) ||\n                     aiText.match(/\\{[\\s\\S]*\\}/);\n    \n    if (jsonMatch) {\n      const jsonStr = jsonMatch[1] || jsonMatch[0];\n      aiData = JSON.parse(jsonStr);\n      console.log('??JSON ?뚯떛 ?깃났:', aiData);\n    } else {\n      throw new Error('JSON 釉붾줉??李얠쓣 ???놁쓬');\n    }\n  } catch (parseError) {\n    console.warn('?좑툘 JSON ?뚯떛 ?ㅽ뙣, 湲곕낯媛??ъ슜');\n    aiData = { \n      caption_en: aiText.substring(0, 100),\n      category: '湲고?',\n      brand: '?????놁쓬',\n      condition: '以묎퀬',\n      tags: [],\n      suggestedPrice: 0\n    };\n  }\n\n  return {\n    ...input,\n    caption_en: aiData.caption_en || 'No description',\n    aiAnalysis: {\n      success: true,\n      category: aiData.category || '湲고?',\n      brand: aiData.brand || '?????놁쓬',\n      condition: aiData.condition || '以묎퀬',\n      tags: Array.isArray(aiData.tags) ? aiData.tags : [],\n      suggestedPrice: Number(aiData.suggestedPrice) || 0,\n      analyzedAt: new Date().toISOString(),\n      model: 'gpt-4o-mini'\n    }\n  };\n\n} catch (error) {\n  console.error('??AI 遺꾩꽍 ?ㅻ쪟:', error.message);\n  return {\n    ...input,\n    caption_en: 'Analysis failed',\n    caption_ko: '遺꾩꽍 ?ㅽ뙣',\n    aiAnalysis: {\n      success: false,\n      error: error.message,\n      category: '湲고?',\n      brand: '?????놁쓬',\n      condition: '以묎퀬',\n      tags: [],\n      suggestedPrice: 0,\n      analyzedAt: new Date().toISOString()\n    }\n  };\n}"
+      },
+      "id": "function_ai_vision_en",
+      "name": "?쨼 AI Vision 遺꾩꽍 (?곸뼱)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// ?뵥 ?곸뼱 ???쒓뎅???먮룞 踰덉뿭 (OpenAI GPT-4o-mini)\nconst input = $input.all()[0].json;\nconst apiKey = $env.OPENAI_API_KEY;\nconst caption_en = input.caption_en;\n\nif (!apiKey || !caption_en || caption_en === 'Analysis skipped' || caption_en === 'Analysis failed') {\n  console.warn('?좑툘 踰덉뿭 嫄대꼫?');\n  return {\n    ...input,\n    caption_ko: input.caption_en === 'Analysis skipped' ? '遺꾩꽍 嫄대꼫?' : '踰덉뿭 遺덇?'\n  };\n}\n\ntry {\n  console.log('?뵥 ?쒓뎅??踰덉뿭 ?쒖옉:', caption_en);\n\n  const response = await fetch('https://api.openai.com/v1/chat/completions', {\n    method: 'POST',\n    headers: {\n      'Content-Type': 'application/json',\n      'Authorization': `Bearer ${apiKey}`\n    },\n    body: JSON.stringify({\n      model: 'gpt-4o-mini',\n      messages: [\n        {\n          role: 'system',\n          content: 'You are a professional Korean translator. Translate English text to natural, fluent Korean. Only return the translated text, no explanations.'\n        },\n        {\n          role: 'user',\n          content: `Translate this to Korean naturally and simply:\\n\\n${caption_en}`\n        }\n      ],\n      max_tokens: 200,\n      temperature: 0.3\n    })\n  });\n\n  if (!response.ok) {\n    throw new Error(`OpenAI Translation API ?ㅻ쪟: ${response.status}`);\n  }\n\n  const result = await response.json();\n  const caption_ko = result.choices[0].message.content.trim();\n  \n  console.log('???쒓뎅??踰덉뿭 ?꾨즺:', caption_ko);\n\n  return {\n    ...input,\n    caption_ko: caption_ko || '踰덉뿭 ?ㅽ뙣'\n  };\n\n} catch (error) {\n  console.error('??踰덉뿭 ?ㅻ쪟:', error.message);\n  return {\n    ...input,\n    caption_ko: '踰덉뿭 ?ㅽ뙣'\n  };\n}"
+      },
+      "id": "function_translate_ko",
+      "name": "?뵥 ?곸뼱 ???쒓뎅??踰덉뿭",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "content": "=?뤇截?**??留덉폆 ?대?吏 ?낅줈?쒕맖!**\n\n?뱚 **?뚯씪紐?** `{{ $json.filename }}`\n?뵕 **URL:** {{ $json.fileUrl }}\n?벀 **?ш린:** {{ $json.size }} bytes\n\n?쨼 **AI 遺꾩꽍 寃곌낵:**\n\n?눖?눟 **?쒓뎅??** {{ $json.caption_ko || '踰덉뿭 以?..' }}\n?뙉 **English:** {{ $json.caption_en || 'Analyzing...' }}\n\n**?곸꽭 ?뺣낫:**\n??移댄뀒怨좊━: {{ $json.aiAnalysis.category }}\n??釉뚮옖?? {{ $json.aiAnalysis.brand }}\n???곹깭: {{ $json.aiAnalysis.condition }}\n??異붿쿇 媛寃? ??{ $json.aiAnalysis.suggestedPrice.toLocaleString() }}\n???쒓렇: {{ $json.aiAnalysis.tags.join(', ') || '?놁쓬' }}\n\n??{{ $json.timestamp }}",
+        "channel": "={{$env.SLACK_CHANNEL || '#market-uploads'}}",
+        "username": "YAGO VIBE Bot",
+        "icon_emoji": ":soccer:"
+      },
+      "id": "slack_notify",
+      "name": "?뮠 Slack ?뚮┝ (?ㅺ뎅??",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.1,
+      "position": [1120, 200],
+      "credentials": {
+        "slackApi": {
+          "id": "1",
+          "name": "Slack account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "=?? **??留덉폆 ?대?吏 ?낅줈?쒕맖!**\n\n**?뚯씪紐?** `{{ $json.filename }}`\n**?ш린:** {{ $json.size }} bytes\n\n**?쨼 AI 遺꾩꽍 (?ㅺ뎅??:**\n\n?눖?눟 **?쒓뎅??** {{ $json.caption_ko || '踰덉뿭 以?..' }}\n?뙉 **English:** {{ $json.caption_en || 'Analyzing...' }}\n\n**?곸꽭 遺꾩꽍:**\n- 移댄뀒怨좊━: {{ $json.aiAnalysis.category }}\n- 釉뚮옖?? {{ $json.aiAnalysis.brand }}\n- ?곹깭: {{ $json.aiAnalysis.condition }}\n- 異붿쿇 媛寃? ??{ $json.aiAnalysis.suggestedPrice.toLocaleString() }}\n\n[?대?吏 蹂닿린]({{ $json.fileUrl }})",
+        "webhookUrl": "={{$env.DISCORD_WEBHOOK_URL}}"
+      },
+      "id": "discord_notify",
+      "name": "?렜 Discord ?뚮┝ (?ㅺ뎅??",
+      "type": "n8n-nodes-base.discord",
+      "typeVersion": 2,
+      "position": [1120, 400]
+    },
+    {
+      "parameters": {
+        "operation": "set",
+        "projectId": "={{$env.FIREBASE_PROJECT_ID || 'jaeman-vibe-platform'}}",
+        "collection": "market-uploads",
+        "documentId": "={{$json.filename}}",
+        "documentFields": "={{ {\n  caption_en: $json.caption_en,\n  caption_ko: $json.caption_ko,\n  aiCategory: $json.aiAnalysis.category,\n  aiBrand: $json.aiAnalysis.brand,\n  aiCondition: $json.aiAnalysis.condition,\n  aiTags: $json.aiAnalysis.tags,\n  aiSuggestedPrice: $json.aiAnalysis.suggestedPrice,\n  aiSuccess: $json.aiAnalysis.success,\n  aiModel: $json.aiAnalysis.model || 'gpt-4o-mini',\n  analyzedAt: $json.aiAnalysis.analyzedAt\n} }}",
+        "options": {
+          "merge": true
+        }
+      },
+      "id": "firestore_update",
+      "name": "?뵦 Firestore ?낅뜲?댄듃 (?ㅺ뎅??",
+      "type": "n8n-nodes-base.googleFirebaseRealtimeDatabase",
+      "typeVersion": 1,
+      "position": [1120, 600],
+      "credentials": {
+        "googleFirebaseRealtimeDatabaseOAuth2Api": {
+          "id": "2",
+          "name": "Google Firebase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "success",
+              "name": "status",
+              "value": "completed",
+              "type": "string"
+            },
+            {
+              "id": "message",
+              "name": "message",
+              "value": "=???ㅺ뎅??AI 遺꾩꽍 ?꾨즺: {{ $json.filename }}",
+              "type": "string"
+            },
+            {
+              "id": "captions",
+              "name": "captions",
+              "value": "={{ { en: $json.caption_en, ko: $json.caption_ko } }}",
+              "type": "object"
+            },
+            {
+              "id": "analysis",
+              "name": "analysis",
+              "value": "={{ $json.aiAnalysis }}",
+              "type": "object"
+            },
+            {
+              "id": "timestamp",
+              "name": "completedAt",
+              "value": "={{ $now.toISO() }}",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "id": "response_complete",
+      "name": "???꾨즺 ?묐떟 (?ㅺ뎅??",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.3,
+      "position": [1340, 300]
+    }
+  ],
+  "connections": {
+    "?뱿 Webhook: market-image-analyze": {
+      "main": [
+        [
+          {
+            "node": "?㎥ ?곗씠??寃利?,
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "?㎥ ?곗씠??寃利?: {
+      "main": [
+        [
+          {
+            "node": "?쨼 AI Vision 遺꾩꽍 (?곸뼱)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "?쨼 AI Vision 遺꾩꽍 (?곸뼱)": {
+      "main": [
+        [
+          {
+            "node": "?뵥 ?곸뼱 ???쒓뎅??踰덉뿭",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "?뵥 ?곸뼱 ???쒓뎅??踰덉뿭": {
+      "main": [
+        [
+          {
+            "node": "?뮠 Slack ?뚮┝ (?ㅺ뎅??",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "?렜 Discord ?뚮┝ (?ㅺ뎅??",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "?뵦 Firestore ?낅뜲?댄듃 (?ㅺ뎅??",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "?뮠 Slack ?뚮┝ (?ㅺ뎅??": {
+      "main": [
+        [
+          {
+            "node": "???꾨즺 ?묐떟 (?ㅺ뎅??",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "?렜 Discord ?뚮┝ (?ㅺ뎅??": {
+      "main": [
+        [
+          {
+            "node": "???꾨즺 ?묐떟 (?ㅺ뎅??",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "?뵦 Firestore ?낅뜲?댄듃 (?ㅺ뎅??": {
+      "main": [
+        [
+          {
+            "node": "???꾨즺 ?묐떟 (?ㅺ뎅??",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": ""
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "id": "1",
+      "name": "market"
+    },
+    {
+      "id": "2",
+      "name": "ai"
+    },
+    {
+      "id": "3",
+      "name": "multilingual"
+    }
+  ],
+  "triggerCount": 1,
+  "updatedAt": "2025-01-09T00:00:00.000Z",
+  "versionId": "2"
+}

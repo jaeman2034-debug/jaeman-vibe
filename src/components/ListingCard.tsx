@@ -1,0 +1,57 @@
+type Badge = { label: string };
+
+export default function ListingCard(props: {
+  title: string;
+  subtitle?: string;
+  rightMeta?: string;
+  badges?: Badge[];
+  imageUrl?: string;
+  onClick?: () => void;
+}) {
+  const { title, subtitle, rightMeta, badges = [], imageUrl, onClick } = props;
+
+  return (
+    <button
+      onClick={onClick}
+      className="card w-full text-left hover:shadow-2xl transition"
+    >
+      <div className="flex gap-4">
+        <div className="h-20 w-20 shrink-0 rounded-xl bg-slate-100 overflow-hidden">
+          <img 
+            src={imageUrl ?? '/placeholder.png'} 
+            alt={title ?? '상품'} 
+            className="h-full w-full object-cover" 
+            onError={(e) => {
+              (e.target as HTMLImageElement).src = '/placeholder.png';
+            }}
+          />
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-start justify-between gap-2">
+            <h3 className="font-semibold truncate">{title}</h3>
+            {rightMeta && (
+              <span className="whitespace-nowrap text-sm text-slate-500">
+                {rightMeta}
+              </span>
+            )}
+          </div>
+          {subtitle && (
+            <p className="mt-1 text-sm text-slate-600 line-clamp-2">{subtitle}</p>
+          )}
+          {badges.length > 0 && (
+            <div className="mt-2 flex flex-wrap gap-2">
+              {badges.map((b, i) => (
+                <span
+                  key={i}
+                  className="rounded-full bg-slate-100 px-2.5 py-1 text-xs text-slate-700"
+                >
+                  {b.label}
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </button>
+  );
+}

@@ -1,0 +1,13 @@
+{
+  "name": "Meetup Created → Wait → Reminders",
+  "nodes": [
+    {"parameters": {"httpMethod": "POST", "path": "meetup-created"}, "id": "Webhook", "name": "Webhook", "type": "n8n-nodes-base.webhook", "typeVersion": 1, "position": [200, 200]},
+    {"parameters": {"amount": 24, "unit": "hours", "type": "timeInterval", "options": {"relativeTo": "={{new Date($json.startAt)}}"}}, "id": "Wait 24h", "name": "Wait 24h before", "type": "n8n-nodes-base.wait", "typeVersion": 2, "position": [460, 160]},
+    {"parameters": {"amount": 2, "unit": "hours", "type": "timeInterval", "options": {"relativeTo": "={{new Date($json.startAt)}}"}}, "id": "Wait 2h", "name": "Wait 2h before", "type": "n8n-nodes-base.wait", "typeVersion": 2, "position": [460, 260]},
+    {"parameters": {"channel": "#events", "text": "=⏰ Meetup reminder: {{$json.title}} at {{$json.startAt}}"}, "id": "Slack 24h", "name": "Slack 24h", "type": "n8n-nodes-base.slack", "typeVersion": 1, "position": [720, 160]},
+    {"parameters": {"channel": "#events", "text": "=⏰ Meetup reminder: {{$json.title}} starts soon (2h)"}, "id": "Slack 2h", "name": "Slack 2h", "type": "n8n-nodes-base.slack", "typeVersion": 1, "position": [720, 260]},
+    {"parameters": {"responseBody": "={\"ok\":true}"}, "id": "Respond", "name": "Respond", "type": "n8n-nodes-base.respondToWebhook", "typeVersion": 1, "position": [720, 320]}
+  ],
+  "connections": {"Webhook": {"main": [[{"node": "Wait 24h before", "type": "main", "index": 0}, {"node": "Wait 2h before", "type": "main", "index": 0}, {"node": "Respond", "type": "main", "index": 0}]]}, "Wait 24h before": {"main": [[{"node": "Slack 24h", "type": "main", "index": 0}]]}, "Wait 2h before": {"main": [[{"node": "Slack 2h", "type": "main", "index": 0}]]}},
+  "active": false, "settings": {}, "staticData": {}
+}

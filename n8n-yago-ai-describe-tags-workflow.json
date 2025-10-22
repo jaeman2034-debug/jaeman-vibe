@@ -1,0 +1,93 @@
+{
+  "name": "YAGO VIBE - AI 상품 설명 & 해시태그 생성기",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "ai-describe-tags",
+        "responseMode": "onReceived",
+        "responseData": "={{$json}}"
+      },
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [300, 200],
+      "webhookId": "yago-ai-describe-tags"
+    },
+    {
+      "parameters": {
+        "authentication": "headerAuth",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "responseFormat": "json",
+        "options": {},
+        "headerParametersJson": "{ \"Authorization\": \"Bearer {{$env.OPENAI_API_KEY}}\", \"Content-Type\": \"application/json\" }",
+        "bodyParametersJson": "={\"model\":\"gpt-4o-mini\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"이 이미지는 상품 이미지입니다.\\n1️⃣ 이 상품을 간결하고 자연스러운 한국어로 50자 내외 설명해줘.\\n2️⃣ 그리고 이 상품을 잘 표현할 수 있는 해시태그 5개를 #형식으로 만들어줘.\\n출력은 반드시 JSON으로: {\\\"description\\\": \\\"...\\\", \\\"tags\\\": [\\\"#태그1\\\", \\\"#태그2\\\", ...]} 형식으로 줘.\"},{\"type\":\"image_url\",\"image_url\":\"{{$json[\"image\"]}}\"}]}],\"max_tokens\":400}"
+      },
+      "name": "OpenAI Vision API",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [600, 200]
+    },
+    {
+      "parameters": {
+        "functionCode": "const content = JSON.parse($json[\"choices\"][0][\"message\"][\"content\"] || '{}');\nreturn { description: content.description || '', tags: content.tags || [] };"
+      },
+      "name": "Extract Description + Tags",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [900, 200]
+    },
+    {
+      "parameters": {
+        "responseBody": "={{$json}}",
+        "responseCode": 200,
+        "options": {}
+      },
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1200, 200]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "OpenAI Vision API",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Vision API": {
+      "main": [
+        [
+          {
+            "node": "Extract Description + Tags",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Description + Tags": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {},
+  "versionId": "1.1.0",
+  "meta": {
+    "instanceId": "yago-vibe-ai-describe-tags"
+  }
+}

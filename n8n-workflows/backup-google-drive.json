@@ -1,0 +1,160 @@
+{
+  "name": "YAGO – Backup → Google Drive (03:00)",
+  "nodes": [
+    {
+      "parameters": {
+        "mode": "custom",
+        "cronExpression": "0 0 3 * * *"
+      },
+      "id": "cron",
+      "name": "03:00 KST",
+      "type": "n8n-nodes-base.cron",
+      "typeVersion": 2,
+      "position": [-760, 60]
+    },
+    {
+      "parameters": {
+        "keepOnlySet": false,
+        "values": {
+          "string": [
+            {
+              "name": "idsRaw",
+              "value": "={{$env.BACKUP_WORKFLOW_IDS}}"
+            },
+            {
+              "name": "date",
+              "value": "={{$now.toFormat('yyyy-LL-dd')}}"
+            }
+          ]
+        }
+      },
+      "id": "set",
+      "name": "Set Vars",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [-530, 60]
+    },
+    {
+      "parameters": {
+        "functionCode": "const ids=($json.idsRaw||'').split(',').map(s=>s.trim()).filter(Boolean);return ids.map(id=>({json:{id,date:$json.date}}));"
+      },
+      "id": "fn1",
+      "name": "Split IDs",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 2,
+      "position": [-300, 60]
+    },
+    {
+      "parameters": {
+        "url": "={{$env.N8N_BASE}}/api/v1/workflows/{{$json.id}}",
+        "options": {
+          "response": "json",
+          "timeout": 30,
+          "headerParametersJson": "={\n  \"Authorization\": \"Bearer {{$env.N8N_API_KEY}}\"\n}"
+        }
+      },
+      "id": "http1",
+      "name": "GET Workflow JSON",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [-80, 60]
+    },
+    {
+      "parameters": {
+        "resource": "file",
+        "operation": "upload",
+        "fileName": "=workflow-{{$json.id}}.json",
+        "binaryData": false,
+        "additionalFields": {
+          "parents": ["={{$env.GDRIVE_FOLDER_ID}}"],
+          "fileContent": "={{JSON.stringify($json)}}",
+          "options": {}
+        }
+      },
+      "id": "gdrive",
+      "name": "Google Drive Upload",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 4,
+      "position": [140, 60],
+      "credentials": {
+        "googleDriveOAuth2": {
+          "id": "REPLACE_WITH_YOUR_CREDENTIAL_ID",
+          "name": "Google Drive OAuth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "={{$env.SLACK_KPI_WEBHOOK}}",
+        "jsonParameters": true,
+        "sendBody": true,
+        "bodyParametersJson": "={\n  \"text\": \"✅ GDrive backup: workflow {{$json.id}} → {{$json.fileName || 'ok'}}\"\n}"
+      },
+      "id": "slack",
+      "name": "Slack KPI",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [360, 60]
+    }
+  ],
+  "connections": {
+    "03:00 KST": {
+      "main": [
+        [
+          {
+            "node": "Set Vars",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Vars": {
+      "main": [
+        [
+          {
+            "node": "Split IDs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split IDs": {
+      "main": [
+        [
+          {
+            "node": "GET Workflow JSON",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GET Workflow JSON": {
+      "main": [
+        [
+          {
+            "node": "Google Drive Upload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Drive Upload": {
+      "main": [
+        [
+          {
+            "node": "Slack KPI",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "timezone": "Asia/Seoul"
+  }
+}

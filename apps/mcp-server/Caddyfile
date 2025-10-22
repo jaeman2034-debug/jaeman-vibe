@@ -1,0 +1,69 @@
+# Caddy Configuration for MCP Server
+# Production-ready reverse proxy with SSL
+
+# MCP Server API
+mcp.yagovibe.com {
+    # Reverse proxy to MCP server
+    reverse_proxy mcp-server:7331 {
+        health_uri /tools
+        health_interval 30s
+        health_timeout 5s
+    }
+    
+    # Security headers
+    header {
+        # CORS for MCP clients
+        Access-Control-Allow-Origin "*"
+        Access-Control-Allow-Methods "GET, POST, OPTIONS"
+        Access-Control-Allow-Headers "Content-Type, Authorization"
+        
+        # Security headers
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "DENY"
+        X-XSS-Protection "1; mode=block"
+        Strict-Transport-Security "max-age=31536000; includeSubDomains"
+        
+        # Remove server header
+        -Server
+    }
+    
+    # Rate limiting
+    rate_limit {
+        zone static {
+            key {remote_host}
+            events 100
+            window 1m
+        }
+    }
+    
+    # Logging
+    log {
+        output file /var/log/caddy/mcp-server.log
+        format json
+    }
+    
+    # Health check endpoint
+    handle /health {
+        respond "OK" 200
+    }
+    
+    # Handle OPTIONS requests for CORS
+    handle OPTIONS {
+        respond "" 200
+    }
+}
+
+# Local development
+localhost:7331 {
+    reverse_proxy mcp-server:7331
+    
+    header {
+        Access-Control-Allow-Origin "*"
+        Access-Control-Allow-Methods "GET, POST, OPTIONS"
+        Access-Control-Allow-Headers "Content-Type, Authorization"
+    }
+    
+    handle OPTIONS {
+        respond "" 200
+    }
+}

@@ -1,0 +1,447 @@
+// src/features/auth/authService.ts
+import { FirebaseError } from 'firebase/app';
+import { auth } from '@/lib/firebase'; // ???¨ì¼ ì§„ì…???¬ìš©
+import { 
+  signInWithEmailAndPassword, 
+  createUserWithEmailAndPassword, 
+  signInWithPopup, 
+  signOut, 
+  onAuthStateChanged, 
+  GoogleAuthProvider, 
+  type User, 
+  AuthErrorCodes,
+} from 'firebase/auth';
+
+// ?€??ê°€?œê? ?„ìš”?˜ë©´ ?´ë ‡ê²Œë§Œ ?¬ìš©
+// import type { AuthError } from 'firebase/auth';
+
+// ?ë??ˆì´???¬ìš© ?¬ë? ?•ì¸
+const isUsingEmulators = import.meta.env.DEV || import.meta.env.VITE_USE_EMULATORS === "1";
+console.log('[AUTH] using emulators?', isUsingEmulators);
+
+// Google provider ?¸ìŠ¤?´ìŠ¤ ?ì„±
+const googleProvider = new GoogleAuthProvider();
+googleProvider.setCustomParameters({ prompt: 'select_account' });
+
+// Firebase ?¸ì¦ ?¤ë¥˜ ë¶„ì„ ë°??¬ìš©??ì¹œí™”??ë©”ì‹œì§€ ?ì„±
+function analyzeAuthError(error: FirebaseError): {
+  code: string;
+  message: string;
+  userMessage: string;
+  solution: string;
+  severity: 'info' | 'warning' | 'error';
+} {
+  const { code, message } = error;
+  
+  console.group(`[AUTH ERROR] ${code}`);
+  console.error('Error details:', error);
+  console.error('Error code:', code);
+  console.error('Error message:', message);
+  console.error('Stack trace:', error.stack);
+  console.groupEnd();
+
+  // ?¤ë¥˜ ì½”ë“œë³??¸ë? ë¶„ì„
+  switch (code) {
+    // ?´ë©”??ë¹„ë?ë²ˆí˜¸ ë¡œê·¸??ê´€???¤ë¥˜
+    case AuthErrorCodes.INVALID_EMAIL:
+      return {
+        code,
+        message,
+        userMessage: '?´ë©”???•ì‹???¬ë°”ë¥´ì? ?ŠìŠµ?ˆë‹¤.',
+        solution: '?¬ë°”ë¥??´ë©”??ì£¼ì†Œë¥??…ë ¥?´ì£¼?¸ìš”. (?? user@example.com)',
+        severity: 'warning'
+      };
+      
+    case AuthErrorCodes.USER_DELETED:
+      return {
+        code,
+        message,
+        userMessage: 'ì¡´ì¬?˜ì? ?ŠëŠ” ê³„ì •?…ë‹ˆ??',
+        solution: '?Œì›ê°€?…ì„ ë¨¼ì? ì§„í–‰?´ì£¼?¸ìš”.',
+        severity: 'error'
+      };
+      
+    case AuthErrorCodes.INVALID_PASSWORD:
+      return {
+        code,
+        message,
+        userMessage: 'ë¹„ë?ë²ˆí˜¸ê°€ ?¬ë°”ë¥´ì? ?ŠìŠµ?ˆë‹¤.',
+        solution: 'ë¹„ë?ë²ˆí˜¸ë¥??¤ì‹œ ?•ì¸?´ì£¼?¸ìš”.',
+        severity: 'error'
+      };
+      
+    case AuthErrorCodes.WEAK_PASSWORD:
+      return {
+        code,
+        message,
+        userMessage: 'ë¹„ë?ë²ˆí˜¸ê°€ ?ˆë¬´ ?½í•©?ˆë‹¤.',
+        solution: 'ë¬¸ì, ?«ì, ?¹ìˆ˜ë¬¸ìë¥??¬í•¨?˜ì—¬ 8???´ìƒ?¼ë¡œ ?¤ì •?´ì£¼?¸ìš”.',
+        severity: 'warning'
+      };
+      
+    case AuthErrorCodes.EMAIL_ALREADY_IN_USE:
+      return {
+        code,
+        message,
+        userMessage: '?´ë? ?¬ìš© ì¤‘ì¸ ?´ë©”?¼ì…?ˆë‹¤.',
+        solution: '?¤ë¥¸ ?´ë©”??ì£¼ì†Œë¥??¬ìš©?˜ê±°??ë¡œê·¸?¸ì„ ?œë„?´ì£¼?¸ìš”.',
+        severity: 'warning'
+      };
+      
+    case AuthErrorCodes.INVALID_LOGIN_CREDENTIALS:
+      return {
+        code,
+        message,
+        userMessage: '?´ë©”???ëŠ” ë¹„ë?ë²ˆí˜¸ê°€ ?¬ë°”ë¥´ì? ?ŠìŠµ?ˆë‹¤.',
+        solution: '?…ë ¥???•ë³´ë¥??¤ì‹œ ?•ì¸?´ì£¼?¸ìš”.',
+        severity: 'error'
+      };
+      
+    case AuthErrorCodes.TOO_MANY_ATTEMPTS_TRY_LATER:
+      return {
+        code,
+        message,
+        userMessage: 'ë¡œê·¸???œë„ê°€ ?ˆë¬´ ë§ìŠµ?ˆë‹¤.',
+        solution: '? ì‹œ ???¤ì‹œ ?œë„?´ì£¼?¸ìš”. (ë³´í†µ 15ë¶??œì œ)',
+        severity: 'warning'
+      };
+      
+    case AuthErrorCodes.OPERATION_NOT_ALLOWED:
+      return {
+        code,
+        message,
+        userMessage: '?´ë‹¹ ë¡œê·¸??ë°©ì‹???¬ìš©?????†ìŠµ?ˆë‹¤.',
+        solution: 'ê´€ë¦¬ì?ê²Œ ë¬¸ì˜?˜ê±°???¤ë¥¸ ë¡œê·¸??ë°©ì‹???¬ìš©?´ì£¼?¸ìš”.',
+        severity: 'error'
+      };
+      
+    case AuthErrorCodes.USER_DISABLED:
+      return {
+        code,
+        message,
+        userMessage: 'ë¹„í™œ?±í™”??ê³„ì •?…ë‹ˆ??',
+        solution: 'ê´€ë¦¬ì?ê²Œ ë¬¸ì˜?´ì£¼?¸ìš”.',
+        severity: 'error'
+      };
+      
+    case AuthErrorCodes.ACCOUNT_EXISTS_WITH_DIFFERENT_CREDENTIAL:
+      return {
+        code,
+        message,
+        userMessage: '?¤ë¥¸ ë¡œê·¸??ë°©ì‹?¼ë¡œ ê°€?…ëœ ê³„ì •?…ë‹ˆ??',
+        solution: 'Google ë¡œê·¸?????¤ë¥¸ ë°©ì‹???œë„?´ë³´?¸ìš”.',
+        severity: 'warning'
+      };
+      
+    // ?¤íŠ¸?Œí¬ ê´€???¤ë¥˜
+    case AuthErrorCodes.NETWORK_REQUEST_FAILED:
+      return {
+        code,
+        message,
+        userMessage: '?¤íŠ¸?Œí¬ ?°ê²°???•ì¸?´ì£¼?¸ìš”.',
+        solution: '?¸í„°???°ê²° ?íƒœë¥??•ì¸?˜ê³  ?¤ì‹œ ?œë„?´ì£¼?¸ìš”.',
+        severity: 'warning'
+      };
+      
+    case AuthErrorCodes.TIMEOUT:
+      return {
+        code,
+        message,
+        userMessage: '?”ì²­ ?œê°„??ì´ˆê³¼?˜ì—ˆ?µë‹ˆ??',
+        solution: '?¤íŠ¸?Œí¬ ?íƒœë¥??•ì¸?˜ê³  ?¤ì‹œ ?œë„?´ì£¼?¸ìš”.',
+        severity: 'warning'
+      };
+      
+    case AuthErrorCodes.INVALID_APP_CREDENTIAL:
+      return {
+        code,
+        message,
+        userMessage: '???¸ì¦ ?•ë³´ê°€ ?¬ë°”ë¥´ì? ?ŠìŠµ?ˆë‹¤.',
+        solution: '?±ì„ ?¤ì‹œ ?œì‘?˜ê±°??ê´€ë¦¬ì?ê²Œ ë¬¸ì˜?´ì£¼?¸ìš”.',
+        severity: 'error'
+      };
+      
+    case AuthErrorCodes.INVALID_USER_TOKEN:
+      return {
+        code,
+        message,
+        userMessage: 'ë¡œê·¸???¸ì…˜??ë§Œë£Œ?˜ì—ˆ?µë‹ˆ??',
+        solution: '?¤ì‹œ ë¡œê·¸?¸í•´ì£¼ì„¸??',
+        severity: 'warning'
+      };
+      
+    case AuthErrorCodes.USER_TOKEN_EXPIRED:
+      return {
+        code,
+        message,
+        userMessage: 'ë¡œê·¸???¸ì…˜??ë§Œë£Œ?˜ì—ˆ?µë‹ˆ??',
+        solution: '?¤ì‹œ ë¡œê·¸?¸í•´ì£¼ì„¸??',
+        severity: 'warning'
+      };
+      
+    case AuthErrorCodes.REQUIRES_RECENT_LOGIN:
+      return {
+        code,
+        message,
+        userMessage: 'ë³´ì•ˆ???„í•´ ?¤ì‹œ ë¡œê·¸?¸ì´ ?„ìš”?©ë‹ˆ??',
+        solution: '?„ì¬ ë¹„ë?ë²ˆí˜¸ë¡??¤ì‹œ ë¡œê·¸?¸í•´ì£¼ì„¸??',
+        severity: 'warning'
+      };
+      
+    // ê¸°ë³¸ ?¤ë¥˜
+    default:
+      return {
+        code,
+        message,
+        userMessage: 'ë¡œê·¸??ì¤??¤ë¥˜ê°€ ë°œìƒ?ˆìŠµ?ˆë‹¤.',
+        solution: '? ì‹œ ???¤ì‹œ ?œë„?˜ê±°??ê´€ë¦¬ì?ê²Œ ë¬¸ì˜?´ì£¼?¸ìš”.',
+        severity: 'error'
+      };
+  }
+}
+
+// ---- Email/Password ----
+export async function emailLogin(email: string, password: string) {
+  try {
+    const cred = await signInWithEmailAndPassword(auth, email, password);
+    return cred.user;
+  } catch (e: unknown) {
+    if (isFirebaseError(e)) {
+      console.error('[AUTH] login failed', e.code, e.message);
+      // ?¸ì¶œ ì¸¡ì—??ì½”ë“œ ê¸°ë°˜?¼ë¡œ ë©”ì‹œì§€ ë§¤í•‘ ê°€?¥í•˜?„ë¡ ?¤ë¥˜ ì½”ë“œ ?„ë‹¬
+      throw new Error(e.code);
+    }
+    console.error('[AUTH] unknown error', e);
+    throw new Error('auth/unknown');
+  }
+}
+
+export async function signInWithEmail(email: string, password: string) {
+  try {
+    console.log('[AUTH] Attempting email login for:', email);
+    
+    // ?…ë ¥ê°?ê²€ì¦?
+    if (!email || !email.trim()) {
+      throw new Error('?´ë©”?¼ì„ ?…ë ¥?´ì£¼?¸ìš”.');
+    }
+    if (!password || !password.trim()) {
+      throw new Error('ë¹„ë?ë²ˆí˜¸ë¥??…ë ¥?´ì£¼?¸ìš”.');
+    }
+    
+    // ?´ë©”???•ì‹ ê²€ì¦?
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email.trim())) {
+      throw new Error('?¬ë°”ë¥??´ë©”???•ì‹???…ë ¥?´ì£¼?¸ìš”.');
+    }
+    
+    const result = await signInWithEmailAndPassword(auth, email.trim(), password);
+    console.log('[AUTH] Email login successful for:', email);
+    return result;
+  } catch (error) {
+    console.error('[AUTH] Email login failed for:', email);
+    
+    if (isFirebaseError(error)) {
+      // Firebase ?¤ë¥˜ ì½”ë“œ/ë©”ì‹œì§€ë¥?ë¡œê¹… (ë¯¼ê° ?•ë³´ ?œì™¸)
+      console.error('[AUTH] Firebase login error:', error.code, error.message);
+      
+      const analyzedError = analyzeAuthError(error);
+      console.error('[AUTH] Analyzed error:', analyzedError);
+      
+      // ?¬ìš©??ì¹œí™”?ì¸ ?¤ë¥˜ ê°ì²´ ?ì„±
+      const userFriendlyError = new Error(analyzedError.userMessage);
+      (userFriendlyError as any).authError = analyzedError;
+      (userFriendlyError as any).originalError = error;
+      
+      throw userFriendlyError;
+    }
+    
+    // ?¼ë°˜ ?¤ë¥˜ ì²˜ë¦¬
+    if (error instanceof Error) {
+      throw error;
+    }
+    
+    throw new Error('?????†ëŠ” ?¤ë¥˜ê°€ ë°œìƒ?ˆìŠµ?ˆë‹¤.');
+  }
+}
+
+export const loginWithEmail = signInWithEmail; // alias
+
+export async function registerWithEmail(email: string, password: string) {
+  try {
+    console.log('[AUTH] Attempting email registration for:', email);
+    
+    // ?…ë ¥ê°?ê²€ì¦?
+    if (!email || !email.trim()) {
+      throw new Error('?´ë©”?¼ì„ ?…ë ¥?´ì£¼?¸ìš”.');
+    }
+    if (!password || !password.trim()) {
+      throw new Error('ë¹„ë?ë²ˆí˜¸ë¥??…ë ¥?´ì£¼?¸ìš”.');
+    }
+    
+    // ?´ë©”???•ì‹ ê²€ì¦?
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email.trim())) {
+      throw new Error('?¬ë°”ë¥??´ë©”???•ì‹???…ë ¥?´ì£¼?¸ìš”.');
+    }
+    
+    // ë¹„ë?ë²ˆí˜¸ ê°•ë„ ê²€ì¦?
+    if (password.length < 8) {
+      throw new Error('ë¹„ë?ë²ˆí˜¸??8???´ìƒ?´ì–´???©ë‹ˆ??');
+    }
+    
+    const result = await createUserWithEmailAndPassword(auth, email.trim(), password);
+    console.log('[AUTH] Email registration successful for:', email);
+    return result;
+  } catch (error) {
+    console.error('[AUTH] Email registration failed for:', email);
+    
+    if (isFirebaseError(error)) {
+      const analyzedError = analyzeAuthError(error);
+      console.error('[AUTH] Analyzed error:', analyzedError);
+      
+      // ?¬ìš©??ì¹œí™”?ì¸ ?¤ë¥˜ ê°ì²´ ?ì„±
+      const userFriendlyError = new Error(analyzedError.userMessage);
+      (userFriendlyError as any).authError = analyzedError;
+      (userFriendlyError as any).originalError = error;
+      
+      throw userFriendlyError;
+    }
+    
+    // ?¼ë°˜ ?¤ë¥˜ ì²˜ë¦¬
+    if (error instanceof Error) {
+      throw error;
+    }
+    
+    throw new Error('?????†ëŠ” ?¤ë¥˜ê°€ ë°œìƒ?ˆìŠµ?ˆë‹¤.');
+  }
+}
+
+export const signUpWithEmail = registerWithEmail; // alias
+
+// ---- Google ----
+export async function signInWithGoogle() {
+  try {
+    if (isUsingEmulators) {
+      // ?ë??ˆì´?°ì—?œëŠ” êµ¬ê? ?…ë¬´ ë¡œê·¸?¸ì´ ë¶ˆí¸/ë¯¸ì???ì¼€?´ìŠ¤ê°€ ?ˆì–´???´ë©”??ë¹„ë²ˆ ê¶Œì¥
+      throw new Error('?ë??ˆì´?°ì—?œëŠ” ?´ë©”??ë¹„ë?ë²ˆí˜¸ ë¡œê·¸?¸ì„ ?¬ìš©?´ì£¼?¸ìš”');
+    }
+    
+    console.log('[AUTH] Attempting Google login');
+    // ëª¨ë°”??ì¹œí™”?ì¸ Google ë¡œê·¸???¬ìš©
+    const { loginWithGoogle: mobileFriendlyLogin } = await import('../../lib/auth/google');
+    await mobileFriendlyLogin();
+    console.log('[AUTH] Google login successful');
+    return { user: auth.currentUser };
+  } catch (error) {
+    console.error('[AUTH] Google login failed');
+    
+    if (isFirebaseError(error)) {
+      const analyzedError = analyzeAuthError(error);
+      console.error('[AUTH] Analyzed error:', analyzedError);
+      
+      // ?¬ìš©??ì¹œí™”?ì¸ ?¤ë¥˜ ê°ì²´ ?ì„±
+      const userFriendlyError = new Error(analyzedError.userMessage);
+      (userFriendlyError as any).authError = analyzedError;
+      (userFriendlyError as any).originalError = error;
+      
+      throw userFriendlyError;
+    }
+    
+    // ?¼ë°˜ ?¤ë¥˜ ì²˜ë¦¬
+    if (error instanceof Error) {
+      throw error;
+    }
+    
+    throw new Error('Google ë¡œê·¸??ì¤??¤ë¥˜ê°€ ë°œìƒ?ˆìŠµ?ˆë‹¤.');
+  }
+}
+
+export const loginWithGoogle = signInWithGoogle; // alias
+
+// ---- Session helpers ----
+export async function logout() {
+  try {
+    console.log('[AUTH] Logging out user...');
+    await signOut(auth);
+    console.log('[AUTH] Logout successful');
+    
+    // ì§€??? íƒ?€ ? ì??˜ê³  ?¶ìœ¼ë©?localStorage("region")??ê±´ë“œë¦¬ì? ?Šê¸°
+    // ?„ìš”?? localStorage.removeItem("region");
+    
+    return true;
+  } catch (error) {
+    console.error('[AUTH] Logout failed:', error);
+    throw error;
+  }
+}
+
+export function subscribeAuth(cb: (u: User | null) => void) {
+  return onAuthStateChanged(auth, cb);
+}
+
+// ---- ?¤ë¥˜ ì²˜ë¦¬ ? í‹¸ë¦¬í‹° ----
+function isFirebaseError(e: unknown): e is FirebaseError {
+  return e instanceof FirebaseError || (
+    typeof e === 'object' && e !== null && 'code' in e
+  );
+}
+
+export function isAuthError(error: any): error is { code: string; message: string } {
+  return error && typeof error === 'object' && 'code' in error;
+}
+
+export function getAuthErrorInfo(error: any) {
+  if (isFirebaseError(error)) {
+    return analyzeAuthError(error);
+  }
+  return null;
+}
+
+export function formatAuthErrorForUser(error: any): {
+  message: string;
+  solution: string;
+  severity: 'info' | 'warning' | 'error';
+} {
+  if (isAuthError(error)) {
+    const analyzedError = analyzeAuthError(error);
+    return {
+      message: analyzedError.userMessage,
+      solution: analyzedError.solution,
+      severity: analyzedError.severity
+    };
+  }
+  
+  // ?¼ë°˜ ?¤ë¥˜ ì²˜ë¦¬
+  if (error instanceof Error) {
+    return {
+      message: error.message,
+      solution: '? ì‹œ ???¤ì‹œ ?œë„?˜ê±°??ê´€ë¦¬ì?ê²Œ ë¬¸ì˜?´ì£¼?¸ìš”.',
+      severity: 'error'
+    };
+  }
+  
+  return {
+    message: '?????†ëŠ” ?¤ë¥˜ê°€ ë°œìƒ?ˆìŠµ?ˆë‹¤.',
+    solution: '? ì‹œ ???¤ì‹œ ?œë„?˜ê±°??ê´€ë¦¬ì?ê²Œ ë¬¸ì˜?´ì£¼?¸ìš”.',
+    severity: 'error'
+  };
+}
+
+// ?¤ë¥˜ ë¡œê¹…???„í•œ ?¬í¼ ?¨ìˆ˜
+export function logAuthError(context: string, error: any, additionalInfo?: any) {
+  console.group(`[AUTH ERROR] ${context}`);
+  console.error('Error:', error);
+  console.error('Error type:', typeof error);
+  console.error('Error constructor:', error?.constructor?.name);
+  
+  if (additionalInfo) {
+    console.error('Additional info:', additionalInfo);
+  }
+  
+  if (isFirebaseError(error)) {
+    const analyzedError = analyzeAuthError(error);
+    console.error('Analyzed error:', analyzedError);
+  }
+  
+  console.groupEnd();
+} 

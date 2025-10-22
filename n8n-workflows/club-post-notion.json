@@ -1,0 +1,76 @@
+{
+  "name": "Club – Post → Notion",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "club-post-notion"
+      },
+      "id": "wh",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [-620, 60]
+    },
+    {
+      "parameters": {
+        "keepOnlySet": false,
+        "values": {
+          "string": [
+            {"name": "clubId", "value": "={{$json.clubId}}"},
+            {"name": "title", "value": "={{$json.title}}"},
+            {"name": "contentMd", "value": "={{$json.contentMd}}"}
+          ]
+        }
+      },
+      "id": "set",
+      "name": "Set",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [-430, 60]
+    },
+    {
+      "parameters": {
+        "url": "https://api.notion.com/v1/pages",
+        "method": "POST",
+        "jsonParameters": true,
+        "sendBody": true,
+        "options": {
+          "headerParametersJson": "={\n  \"Authorization\": \"Bearer {{$env.NOTION_TOKEN}}\",\n  \"Notion-Version\": \"2022-06-28\"\n}",
+          "bodyParametersJson": "={\n  \"parent\": { \"database_id\": \"{{$env.NOTION_DB_ID}}\" },\n  \"properties\": {\n    \"Name\": { \"title\": [ { \"text\": { \"content\": \"{{$json.title}}\" } } ] },\n    \"ClubId\": { \"rich_text\": [ { \"text\": { \"content\": \"{{$json.clubId}}\" } } ] }\n  },\n  \"children\": [ { \"object\": \"block\", \"type\": \"paragraph\", \"paragraph\": { \"rich_text\": [ { \"text\": { \"content\": \"{{$json.contentMd}}\" } } ] } } ]\n}"
+        }
+      },
+      "id": "notion",
+      "name": "Create Page",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [-180, 60]
+    },
+    {
+      "parameters": {
+        "url": "={{$env.SLACK_KPI_WEBHOOK}}",
+        "jsonParameters": true,
+        "sendBody": true,
+        "bodyParametersJson": "={\n  \"text\": \"📝 Notion posted: {{$json.title}}\"\n}"
+      },
+      "id": "slack",
+      "name": "Slack",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [40, 60]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [[{"node": "Set", "type": "main", "index": 0}]]
+    },
+    "Set": {
+      "main": [[{"node": "Create Page", "type": "main", "index": 0}]]
+    },
+    "Create Page": {
+      "main": [[{"node": "Slack", "type": "main", "index": 0}]]
+    }
+  },
+  "settings": {
+    "timezone": "Asia/Seoul"
+  }
+}

@@ -1,0 +1,136 @@
+{
+  "name": "Session Event → Router",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "session-event"
+      },
+      "id": "Webhook",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [220, 200]
+    },
+    {
+      "parameters": {
+        "rules": [
+          {
+            "type": "set",
+            "value1": "={{$json[\"type\"]}}"
+          }
+        ]
+      },
+      "id": "Switch",
+      "name": "Switch(type)",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 2,
+      "position": [460, 200]
+    },
+    {
+      "parameters": {
+        "url": "={{$env.FN_SESSION_EVENT}}",
+        "options": {
+          "headers": {
+            "parameters": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              }
+            ]
+          }
+        }
+      },
+      "id": "HTTP Request",
+      "name": "HTTP Request (echo)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [720, 140]
+    },
+    {
+      "parameters": {
+        "channel": "#alerts",
+        "text": "=New {{$json.type}} from {{$json.uid}}"
+      },
+      "id": "Slack",
+      "name": "Slack (optional)",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 1,
+      "position": [720, 240]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "sheetId": "={{$env.SHEETS_ID}}",
+        "range": "Events!A:D",
+        "options": {
+          "valueInputMode": "RAW"
+        },
+        "values": "={{[$json.type, $json.uid, $json.ts, $json.meta?.path || '']}}"
+      },
+      "id": "Google Sheets",
+      "name": "Sheets (optional)",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [720, 340]
+    },
+    {
+      "parameters": {
+        "responseBody": "={\"ok\":true}"
+      },
+      "id": "Respond",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [940, 200]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Switch(type)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch(type)": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request (echo)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Slack (optional)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Sheets (optional)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {},
+  "staticData": {}
+}

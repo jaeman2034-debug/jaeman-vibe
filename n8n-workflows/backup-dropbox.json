@@ -1,0 +1,153 @@
+{
+  "name": "YAGO – Backup → Dropbox (03:00)",
+  "nodes": [
+    {
+      "parameters": {
+        "mode": "custom",
+        "cronExpression": "0 0 3 * * *"
+      },
+      "id": "cron",
+      "name": "03:00 KST",
+      "type": "n8n-nodes-base.cron",
+      "typeVersion": 2,
+      "position": [-760, 60]
+    },
+    {
+      "parameters": {
+        "keepOnlySet": false,
+        "values": {
+          "string": [
+            {
+              "name": "idsRaw",
+              "value": "={{$env.BACKUP_WORKFLOW_IDS}}"
+            },
+            {
+              "name": "date",
+              "value": "={{$now.toFormat('yyyy-LL-dd')}}"
+            }
+          ]
+        }
+      },
+      "id": "set",
+      "name": "Set Vars",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [-530, 60]
+    },
+    {
+      "parameters": {
+        "functionCode": "const ids=($json.idsRaw||'').split(',').map(s=>s.trim()).filter(Boolean);return ids.map(id=>({json:{id,date:$json.date}}));"
+      },
+      "id": "fn1",
+      "name": "Split IDs",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 2,
+      "position": [-300, 60]
+    },
+    {
+      "parameters": {
+        "url": "={{$env.N8N_BASE}}/api/v1/workflows/{{$json.id}}",
+        "options": {
+          "response": "json",
+          "timeout": 30,
+          "headerParametersJson": "={\n  \"Authorization\": \"Bearer {{$env.N8N_API_KEY}}\"\n}"
+        }
+      },
+      "id": "http1",
+      "name": "GET Workflow JSON",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [-80, 60]
+    },
+    {
+      "parameters": {
+        "url": "https://content.dropboxapi.com/2/files/upload",
+        "method": "POST",
+        "authentication": "predefinedCredentialType",
+        "sendBody": true,
+        "options": {
+          "headerParametersJson": "={\n  \"Authorization\": \"Bearer {{$env.DROPBOX_TOKEN}}\",\n  \"Dropbox-API-Arg\": \"{\\\"path\\\": \\\"/backups/{{$json.date}}/workflow-{{$json.id}}.json\\\", \\\"mode\\\": \\\"add\\\", \\\"autorename\\\": true, \\\"mute\\\": false, \\\"strict_conflict\\\": false}\",\n  \"Content-Type\": \"application/octet-stream\"\n}"
+        },
+        "bodyParametersJson": "={{JSON.stringify($json)}}"
+      },
+      "id": "dropbox",
+      "name": "Dropbox Upload",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [140, 60]
+    },
+    {
+      "parameters": {
+        "url": "={{$env.SLACK_KPI_WEBHOOK}}",
+        "jsonParameters": true,
+        "sendBody": true,
+        "bodyParametersJson": "={\n  \"text\": \"✅ Dropbox backup: workflow {{$json.id}}\"\n}"
+      },
+      "id": "slack",
+      "name": "Slack KPI",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [360, 60]
+    }
+  ],
+  "connections": {
+    "03:00 KST": {
+      "main": [
+        [
+          {
+            "node": "Set Vars",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Vars": {
+      "main": [
+        [
+          {
+            "node": "Split IDs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split IDs": {
+      "main": [
+        [
+          {
+            "node": "GET Workflow JSON",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GET Workflow JSON": {
+      "main": [
+        [
+          {
+            "node": "Dropbox Upload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Dropbox Upload": {
+      "main": [
+        [
+          {
+            "node": "Slack KPI",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "timezone": "Asia/Seoul"
+  }
+}

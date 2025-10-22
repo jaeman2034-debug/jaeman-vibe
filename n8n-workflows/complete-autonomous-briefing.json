@@ -1,0 +1,298 @@
+﻿{
+  "name": "YAGO VIBE ?꾩쟾 ?먯쑉??AI 釉뚮━??,
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "value": "0 9 * * *"
+            }
+          ]
+        }
+      },
+      "id": "cron-trigger",
+      "name": "留ㅼ씪 09:00 ?ㅽ뻾",
+      "type": "n8n-nodes-base.cron",
+      "typeVersion": 1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "path": "/market_items",
+        "options": {}
+      },
+      "id": "firebase-markets",
+      "name": "Firebase Get - 嫄곕옒 ?곗씠??,
+      "type": "n8n-nodes-base.firebase",
+      "typeVersion": 1,
+      "position": [460, 200]
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "path": "/chats",
+        "options": {}
+      },
+      "id": "firebase-chats",
+      "name": "Firebase Get - 梨꾪똿 ?곗씠??,
+      "type": "n8n-nodes-base.firebase",
+      "typeVersion": 1,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "path": "/users",
+        "options": {}
+      },
+      "id": "firebase-users",
+      "name": "Firebase Get - ?뚯썝 ?곗씠??,
+      "type": "n8n-nodes-base.firebase",
+      "typeVersion": 1,
+      "position": [460, 400]
+    },
+    {
+      "parameters": {
+        "model": "gpt-4o",
+        "messages": {
+          "values": [
+            {
+              "role": "system",
+              "content": "?뱀떊? YAGO VIBE ?뚮옯?쇱쓽 AI 遺꾩꽍媛?낅땲?? 嫄곕옒, 梨꾪똿, ?뚯썝 ?곗씠?곕? 遺꾩꽍?섏뿬 ?쇱씪 釉뚮━??由ы룷?몃? ?앹꽦?⑸땲??"
+            },
+            {
+              "role": "user",
+              "content": "嫄곕옒: {{ $('Firebase Get - 嫄곕옒 ?곗씠??).json.length }}嫄? 梨꾪똿: {{ $('Firebase Get - 梨꾪똿 ?곗씠??).json.length }}嫄? ?뚯썝: {{ $('Firebase Get - ?뚯썝 ?곗씠??).json.length }}紐낆쓽 ?곗씠?곕? 遺꾩꽍?섏뿬 ?쇱씪 釉뚮━?묒쓣 ?묒꽦?댁＜?몄슂."
+            }
+          ]
+        },
+        "temperature": 0.7
+      },
+      "id": "openai-analysis",
+      "name": "OpenAI - AI 遺꾩꽍",
+      "type": "n8n-nodes-base.openAi",
+      "typeVersion": 1,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "operation": "add",
+        "collection": "notification_reports",
+        "document": {
+          "title": "YAGO 釉뚮━????{{ new Date().toLocaleDateString('ko-KR') }}",
+          "summary": "{{ $('OpenAI - AI 遺꾩꽍').json.choices[0].message.content }}",
+          "category": "daily_report",
+          "date": {
+            "seconds": "{{ Math.floor(new Date().getTime() / 1000) }}",
+            "nanoseconds": 0
+          },
+          "createdAt": {
+            "seconds": "{{ Math.floor(new Date().getTime() / 1000) }}",
+            "nanoseconds": 0
+          },
+          "stats": {
+            "markets": "{{ $('Firebase Get - 嫄곕옒 ?곗씠??).json.length }}",
+            "chats": "{{ $('Firebase Get - 梨꾪똿 ?곗씠??).json.length }}",
+            "users": "{{ $('Firebase Get - ?뚯썝 ?곗씠??).json.length }}"
+          }
+        }
+      },
+      "id": "firebase-add-report",
+      "name": "Firebase Add - 由ы룷?????,
+      "type": "n8n-nodes-base.firebase",
+      "typeVersion": 1,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://asia-northeast3-<PROJECT-ID>.cloudfunctions.net/makeTTS",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "text": "{{ $json.summary }}",
+          "filename": "{{ $json.title || 'yago_report' }}.mp3",
+          "voice": "nova"
+        }
+      },
+      "id": "tts-request",
+      "name": "HTTP Request - TTS ?앹꽦",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1120, 300]
+    },
+    {
+      "parameters": {
+        "channel": "#yago-admin",
+        "fileUrl": "{{ $node['HTTP Request - TTS ?앹꽦'].json['url'] }}",
+        "filename": "{{ $json.title }}.mp3",
+        "title": "?렒 {{ $json.title }}",
+        "text": "?렒 *AI 釉뚮━???앹꽦 ?꾨즺*\n\n?뱤 ?쒕ぉ: {{ $json.title }}\n?뱟 ?좎쭨: {{ $json.date }}\n?쭬 ?붿빟: {{ $json.summary.substring(0, 200) }}...\n\n?뵕 ?ъ깮 留곹겕: {{ $node['HTTP Request - TTS ?앹꽦'].json['url'] }}\n?뱚 ?뚯씪 ?ш린: {{ Math.round($node['HTTP Request - TTS ?앹꽦'].json['size'] / 1024) }}KB"
+      },
+      "id": "slack-upload",
+      "name": "Slack - ?뚯씪 ?낅줈??,
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.1,
+      "position": [1340, 200]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://yago.ai/cast",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "host": "192.168.0.35",
+          "url": "{{ $node['HTTP Request - TTS ?앹꽦'].json['url'] }}",
+          "title": "{{ $json.title }}",
+          "volume": 70
+        }
+      },
+      "id": "cast-bridge",
+      "name": "Cast Bridge - ?먮룞 ?ъ깮",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1340, 400]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "path": "notification_reports/{{ $node['Firebase Add - 由ы룷?????].json['id'] }}",
+        "document": {
+          "audioUrl": "{{ $node['HTTP Request - TTS ?앹꽦'].json['url'] }}",
+          "audioFilename": "{{ $node['HTTP Request - TTS ?앹꽦'].json['filename'] }}",
+          "audioSize": "{{ $node['HTTP Request - TTS ?앹꽦'].json['size'] }}",
+          "playedAt": {
+            "timestampValue": "{{ new Date().toISOString() }}"
+          },
+          "device": "Google Nest",
+          "castStatus": "success"
+        }
+      },
+      "id": "firebase-update-audio",
+      "name": "Firebase Update - ?ㅻ뵒???뺣낫",
+      "type": "n8n-nodes-base.firebase",
+      "typeVersion": 1,
+      "position": [1560, 300]
+    }
+  ],
+  "connections": {
+    "留ㅼ씪 09:00 ?ㅽ뻾": {
+      "main": [
+        [
+          {
+            "node": "Firebase Get - 嫄곕옒 ?곗씠??,
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Firebase Get - 梨꾪똿 ?곗씠??,
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Firebase Get - ?뚯썝 ?곗씠??,
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Firebase Get - 嫄곕옒 ?곗씠??: {
+      "main": [
+        [
+          {
+            "node": "OpenAI - AI 遺꾩꽍",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Firebase Get - 梨꾪똿 ?곗씠??: {
+      "main": [
+        [
+          {
+            "node": "OpenAI - AI 遺꾩꽍",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Firebase Get - ?뚯썝 ?곗씠??: {
+      "main": [
+        [
+          {
+            "node": "OpenAI - AI 遺꾩꽍",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI - AI 遺꾩꽍": {
+      "main": [
+        [
+          {
+            "node": "Firebase Add - 由ы룷?????,
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Firebase Add - 由ы룷?????: {
+      "main": [
+        [
+          {
+            "node": "HTTP Request - TTS ?앹꽦",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request - TTS ?앹꽦": {
+      "main": [
+        [
+          {
+            "node": "Slack - ?뚯씪 ?낅줈??,
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Cast Bridge - ?먮룞 ?ъ깮",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Firebase Update - ?ㅻ뵒???뺣낫",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "createdAt": "2025-01-15T00:00:00.000Z",
+      "updatedAt": "2025-01-15T00:00:00.000Z",
+      "id": "yago-autonomous",
+      "name": "YAGO ?먯쑉??
+    }
+  ],
+  "triggerCount": 1,
+  "updatedAt": "2025-01-15T00:00:00.000Z",
+  "versionId": "1"
+}

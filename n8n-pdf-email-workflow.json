@@ -1,0 +1,239 @@
+{
+  "name": "YAGO VIBE AI 자동 PDF 리포트 + 이메일 전송",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 7 * * *"
+            }
+          ]
+        }
+      },
+      "id": "daily-trigger",
+      "name": "매일 오전 7시 실행",
+      "type": "n8n-nodes-base.cron",
+      "typeVersion": 1,
+      "position": [200, 300],
+      "webhookDescription": "매일 오전 7시에 실행되어 전날 리포트를 PDF로 생성하고 이메일로 전송합니다"
+    },
+    {
+      "parameters": {
+        "projectId": "jaeman-vibe-platform",
+        "collection": "reports",
+        "operation": "getMany",
+        "limit": 7
+      },
+      "id": "firestore-reports",
+      "name": "Firestore: 최근 리포트 조회",
+      "type": "n8n-nodes-base.googleFirebase",
+      "typeVersion": 1,
+      "position": [600, 300]
+    },
+    {
+      "parameters": {
+        "functionCode": "// 최근 리포트 데이터 처리\nconst reports = $input.all().map(item => item.json);\nconsole.log('📊 받은 리포트 데이터:', reports.length, '개');\n\n// 최신 리포트의 요약\nconst latestReport = reports[0];\nconst summaryText = latestReport?.summary || \"요약 데이터가 없습니다.\";\n\n// 최근 7일 통계 정리\nconst weeklyStats = reports.map(r => ({\n  date: r.date,\n  FCM: r.stats?.FCM || r.stats?.fcm || 0,\n  Slack: r.stats?.Slack || r.stats?.slack || 0,\n  Kakao: r.stats?.Kakao || r.stats?.kakao || 0,\n  Message: r.stats?.message || 0,\n  Comment: r.stats?.comment || 0,\n  Market: r.stats?.market || 0,\n  System: r.stats?.system || 0,\n  Total: (r.stats?.FCM || 0) + (r.stats?.Slack || 0) + (r.stats?.Kakao || 0) + \n         (r.stats?.message || 0) + (r.stats?.comment || 0) + (r.stats?.market || 0) + (r.stats?.system || 0)\n}));\n\n// 총계 계산\nconst totalStats = {\n  totalNotifications: weeklyStats.reduce((sum, day) => sum + day.Total, 0),\n  avgFCM: Math.round(weeklyStats.reduce((sum, day) => sum + day.FCM, 0) / weeklyStats.length),\n  avgSlack: Math.round(weeklyStats.reduce((sum, day) => sum + day.Slack, 0) / weeklyStats.length),\n  avgKakao: Math.round(weeklyStats.reduce((sum, day) => sum + day.Kakao, 0) / weeklyStats.length),\n  avgTotal: Math.round(weeklyStats.reduce((sum, day) => sum + day.Total, 0) / weeklyStats.length)\n};\n\n// 리포트 생성 날짜\nconst reportDate = new Date().toLocaleDateString('ko-KR', {\n  year: 'numeric',\n  month: 'long',\n  day: 'numeric',\n  weekday: 'long'\n});\n\nconsole.log('📈 처리된 통계:', totalStats);\n\nreturn [{\n  json: {\n    summaryText,\n    weeklyStats,\n    totalStats,\n    reportDate,\n    generatedAt: new Date().toISOString(),\n    latestReportDate: latestReport?.date || 'N/A'\n  }\n}];"
+      },
+      "id": "js-process-data",
+      "name": "JavaScript: 데이터 처리",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [1000, 300]
+    },
+    {
+      "parameters": {
+        "resource": "chat",
+        "operation": "create",
+        "model": "gpt-4o-mini",
+        "messages": {
+          "values": [
+            {
+              "role": "system",
+              "content": "너는 YAGO VIBE 플랫폼의 데이터 분석가이자 투자자 관계 담당자야. 주간 알림 통계를 바탕으로 투자자용 요약 리포트를 작성해줘."
+            },
+            {
+              "role": "user",
+              "content": "다음은 YAGO VIBE 플랫폼의 주간 알림 통계 데이터입니다:\\n\\n📊 **주간 요약**:\\n{{$json.summaryText}}\\n\\n📈 **주간 통계**:\\n- 총 알림 수: {{$json.totalStats.totalNotifications}}건\\n- 일평균: {{$json.totalStats.avgTotal}}건\\n- FCM 평균: {{$json.totalStats.avgFCM}}건/일\\n- Slack 평균: {{$json.totalStats.avgSlack}}건/일\\n- Kakao 평균: {{$json.totalStats.avgKakao}}건/일\\n\\n위 데이터를 바탕으로 투자자용 요약 리포트를 작성해주세요. 다음 형식으로:\\n\\n**1. 주요 성과**\\n- 핵심 지표와 성과 요약\\n\\n**2. 채널별 분석**\\n- FCM, Slack, Kakao 성과 분석\\n\\n**3. 개선 방향**\\n- 향후 발전 계획 및 개선점\\n\\n투자자가 이해하기 쉽고, 플랫폼의 성장 가능성을 보여주는 내용으로 작성해주세요."
+            }
+          ]
+        },
+        "options": {
+          "temperature": 0.7,
+          "maxTokens": 500
+        }
+      },
+      "id": "openai-investor-summary",
+      "name": "OpenAI: 투자자용 요약",
+      "type": "n8n-nodes-base.openAi",
+      "typeVersion": 1,
+      "position": [1400, 300]
+    },
+    {
+      "parameters": {
+        "functionCode": "// HTML PDF 템플릿 생성\nconst data = $input.first().json;\nconst aiSummary = $input.last().json.choices[0].message.content;\n\nconst htmlTemplate = `\n<!DOCTYPE html>\n<html>\n<head>\n  <meta charset=\"utf-8\">\n  <title>YAGO VIBE 주간 리포트</title>\n  <style>\n    body {\n      font-family: 'Segoe UI', 'Malgun Gothic', sans-serif;\n      color: #333;\n      margin: 0;\n      padding: 40px;\n      background: #f8fafc;\n    }\n    .container {\n      max-width: 800px;\n      margin: 0 auto;\n      background: white;\n      padding: 40px;\n      border-radius: 12px;\n      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);\n    }\n    .header {\n      text-align: center;\n      border-bottom: 3px solid #2563eb;\n      padding-bottom: 20px;\n      margin-bottom: 30px;\n    }\n    .logo {\n      font-size: 48px;\n      margin-bottom: 10px;\n    }\n    h1 {\n      color: #2563eb;\n      font-size: 28px;\n      margin: 0;\n    }\n    .subtitle {\n      color: #6b7280;\n      font-size: 16px;\n      margin-top: 5px;\n    }\n    .section {\n      margin-bottom: 35px;\n    }\n    h2 {\n      color: #1f2937;\n      font-size: 20px;\n      border-left: 4px solid #2563eb;\n      padding-left: 15px;\n      margin-bottom: 15px;\n    }\n    .stats-grid {\n      display: grid;\n      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));\n      gap: 20px;\n      margin: 20px 0;\n    }\n    .stat-card {\n      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);\n      color: white;\n      padding: 20px;\n      border-radius: 10px;\n      text-align: center;\n    }\n    .stat-number {\n      font-size: 32px;\n      font-weight: bold;\n      margin-bottom: 5px;\n    }\n    .stat-label {\n      font-size: 14px;\n      opacity: 0.9;\n    }\n    table {\n      width: 100%;\n      border-collapse: collapse;\n      margin: 20px 0;\n      background: white;\n    }\n    th, td {\n      border: 1px solid #e5e7eb;\n      padding: 12px;\n      text-align: center;\n    }\n    th {\n      background: #f3f4f6;\n      font-weight: bold;\n      color: #374151;\n    }\n    .summary-box {\n      background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);\n      border-left: 4px solid #0ea5e9;\n      padding: 20px;\n      border-radius: 8px;\n      margin: 20px 0;\n    }\n    .ai-summary {\n      background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);\n      border-left: 4px solid #22c55e;\n      padding: 20px;\n      border-radius: 8px;\n      margin: 20px 0;\n    }\n    .footer {\n      margin-top: 50px;\n      padding-top: 20px;\n      border-top: 2px solid #e5e7eb;\n      text-align: center;\n      color: #6b7280;\n      font-size: 12px;\n    }\n    .highlight {\n      background: linear-gradient(120deg, #a8edea 0%, #fed6e3 100%);\n      padding: 2px 6px;\n      border-radius: 4px;\n      font-weight: 500;\n    }\n  </style>\n</head>\n<body>\n  <div class=\"container\">\n    <div class=\"header\">\n      <div class=\"logo\">⚽</div>\n      <h1>YAGO VIBE 주간 리포트</h1>\n      <div class=\"subtitle\">AI 자동 생성 리포트 • ${data.reportDate}</div>\n    </div>\n\n    <div class=\"section\">\n      <h2>📊 핵심 성과 지표</h2>\n      <div class=\"stats-grid\">\n        <div class=\"stat-card\">\n          <div class=\"stat-number\">${data.totalStats.totalNotifications.toLocaleString()}</div>\n          <div class=\"stat-label\">주간 총 알림</div>\n        </div>\n        <div class=\"stat-card\">\n          <div class=\"stat-number\">${data.totalStats.avgTotal}</div>\n          <div class=\"stat-label\">일평균 알림</div>\n        </div>\n        <div class=\"stat-card\">\n          <div class=\"stat-number\">${data.totalStats.avgFCM}</div>\n          <div class=\"stat-label\">FCM 평균</div>\n        </div>\n        <div class=\"stat-card\">\n          <div class=\"stat-number\">${data.totalStats.avgSlack}</div>\n          <div class=\"stat-label\">Slack 평균</div>\n        </div>\n      </div>\n    </div>\n\n    <div class=\"section\">\n      <h2>📈 일별 상세 통계</h2>\n      <table>\n        <thead>\n          <tr>\n            <th>날짜</th>\n            <th>FCM</th>\n            <th>Slack</th>\n            <th>Kakao</th>\n            <th>메시지</th>\n            <th>댓글</th>\n            <th>마켓</th>\n            <th>총계</th>\n          </tr>\n        </thead>\n        <tbody>\n          ${data.weeklyStats.map(day => `\n            <tr>\n              <td>${day.date}</td>\n              <td>${day.FCM}</td>\n              <td>${day.Slack}</td>\n              <td>${day.Kakao}</td>\n              <td>${day.Message}</td>\n              <td>${day.Comment}</td>\n              <td>${day.Market}</td>\n              <td><span class=\"highlight\">${day.Total}</span></td>\n            </tr>\n          `).join('')}\n        </tbody>\n      </table>\n    </div>\n\n    <div class=\"section\">\n      <h2>🤖 AI 분석 요약</h2>\n      <div class=\"ai-summary\">\n        ${aiSummary.replace(/\\n/g, '<br>')}\n      </div>\n    </div>\n\n    <div class=\"section\">\n      <h2>📋 시스템 요약</h2>\n      <div class=\"summary-box\">\n        ${data.summaryText.replace(/\\n/g, '<br>')}\n      </div>\n    </div>\n\n    <div class=\"footer\">\n      <p>⚽ <strong>YAGO VIBE AI 자동 리포트 시스템</strong></p>\n      <p>생성일시: ${new Date().toLocaleString('ko-KR')}</p>\n      <p>본 리포트는 n8n + OpenAI + Firebase를 통해 자동으로 생성되었습니다.</p>\n    </div>\n  </div>\n</body>\n</html>`;\n\nreturn [{\n  json: {\n    htmlContent: htmlTemplate,\n    fileName: `YAGO_VIBE_Report_${new Date().toISOString().split('T')[0]}.html`,\n    pdfFileName: `YAGO_VIBE_Report_${new Date().toISOString().split('T')[0]}.pdf`,\n    ...data,\n    aiSummary\n  }\n}];"
+      },
+      "id": "html-template",
+      "name": "HTML: PDF 템플릿 생성",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [1800, 300]
+    },
+    {
+      "parameters": {
+        "url": "https://api.html-pdf-node.com/convert",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "html",
+              "value": "={{$json.htmlContent}}"
+            },
+            {
+              "name": "options",
+              "value": "={{{\"format\": \"A4\", \"border\": {\"top\": \"1cm\", \"right\": \"1cm\", \"bottom\": \"1cm\", \"left\": \"1cm\"}, \"header\": {\"height\": \"45mm\", \"contents\": \"\"}, \"footer\": {\"height\": \"28mm\", \"contents\": \"<div style='text-align: center; font-size: 10px; color: #666;'>YAGO VIBE AI 리포트 • {{$json.reportDate}}</div>\"}}}}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "pdf-generate",
+      "name": "PDF 생성 API",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [2200, 300]
+    },
+    {
+      "parameters": {
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth",
+        "host": "smtp.gmail.com",
+        "port": 587,
+        "secure": false,
+        "user": "={{$env.GMAIL_USER}}",
+        "password": "={{$env.GMAIL_APP_PASSWORD}}",
+        "fromEmail": "jaeman@teamvibe.kr",
+        "toEmail": "jaeman@teamvibe.kr,investor@yourvc.com",
+        "subject": "📊 YAGO VIBE 주간 AI 리포트 - {{$json.reportDate}}",
+        "emailFormat": "html",
+        "message": "<!DOCTYPE html>\n<html>\n<head>\n  <meta charset=\"utf-8\">\n  <style>\n    body { font-family: 'Segoe UI', sans-serif; color: #333; line-height: 1.6; }\n    .container { max-width: 600px; margin: 0 auto; padding: 20px; }\n    .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; border-radius: 10px; text-align: center; }\n    .logo { font-size: 48px; margin-bottom: 10px; }\n    .content { background: #f8fafc; padding: 30px; border-radius: 10px; margin: 20px 0; }\n    .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 15px; margin: 20px 0; }\n    .stat-item { background: white; padding: 15px; border-radius: 8px; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }\n    .stat-number { font-size: 24px; font-weight: bold; color: #2563eb; }\n    .stat-label { font-size: 12px; color: #6b7280; margin-top: 5px; }\n    .summary { background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); border-left: 4px solid #22c55e; padding: 20px; border-radius: 8px; margin: 20px 0; }\n    .footer { text-align: center; color: #6b7280; font-size: 12px; margin-top: 30px; }\n  </style>\n</head>\n<body>\n  <div class=\"container\">\n    <div class=\"header\">\n      <div class=\"logo\">⚽</div>\n      <h1>YAGO VIBE 주간 리포트</h1>\n      <p>AI 자동 생성 리포트 • {{$json.reportDate}}</p>\n    </div>\n\n    <div class=\"content\">\n      <h2>📊 이번 주 핵심 성과</h2>\n      <div class=\"stats\">\n        <div class=\"stat-item\">\n          <div class=\"stat-number\">{{$json.totalStats.totalNotifications.toLocaleString()}}</div>\n          <div class=\"stat-label\">주간 총 알림</div>\n        </div>\n        <div class=\"stat-item\">\n          <div class=\"stat-number\">{{$json.totalStats.avgTotal}}</div>\n          <div class=\"stat-label\">일평균 알림</div>\n        </div>\n        <div class=\"stat-item\">\n          <div class=\"stat-number\">{{$json.totalStats.avgFCM}}</div>\n          <div class=\"stat-label\">FCM 평균</div>\n        </div>\n        <div class=\"stat-item\">\n          <div class=\"stat-number\">{{$json.totalStats.avgSlack}}</div>\n          <div class=\"stat-label\">Slack 평균</div>\n        </div>\n      </div>\n\n      <div class=\"summary\">\n        <h3>🤖 AI 분석 요약</h3>\n        {{$json.aiSummary.replace(/\\n/g, '<br>')}}\n      </div>\n\n      <p style=\"margin-top: 30px; padding: 15px; background: #eff6ff; border-radius: 8px; border-left: 4px solid #3b82f6;\">\n        📎 <strong>상세 리포트:</strong> 첨부된 PDF 파일에서 자세한 통계와 분석 내용을 확인하실 수 있습니다.\n      </p>\n    </div>\n\n    <div class=\"footer\">\n      <p>⚽ <strong>YAGO VIBE AI 자동 리포트 시스템</strong></p>\n      <p>생성일시: {{new Date().toLocaleString('ko-KR')}}</p>\n      <p>본 리포트는 n8n + OpenAI + Firebase를 통해 자동으로 생성되었습니다.</p>\n    </div>\n  </div>\n</body>\n</html>",
+        "attachments": [
+          {
+            "name": "={{$json.pdfFileName}}",
+            "data": "={{$binary.pdfData}}"
+          }
+        ]
+      },
+      "id": "email-send",
+      "name": "이메일 전송 (Gmail)",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2,
+      "position": [2600, 300]
+    },
+    {
+      "parameters": {
+        "channel": "#yago-vibe-reports",
+        "text": "📧 **YAGO VIBE 주간 AI 리포트 전송 완료!**\\n\\n📅 **리포트 날짜**: {{$('JavaScript: 데이터 처리').item.json.reportDate}}\\n📊 **총 알림 수**: {{$('JavaScript: 데이터 처리').item.json.totalStats.totalNotifications}}건\\n📈 **일평균**: {{$('JavaScript: 데이터 처리').item.json.totalStats.avgTotal}}건\\n\\n✅ **전송 완료**:\\n- PDF 리포트 생성: {{$('HTML: PDF 템플릿 생성').item.json.pdfFileName}}\\n- 이메일 발송: jaeman@teamvibe.kr, investor@yourvc.com\\n\\n🤖 **AI 요약 미리보기**:\\n{{$('OpenAI: 투자자용 요약').item.json.choices[0].message.content.substring(0, 200)}}...\\n\\n💎 투자자들이 \"와... 이건 진짜 대단하다\" 할 수준의 완전 자동화 시스템입니다! 🚀"
+      },
+      "id": "slack-notify",
+      "name": "Slack: 완료 알림",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 1,
+      "position": [2600, 100]
+    }
+  ],
+  "connections": {
+    "매일 오전 7시 실행": {
+      "main": [
+        [
+          {
+            "node": "Firestore: 최근 리포트 조회",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Firestore: 최근 리포트 조회": {
+      "main": [
+        [
+          {
+            "node": "JavaScript: 데이터 처리",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "JavaScript: 데이터 처리": {
+      "main": [
+        [
+          {
+            "node": "OpenAI: 투자자용 요약",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI: 투자자용 요약": {
+      "main": [
+        [
+          {
+            "node": "HTML: PDF 템플릿 생성",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTML: PDF 템플릿 생성": {
+      "main": [
+        [
+          {
+            "node": "PDF 생성 API",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "PDF 생성 API": {
+      "main": [
+        [
+          {
+            "node": "이메일 전송 (Gmail)",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Slack: 완료 알림",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": ["yago-vibe", "ai", "pdf", "email", "automation", "investor"],
+  "triggerCount": 0,
+  "meta": {
+    "description": "매일 오전 7시에 실행되어 최근 리포트 데이터를 PDF로 생성하고 투자자/관리자에게 이메일로 전송하는 완전 자동화 시스템입니다."
+  }
+}

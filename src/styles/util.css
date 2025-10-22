@@ -1,0 +1,30 @@
+@import "tailwindcss";
+
+/* 공용 스타일 유틸리티 */
+
+.btn {
+  @apply inline-flex items-center gap-2 px-3 py-2 rounded-xl text-sm border bg-white/70 dark:bg-white/10 border-gray-200/70 dark:border-white/10 hover:opacity-90 transition;
+}
+
+.badge {
+  @apply inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold border;
+}
+
+.badge-blue   { @apply bg-blue-50   text-blue-700   border-blue-200; }
+.badge-green  { @apply bg-emerald-50 text-emerald-700 border-emerald-200; }
+.badge-gray   { @apply bg-gray-100  text-gray-600  border-gray-200; }
+
+/* 상품 이미지 공통 스타일 */
+.product-img {
+  width: 100%;
+  max-height: 420px;
+  object-fit: cover;
+  border-radius: 8px;
+}
+
+.product-img-thumb {
+  width: 180px;
+  height: 180px;
+  object-fit: cover;
+  border-radius: 8px;
+}

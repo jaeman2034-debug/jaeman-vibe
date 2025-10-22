@@ -1,0 +1,114 @@
+﻿{
+  "name": "Academy Notification System",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "academy-notifications",
+        "method": "POST"
+      },
+      "id": "1",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "functionCode": "// ?뚮┝ ?곗씠??泥섎━\nconst data = $json;\n\n// ?뚮┝ ?좏삎???곕Ⅸ 硫붿떆吏 ?앹꽦\nlet message = '';\nlet title = '';\n\nif (data.type === 'enrollment') {\n  title = '?섍컯 ?좎껌 ?묒닔 ?꾨즺';\n  message = `?덈뀞?섏꽭??${data.studentName}??\\n\\n媛뺤쥖 ?좎껌???묒닔?섏뿀?듬땲??\\n寃곗젣 ?꾨즺 ???섍컯???뺤젙?⑸땲??`;\n} else if (data.type === 'payment') {\n  title = '寃곗젣 ?꾨즺 - ?섍컯 ?뺤젙';\n  message = `?덈뀞?섏꽭??${data.studentName}??\\n\\n寃곗젣媛 ?뺤씤?섏뿀?듬땲??\\n媛뺤쥖??李몄뿬?섏떎 ???덉뒿?덈떎.`;\n}\n\nreturn [{\n  json: {\n    ...data,\n    title: title,\n    message: message,\n    processedAt: new Date().toISOString()\n  }\n}];"
+      },
+      "id": "2",
+      "name": "Process Notification",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "fromEmail": "academy@yourschool.com",
+        "toEmail": "={{$json.studentPhone}}@sms.gateway.com",
+        "subject": "={{$json.title}}",
+        "message": "={{$json.message}}"
+      },
+      "id": "3",
+      "name": "Send SMS",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 1,
+      "position": [650, 200]
+    },
+    {
+      "parameters": {
+        "fromEmail": "academy@yourschool.com",
+        "toEmail": "={{$json.studentEmail}}",
+        "subject": "={{$json.title}}",
+        "message": "={{$json.message}}"
+      },
+      "id": "4",
+      "name": "Send Email",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 1,
+      "position": [650, 400]
+    },
+    {
+      "parameters": {
+        "url": "https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "text",
+              "value": "={{$json.title}}"
+            },
+            {
+              "name": "attachments",
+              "value": "=[{\"color\":\"good\",\"fields\":[{\"title\":\"?숈깮\",\"value\":\"{{$json.studentName}}\",\"short\":true},{\"title\":\"?꾪솕踰덊샇\",\"value\":\"{{$json.studentPhone}}\",\"short\":true},{\"title\":\"?좏삎\",\"value\":\"{{$json.type}}\",\"short\":true}]}]"
+            }
+          ]
+        }
+      },
+      "id": "5",
+      "name": "Slack Notification",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [850, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{{\"status\":\"success\",\"message\":\"?뚮┝ 諛쒖넚 ?꾨즺\",\"timestamp\":\"{{$json.processedAt}}\"}}}"
+      },
+      "id": "6",
+      "name": "Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1050, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          { "node": "Process Notification", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Process Notification": {
+      "main": [
+        [
+          { "node": "Send SMS", "type": "main", "index": 0 },
+          { "node": "Send Email", "type": "main", "index": 0 },
+          { "node": "Slack Notification", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Slack Notification": {
+      "main": [
+        [
+          { "node": "Response", "type": "main", "index": 0 }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {},
+  "id": "academy-notification-workflow"
+}

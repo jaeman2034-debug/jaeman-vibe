@@ -1,0 +1,16 @@
+export const CATEGORIES = [
+  { key:"baseball",    label:"야구",         emoji:"⚾" },
+  { key:"football",    label:"축구",         emoji:"⚽" },
+  { key:"basketball",  label:"농구",         emoji:"🏀" },
+  { key:"volleyball",  label:"배구",         emoji:"🏐" },
+  { key:"golf",        label:"골프",         emoji:"⛳" },
+  { key:"tennis",      label:"테니스",       emoji:"🎾" },
+  { key:"running",     label:"러닝",         emoji:"🏃" },
+  { key:"outdoor",     label:"아웃도어",     emoji:"🏔️" },
+  { key:"badminton",   label:"배드민턴",     emoji:"🏸" },
+  { key:"tabletennis", label:"탁구",         emoji:"🏓" },
+  { key:"swimming",    label:"수영",         emoji:"🏊" },
+  { key:"fitness",     label:"피트니스/헬스", emoji:"💪" },
+  { key:"yoga",        label:"요가/필라테스", emoji:"🧘" },
+  { key:"climbing",    label:"클라이밍",     emoji:"🧗" },
+] as const;

@@ -1,0 +1,11 @@
+﻿ules_version = '2';
+
+// 개발 환경용 Storage 보안 규칙
+service firebase.storage {
+  match /b/{bucket}/o {
+    // 개발용: 모든 접근 허용 (에뮬레이터에서만 사용)
+    match /{allPaths=**} {
+      allow read, write: if true;
+    }
+  }
+} 

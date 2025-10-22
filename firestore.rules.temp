@@ -1,0 +1,10 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /clubs/{id} {
+      allow read: if true;
+      allow create: if request.auth != null; // 임시 완화
+    }
+    match /{document=**} { allow read, write: if false; }
+  }
+}

@@ -1,0 +1,151 @@
+name: CI Pipeline - Optimized
+
+on:
+  push:
+    branches: [ "main", "develop" ]
+  pull_request:
+    branches: [ "main", "develop" ]
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm install --legacy-peer-deps
+
+      - name: Run Tests
+        run: |
+          echo "Running tests..."
+          # 실제 테스트 명령어로 교체
+          npm run test:academy
+
+  notify:
+    runs-on: ubuntu-latest
+    needs: build-test
+    if: always()   # 성공/실패 상관없이 실행
+    steps:
+      - name: Send KakaoTalk notification
+        run: |
+          if [ "${{ needs.build-test.result }}" == "success" ]; then
+            STATUS="success"
+            EMOJI="✅"
+            MESSAGE="YAGO VIBE 테스트 성공! 🎉"
+          else
+            STATUS="failure"
+            EMOJI="❌"
+            MESSAGE="YAGO VIBE 테스트 실패 ⚠️"
+          fi
+
+          curl -X POST https://<YOUR_N8N_URL>/webhook/ci-kakao-alert \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"status\": \"$STATUS\",
+              \"repo\": \"${{ github.repository }}\",
+              \"branch\": \"${{ github.ref_name }}\",
+              \"author\": \"${{ github.actor }}\",
+              \"message\": \"$MESSAGE\",
+              \"emoji\": \"$EMOJI\",
+              \"run_number\": \"${{ github.run_number }}\",
+              \"workflow\": \"${{ github.workflow }}\"
+            }"
+
+      - name: Send Slack notification
+        if: always()
+        run: |
+          if [ "${{ needs.build-test.result }}" == "success" ]; then
+            STATUS="✅ Success"
+            COLOR="good"
+          else
+            STATUS="❌ Failure"
+            COLOR="danger"
+          fi
+
+          curl -X POST -H "Content-Type: application/json" \
+            -d "{
+              \"text\": \"CI Result: $STATUS\",
+              \"attachments\": [
+                {
+                  \"color\": \"$COLOR\",
+                  \"fields\": [
+                    {
+                      \"title\": \"Repository\",
+                      \"value\": \"${{ github.repository }}\",
+                      \"short\": true
+                    },
+                    {
+                      \"title\": \"Branch\",
+                      \"value\": \"${{ github.ref_name }}\",
+                      \"short\": true
+                    },
+                    {
+                      \"title\": \"Author\",
+                      \"value\": \"${{ github.actor }}\",
+                      \"short\": true
+                    },
+                    {
+                      \"title\": \"Run Number\",
+                      \"value\": \"${{ github.run_number }}\",
+                      \"short\": true
+                    }
+                  ]
+                }
+              ]
+            }" \
+            ${{ secrets.SLACK_WEBHOOK_URL }}
+
+      - name: Send Discord notification
+        if: always()
+        run: |
+          if [ "${{ needs.build-test.result }}" == "success" ]; then
+            STATUS="✅ Success"
+            COLOR="0x00ff00"
+          else
+            STATUS="❌ Failure"
+            COLOR="0xff0000"
+          fi
+
+          curl -X POST -H "Content-Type: application/json" \
+            -d "{
+              \"content\": \"CI Result: $STATUS\",
+              \"embeds\": [
+                {
+                  \"title\": \"YAGO VIBE CI Pipeline\",
+                  \"color\": $COLOR,
+                  \"fields\": [
+                    {
+                      \"name\": \"Repository\",
+                      \"value\": \"${{ github.repository }}\",
+                      \"inline\": true
+                    },
+                    {
+                      \"name\": \"Branch\",
+                      \"value\": \"${{ github.ref_name }}\",
+                      \"inline\": true
+                    },
+                    {
+                      \"name\": \"Author\",
+                      \"value\": \"${{ github.actor }}\",
+                      \"inline\": true
+                    },
+                    {
+                      \"name\": \"Run Number\",
+                      \"value\": \"${{ github.run_number }}\",
+                      \"inline\": true
+                    }
+                  ],
+                  \"footer\": {
+                    \"text\": \"GitHub Actions\"
+                  }
+                }
+              ]
+            }" \
+            ${{ secrets.DISCORD_WEBHOOK }}

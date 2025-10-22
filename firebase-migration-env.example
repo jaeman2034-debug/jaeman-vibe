@@ -1,0 +1,21 @@
+# Firebase 마이그레이션 & 아카데미 시드용 환경변수 설정
+# 이 파일을 .env로 복사하고 실제 값으로 교체하세요
+
+# Firebase 설정
+FIREBASE_API_KEY=your_firebase_api_key_here
+FIREBASE_AUTH_DOMAIN=your_project_id.firebaseapp.com
+FIREBASE_PROJECT_ID=your_project_id_here
+
+# 예시:
+# FIREBASE_API_KEY=AIzaSyBxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+# FIREBASE_AUTH_DOMAIN=jaeman-vibe.firebaseapp.com
+# FIREBASE_PROJECT_ID=jaeman-vibe
+
+# Firebase Console에서 프로젝트 설정 > 일반 탭에서 확인 가능
+# 1. 프로젝트 ID: Firebase Console 상단에서 확인
+# 2. API 키: 웹 앱 설정에서 확인
+# 3. Auth 도메인: 프로젝트 ID + .firebaseapp.com
+
+# 사용 스크립트:
+# - migrate-courses.bat: 강좌 데이터 마이그레이션
+# - seed-academy.bat: 아카데미 기본 데이터 등록

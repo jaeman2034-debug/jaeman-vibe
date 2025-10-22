@@ -1,0 +1,73 @@
+{
+  "name": "Club – Post → Google Sites",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "club-post-sites"
+      },
+      "id": "wh",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [-620, 60]
+    },
+    {
+      "parameters": {
+        "keepOnlySet": false,
+        "values": {
+          "string": [
+            {"name": "title", "value": "={{$json.title}}"},
+            {"name": "contentHtml", "value": "=<h2>{{$json.title}}</h2><p>{{{$json.contentMd}}}</p>"}
+          ]
+        }
+      },
+      "id": "set",
+      "name": "Set",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [-430, 60]
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "url": "=https://sites.googleapis.com/v1/{{$env.SITES_SITE_ID}}/pages",
+        "method": "POST",
+        "jsonParameters": true,
+        "sendBody": true,
+        "bodyParametersJson": "={\n  \"page\": {\n    \"title\": \"{{$json.title}}\",\n    \"isDraft\": false,\n    \"elements\": [ { \"text\": { \"content\": \"{{$json.contentHtml}}\" } } ]\n  }\n}"
+      },
+      "id": "sites",
+      "name": "Sites API",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [-180, 60]
+    },
+    {
+      "parameters": {
+        "url": "={{$env.SLACK_KPI_WEBHOOK}}",
+        "jsonParameters": true,
+        "sendBody": true,
+        "bodyParametersJson": "={\n  \"text\": \"🌐 Sites posted: {{$json.title}}\"\n}"
+      },
+      "id": "slack",
+      "name": "Slack",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [40, 60]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [[{"node": "Set", "type": "main", "index": 0}]]
+    },
+    "Set": {
+      "main": [[{"node": "Sites API", "type": "main", "index": 0}]]
+    },
+    "Sites API": {
+      "main": [[{"node": "Slack", "type": "main", "index": 0}]]
+    }
+  },
+  "settings": {
+    "timezone": "Asia/Seoul"
+  }
+}

@@ -1,0 +1,362 @@
+{
+  "name": "social-publish",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "social-publish",
+        "httpMethod": "POST",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [200, 200],
+      "webhookMethods": {
+        "POST": true
+      },
+      "name": "Webhook"
+    },
+    {
+      "parameters": {
+        "functionCode": "// 입력 데이터 처리 및 채널별 분기\nconst input = items[0].json;\nconst { meetupId, caption, images, channels, when } = input;\n\n// 기본 이미지 URL\nconst imageUrl = images && images.length > 0 ? images[0].publicUrl : '';\n\n// 채널별 데이터 준비\nconst channelData = [];\n\nfor (const channel of channels || []) {\n  channelData.push({\n    json: {\n      meetupId,\n      channel,\n      caption,\n      image: imageUrl,\n      when,\n      // 채널별 특수 설정\n      igUserId: process.env.IG_USER_ID || 'REPLACE_IG_USER_ID',\n      twitterApiKey: process.env.TWITTER_API_KEY || 'REPLACE_TWITTER_API_KEY'\n    }\n  });\n}\n\nreturn channelData;"
+      },
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [420, 200],
+      "name": "Fan-out Channels"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{$json.channel}}",
+              "operation": "equal",
+              "value2": "x"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [640, 100],
+      "name": "IF X (Twitter)"
+    },
+    {
+      "parameters": {
+        "url": "={{$json.image}}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 2,
+      "position": [860, 100],
+      "name": "Download Image"
+    },
+    {
+      "parameters": {
+        "url": "https://upload.twitter.com/1.1/media/upload.json",
+        "requestMethod": "POST",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "multipart/form-data"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "media",
+              "value": "={{$binary.data}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 2,
+      "position": [1080, 100],
+      "name": "Upload Media to Twitter",
+      "credentials": {
+        "twitterOAuth1Api": {
+          "id": "twitter-oauth1"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "https://api.twitter.com/2/tweets",
+        "requestMethod": "POST",
+        "jsonParameters": true,
+        "bodyParametersJson": "={\n  \"text\": \"{{$json.caption}}\",\n  \"media\": {\n    \"media_ids\": [\"{{$json.media_id_string}}\"]\n  }\n}"
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 2,
+      "position": [1300, 100],
+      "name": "Post Tweet",
+      "credentials": {
+        "twitterOAuth2Api": {
+          "id": "twitter-oauth2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{$json.channel}}",
+              "operation": "equal",
+              "value2": "instagram"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [640, 200],
+      "name": "IF Instagram"
+    },
+    {
+      "parameters": {
+        "url": "=https://graph.facebook.com/v19.0/{{$json.igUserId}}/media",
+        "requestMethod": "POST",
+        "jsonParameters": true,
+        "options": {
+          "bodyContentType": "form-urlencoded"
+        },
+        "bodyParametersJson": "={\n  \"image_url\": \"{{$json.image}}\",\n  \"caption\": \"{{$json.caption}}\"\n}"
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 2,
+      "position": [860, 200],
+      "name": "IG Create Media",
+      "credentials": {
+        "facebookGraphApi": {
+          "id": "fb-cred-id"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "=https://graph.facebook.com/v19.0/{{$json.igUserId}}/media_publish",
+        "requestMethod": "POST",
+        "jsonParameters": true,
+        "options": {
+          "bodyContentType": "form-urlencoded"
+        },
+        "bodyParametersJson": "={\n  \"creation_id\": \"{{$json.id || $node['IG Create Media'].json['id']}}\"\n}"
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 2,
+      "position": [1080, 200],
+      "name": "IG Publish",
+      "credentials": {
+        "facebookGraphApi": {
+          "id": "fb-cred-id"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{$json.channel}}",
+              "operation": "equal",
+              "value2": "naverblog"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [640, 300],
+      "name": "IF NaverBlog"
+    },
+    {
+      "parameters": {
+        "url": "https://openapi.naver.com/blog/writePost.json",
+        "requestMethod": "POST",
+        "jsonParameters": true,
+        "options": {},
+        "bodyParametersJson": "={\n  \"title\": \"YAGO Meetup\",\n  \"contents\": \"{{$json.caption}}\\n<img src='{{$json.image}}'/>\"\n}"
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 2,
+      "position": [860, 300],
+      "name": "Naver Blog Post",
+      "credentials": {
+        "oAuth2Api": {
+          "id": "naver-oauth2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "functionCode": "// 예약 발행 처리\nconst when = items[0].json.when;\nif (when && when !== 'now') {\n  const scheduleTime = new Date(when);\n  const now = new Date();\n  const delayMs = scheduleTime.getTime() - now.getTime();\n  \n  if (delayMs > 0) {\n    // 실제 환경에서는 Delay Until 노드 사용\n    console.log(`Scheduled for: ${scheduleTime.toISOString()}`);\n  }\n}\n\nreturn items;"
+      },
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [420, 400],
+      "name": "Schedule Handler"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": true,\n  \"message\": \"Social media posts published successfully\",\n  \"channels\": {{$json.channels}},\n  \"timestamp\": \"{{new Date().toISOString()}}\"\n}"
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1500, 200],
+      "name": "Success Response"
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Fan-out Channels",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fan-out Channels": {
+      "main": [
+        [
+          {
+            "node": "IF X (Twitter)",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "IF Instagram",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "IF NaverBlog",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF X (Twitter)": {
+      "main": [
+        [
+          {
+            "node": "Download Image",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download Image": {
+      "main": [
+        [
+          {
+            "node": "Upload Media to Twitter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload Media to Twitter": {
+      "main": [
+        [
+          {
+            "node": "Post Tweet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Post Tweet": {
+      "main": [
+        [
+          {
+            "node": "Success Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF Instagram": {
+      "main": [
+        [
+          {
+            "node": "IG Create Media",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IG Create Media": {
+      "main": [
+        [
+          {
+            "node": "IG Publish",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IG Publish": {
+      "main": [
+        [
+          {
+            "node": "Success Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF NaverBlog": {
+      "main": [
+        [
+          {
+            "node": "Naver Blog Post",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Naver Blog Post": {
+      "main": [
+        [
+          {
+            "node": "Success Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": {},
+  "pinData": {}
+}

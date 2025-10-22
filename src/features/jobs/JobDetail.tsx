@@ -1,0 +1,111 @@
+import { useEffect, useState } from 'react';
+import { useParams } from 'react-router-dom';
+import type { Job } from '@/shared/types/product';
+import { getJob } from '@/features/jobs/services/jobService';
+import { autoCorrectDong } from '@/features/location/services/locationService';
+import { useAuth } from '@/features/auth/AuthContext';
+
+export default function JobDetail() {
+  const { id } = useParams<{ id: string }>();
+  const [item, setItem] = useState<Job | null>(null);
+  const { user } = useAuth();
+
+  useEffect(() => {
+    if (!id) return;
+    getJob(id).then(setItem);
+  }, [id]);
+
+  if (!id) return <main style={{ padding: 24 }}>?òÎ™ª??Í≤ΩÎ°ú</main>;
+  if (!item) return <main style={{ padding: 24 }}>Î°úÎî©/?ÜÏùå</main>;
+
+  const onCheckDong = async () => {
+    if (!item.loc) {
+      alert('?ÑÏπò ?ïÎ≥¥Í∞Ä ?ÜÏäµ?àÎã§.');
+      return;
+    }
+
+    try {
+      const dong = await autoCorrectDong('jobs', id, item.loc);
+      if (dong) {
+        setItem(prev => prev ? { ...prev, dong } : null);
+        alert(`?âÏ†ï???ïÎ≥¥Í∞Ä ?ÖÎç∞?¥Ìä∏?òÏóà?µÎãà?? ${dong}`);
+      } else {
+        alert('?âÏ†ï???ïÎ≥¥Î•?Í∞Ä?∏Ïò¨ ???ÜÏäµ?àÎã§.');
+      }
+    } catch (error) {
+      console.error('Check dong error:', error);
+      alert('?âÏ†ï???ïÏù∏???§Ìå®?àÏäµ?àÎã§.');
+    }
+  };
+
+  const getTypeLabel = (type: string) => {
+    const labels = {
+      fulltime: '?ïÍ∑ú',
+      parttime: '?åÌä∏',
+      coach: 'ÏΩîÏπò',
+      etc: 'Í∏∞Ì?'
+    };
+    return labels[type as keyof typeof labels] || type;
+  };
+
+  const isOwner = user?.uid && user.uid === item.ownerId;
+
+  return (
+    <main style={{ padding: 24, maxWidth: 960, margin: '0 auto' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
+        <div>
+          <h1>{item.title}</h1>
+          {item.company && <div style={{ color: '#666', marginTop: 8 }}>?åÏÇ¨: {item.company}</div>}
+          <div style={{ color: '#444', marginTop: 8 }}>?†Ìòï: {getTypeLabel(item.type)}</div>
+          {(item.salaryMin || item.salaryMax) && (
+            <div style={{ color: '#444', marginTop: 8 }}>
+              Í∏âÏó¨: {item.salaryMin ? `${item.salaryMin.toLocaleString()}?? : ''}
+              {item.salaryMin && item.salaryMax ? ' ~ ' : ''}
+              {item.salaryMax ? `${item.salaryMax.toLocaleString()}?? : ''}
+            </div>
+          )}
+          {item.contact && <div style={{ color: '#666', marginTop: 8 }}>?∞ÎùΩÏ≤? {item.contact}</div>}
+          {item.dong && <div style={{ color: '#777', marginTop: 8 }}>?âÏ†ï?? {item.dong}</div>}
+          {item.loc && (
+            <div style={{ color: '#555', marginTop: 8 }}>
+              ?ÑÏπò: lat {item.loc.lat.toFixed(5)}, lng {item.loc.lng.toFixed(5)}
+            </div>
+          )}
+          {item.desc && (
+            <p style={{ marginTop: 16, whiteSpace: 'pre-wrap', lineHeight: 1.6 }}>
+              {item.desc}
+            </p>
+          )}
+
+          <div style={{ marginTop: 24, display: 'flex', gap: 8 }}>
+            <button 
+              data-voice-action="check-dong" 
+              onClick={onCheckDong}
+              disabled={!item.loc}
+            >
+              ?âÏ†ï???ïÏù∏
+            </button>
+            {isOwner && (
+              <>
+                {/* Ï∂îÌõÑ: ?∏Ïßë/??†ú Î≤ÑÌäº */}
+                <button disabled>?∏Ïßë</button>
+                <button disabled>??†ú</button>
+              </>
+            )}
+          </div>
+        </div>
+
+        <div style={{ background: '#f8f8f8', padding: 24, borderRadius: 12 }}>
+          <h3>Íµ¨Ïù∏ ?ïÎ≥¥</h3>
+          <div style={{ marginTop: 16 }}>
+            <div><strong>?ùÏÑ±??</strong> {item.createdAt?.toDate?.()?.toLocaleDateString() || '?????ÜÏùå'}</div>
+            <div><strong>?åÏú†??</strong> {item.ownerId}</div>
+            {item.updatedAt && (
+              <div><strong>?òÏ†ï??</strong> {item.updatedAt?.toDate?.()?.toLocaleDateString()}</div>
+            )}
+          </div>
+        </div>
+      </div>
+    </main>
+  );
+}

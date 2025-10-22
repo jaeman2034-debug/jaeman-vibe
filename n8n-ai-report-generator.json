@@ -1,0 +1,371 @@
+{
+  "name": "YAGO VIBE AI 리포트 자동 생성 시스템",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 0 * * *"
+            }
+          ]
+        }
+      },
+      "id": "cron-trigger",
+      "name": "⏰ Cron - 매일 00:00",
+      "type": "n8n-nodes-base.cron",
+      "typeVersion": 1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "url": "https://firestore.googleapis.com/v1/projects/{{ $env.FIREBASE_PROJECT_ID }}/databases/(default)/documents/notification_logs",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer {{ $env.FIREBASE_ACCESS_TOKEN }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "pageSize",
+              "value": "500"
+            },
+            {
+              "name": "orderBy",
+              "value": "timestamp desc"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "firestore-data-collector",
+      "name": "📊 Firestore - 데이터 수집",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "condition-1",
+              "leftValue": "={{ $json.documents?.length }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "filter-has-data",
+      "name": "🔍 Filter - 데이터 존재 확인",
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// 🧠 AI 리포트 데이터 전처리 및 분석\nconst documents = items[0].json.documents || [];\nconst today = new Date().toLocaleDateString('ko-KR');\nconst yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000).toLocaleDateString('ko-KR');\n\n// 데이터 파싱 및 분석\nconst logs = documents.map(doc => {\n  const fields = doc.fields || {};\n  return {\n    title: fields.title?.stringValue || '제목 없음',\n    price: parseInt(fields.price?.integerValue || '0'),\n    address: fields.address?.stringValue || '주소 없음',\n    distance: parseInt(fields.distance_m?.integerValue || '0'),\n    category: fields.category?.stringValue || '기타',\n    condition: fields.condition?.stringValue || '중고',\n    timestamp: fields.timestamp?.timestampValue || new Date().toISOString()\n  };\n});\n\n// 날짜별 필터링 (어제 데이터)\nconst yesterdayLogs = logs.filter(log => {\n  const logDate = new Date(log.timestamp).toDateString();\n  return logDate === new Date(Date.now() - 24 * 60 * 60 * 1000).toDateString();\n});\n\n// 통계 계산\nconst totalCount = yesterdayLogs.length;\nconst totalValue = yesterdayLogs.reduce((sum, log) => sum + log.price, 0);\nconst avgPrice = totalCount > 0 ? Math.round(totalValue / totalCount) : 0;\nconst avgDistance = totalCount > 0 ? Math.round(yesterdayLogs.reduce((sum, log) => sum + log.distance, 0) / totalCount) : 0;\n\n// 지역별 집계\nconst regionStats = yesterdayLogs.reduce((acc, log) => {\n  const region = log.address.split(' ').slice(0, 2).join(' '); // 시/구 단위\n  if (!acc[region]) {\n    acc[region] = { count: 0, totalValue: 0, items: [] };\n  }\n  acc[region].count += 1;\n  acc[region].totalValue += log.price;\n  acc[region].items.push(log.title);\n  return acc;\n}, {});\n\n// 카테고리별 집계\nconst categoryStats = yesterdayLogs.reduce((acc, log) => {\n  if (!acc[log.category]) {\n    acc[log.category] = { count: 0, totalValue: 0 };\n  }\n  acc[log.category].count += 1;\n  acc[log.category].totalValue += log.price;\n  return acc;\n}, {});\n\n// 상세 항목 텍스트 생성\nconst detailItems = yesterdayLogs.map(log => \n  `- ${log.title} (${log.address}) - ${log.price.toLocaleString()}원 (${log.distance}m)`\n).join('\\n');\n\n// 지역별 요약\nconst regionSummary = Object.entries(regionStats)\n  .map(([region, stats]) => `  • ${region}: ${stats.count}건 (${stats.totalValue.toLocaleString()}원)`)\n  .join('\\n');\n\n// 카테고리별 요약\nconst categorySummary = Object.entries(categoryStats)\n  .sort(([,a], [,b]) => b.totalValue - a.totalValue)\n  .slice(0, 3)\n  .map(([category, stats]) => `  • ${category}: ${stats.count}건 (${stats.totalValue.toLocaleString()}원)`)\n  .join('\\n');\n\n// GPT 프롬프트 생성\nconst prompt = `\nYAGO VIBE 거래 알림 리포트를 작성해주세요.\n\n📅 **리포트 날짜**: ${yesterday}\n📊 **총 거래 건수**: ${totalCount}건\n💰 **총 거래액**: ${totalValue.toLocaleString()}원\n📏 **평균 거리**: ${avgDistance}m\n\n🏙️ **지역별 거래 현황**:\n${regionSummary}\n\n🏷️ **카테고리별 거래 현황**:\n${categorySummary}\n\n📋 **상세 거래 내역**:\n${detailItems}\n\n**요청사항**:\n1. 위 데이터를 바탕으로 전문적이고 간결한 거래 리포트를 작성해주세요.\n2. 주요 인사이트와 트렌드를 분석해주세요.\n3. 비즈니스 관점에서의 결론을 제시해주세요.\n4. 마크다운 형식으로 작성해주세요.\n5. 이모지를 적절히 사용해주세요.\n`;\n\nreturn [{\n  json: {\n    prompt,\n    stats: {\n      totalCount,\n      totalValue,\n      avgPrice,\n      avgDistance,\n      regionStats,\n      categoryStats,\n      yesterday\n    },\n    rawData: yesterdayLogs\n  }\n}];"
+      },
+      "id": "data-processor",
+      "name": "🧠 Data Processor - 분석",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "url": "https://api.openai.com/v1/chat/completions",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer {{ $env.OPENAI_API_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"gpt-4\",\n  \"messages\": [\n    {\n      \"role\": \"system\",\n      \"content\": \"당신은 YAGO VIBE의 전문 데이터 분석가입니다. 거래 데이터를 분석하여 비즈니스 인사이트가 담긴 전문적인 리포트를 작성합니다.\"\n    },\n    {\n      \"role\": \"user\",\n      \"content\": \"{{ $json.prompt }}\"\n    }\n  ],\n  \"max_tokens\": 2000,\n  \"temperature\": 0.7\n}",
+        "options": {}
+      },
+      "id": "openai-gpt",
+      "name": "🤖 OpenAI - GPT 리포트 생성",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1120, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// 📄 PDF용 마크다운 콘텐츠 생성\nconst gptResponse = items[0].json.choices[0].message.content;\nconst stats = items[0].json.stats;\nconst today = new Date().toISOString().split('T')[0];\n\nconst markdownContent = `\n# 📊 YAGO VIBE 거래 알림 리포트\n\n**생성일**: ${today}\n**리포트 기간**: ${stats.yesterday}\n\n---\n\n## 📈 주요 통계\n\n- **총 거래 건수**: ${stats.totalCount}건\n- **총 거래액**: ${stats.totalValue.toLocaleString()}원\n- **평균 거래액**: ${stats.avgPrice.toLocaleString()}원\n- **평균 거리**: ${stats.avgDistance}m\n\n---\n\n## 🏙️ 지역별 거래 현황\n\n${Object.entries(stats.regionStats)\n  .map(([region, data]) => `### ${region}\n- 거래 건수: ${data.count}건\n- 거래액: ${data.totalValue.toLocaleString()}원`)\n  .join('\\n\\n')}\n\n---\n\n## 🏷️ 카테고리별 거래 현황\n\n${Object.entries(stats.categoryStats)\n  .sort(([,a], [,b]) => b.totalValue - a.totalValue)\n  .map(([category, data]) => `### ${category}\n- 거래 건수: ${data.count}건\n- 거래액: ${data.totalValue.toLocaleString()}원`)\n  .join('\\n\\n')}\n\n---\n\n## 🧠 AI 분석 리포트\n\n${gptResponse}\n\n---\n\n## 📋 상세 거래 내역\n\n${stats.rawData.map((item, index) => \n  `${index + 1}. **${item.title}**\\n   - 주소: ${item.address}\\n   - 가격: ${item.price.toLocaleString()}원\\n   - 거리: ${item.distance}m\\n   - 카테고리: ${item.category}`\n).join('\\n\\n')}\n\n---\n\n*이 리포트는 YAGO VIBE AI 시스템에 의해 자동 생성되었습니다.*\n`;\n\nreturn [{\n  json: {\n    filename: `YAGO_Report_${today}.md`,\n    content: markdownContent,\n    stats: stats,\n    aiSummary: gptResponse\n  }\n}];"
+      },
+      "id": "markdown-generator",
+      "name": "📄 Markdown - 리포트 생성",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1340, 300]
+    },
+    {
+      "parameters": {
+        "url": "https://api.html-pdf-node.com/convert",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"html\": \"<div style='font-family: Arial, sans-serif; padding: 20px; line-height: 1.6;'>\" + \n    \"{{ $json.content.replace(/\\n/g, '<br>').replace(/\\*\\*(.*?)\\*\\*/g, '<strong>$1</strong>').replace(/### (.*?)/g, '<h3>$1</h3>').replace(/## (.*?)/g, '<h2>$1</h2>').replace(/# (.*?)/g, '<h1>$1</h1>') }}\"\n    + \"</div>\",\n  \"format\": \"A4\",\n  \"margin\": {\n    \"top\": \"20mm\",\n    \"right\": \"20mm\",\n    \"bottom\": \"20mm\",\n    \"left\": \"20mm\"\n  }\n}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          }
+        }
+      },
+      "id": "pdf-generator",
+      "name": "📋 PDF - 리포트 생성",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1560, 300]
+    },
+    {
+      "parameters": {
+        "url": "https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"text\": \"📊 YAGO VIBE 거래 요약 리포트\",\n  \"blocks\": [\n    {\n      \"type\": \"header\",\n      \"text\": {\n        \"type\": \"plain_text\",\n        \"text\": \"📊 YAGO VIBE 거래 요약 리포트\"\n      }\n    },\n    {\n      \"type\": \"section\",\n      \"fields\": [\n        {\n          \"type\": \"mrkdwn\",\n          \"text\": \"*📅 리포트 기간:* {{ $json.stats.yesterday }}\"\n        },\n        {\n          \"type\": \"mrkdwn\",\n          \"text\": \"*📊 총 거래 건수:* {{ $json.stats.totalCount }}건\"\n        },\n        {\n          \"type\": \"mrkdwn\",\n          \"text\": \"*💰 총 거래액:* {{ $json.stats.totalValue.toLocaleString() }}원\"\n        },\n        {\n          \"type\": \"mrkdwn\",\n          \"text\": \"*📏 평균 거리:* {{ $json.stats.avgDistance }}m\"\n        }\n      ]\n    },\n    {\n      \"type\": \"section\",\n      \"text\": {\n        \"type\": \"mrkdwn\",\n        \"text\": \"*🧠 AI 분석 요약:*\\n{{ $json.aiSummary.substring(0, 500) }}{{ $json.aiSummary.length > 500 ? '...' : '' }}\"\n      }\n    },\n    {\n      \"type\": \"divider\"\n    },\n    {\n      \"type\": \"context\",\n      \"elements\": [\n        {\n          \"type\": \"mrkdwn\",\n          \"text\": \"🤖 이 리포트는 YAGO VIBE AI 시스템에 의해 자동 생성되었습니다.\"\n        }\n      ]\n    }\n  ]\n}",
+        "options": {}
+      },
+      "id": "slack-summary",
+      "name": "💬 Slack - 요약 알림",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1780, 200]
+    },
+    {
+      "parameters": {
+        "url": "https://slack.com/api/files.upload",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer {{ $credentials.slackBotToken }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "formData",
+        "formData": {
+          "parameters": [
+            {
+              "name": "channels",
+              "value": "#yago-reports"
+            },
+            {
+              "name": "title",
+              "value": "YAGO VIBE 거래 리포트"
+            },
+            {
+              "name": "initial_comment",
+              "value": "📊 YAGO VIBE 거래 요약 리포트 ({{ $json.stats.yesterday }})"
+            },
+            {
+              "name": "file",
+              "value": "={{ $binary.data }}"
+            },
+            {
+              "name": "filename",
+              "value": "YAGO_Report_{{ $json.stats.yesterday.replace(/\\//g, '-') }}.pdf"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "slack-file-upload",
+      "name": "📎 Slack - PDF 업로드",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1780, 400]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"ok\": true,\n  \"message\": \"AI 리포트 생성 및 전송 완료\",\n  \"timestamp\": \"{{ new Date().toISOString() }}\",\n  \"reportDate\": \"{{ $json.stats.yesterday }}\",\n  \"totalTransactions\": {{ $json.stats.totalCount }},\n  \"totalValue\": {{ $json.stats.totalValue }},\n  \"avgDistance\": {{ $json.stats.avgDistance }},\n  \"channels\": [\"slack_summary\", \"slack_file_upload\"]\n}"
+      },
+      "id": "webhook-response",
+      "name": "✅ Webhook Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [2000, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"ok\": false,\n  \"message\": \"데이터가 없어 리포트를 생성할 수 없습니다\",\n  \"timestamp\": \"{{ new Date().toISOString() }}\",\n  \"expectedDate\": \"{{ new Date(Date.now() - 24 * 60 * 60 * 1000).toDateString() }}\"\n}"
+      },
+      "id": "no-data-response",
+      "name": "❌ No Data Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [900, 500]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "⏰ Cron - 매일 00:00": {
+      "main": [
+        [
+          {
+            "node": "📊 Firestore - 데이터 수집",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📊 Firestore - 데이터 수집": {
+      "main": [
+        [
+          {
+            "node": "🔍 Filter - 데이터 존재 확인",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔍 Filter - 데이터 존재 확인": {
+      "main": [
+        [
+          {
+            "node": "🧠 Data Processor - 분석",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "❌ No Data Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🧠 Data Processor - 분석": {
+      "main": [
+        [
+          {
+            "node": "🤖 OpenAI - GPT 리포트 생성",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🤖 OpenAI - GPT 리포트 생성": {
+      "main": [
+        [
+          {
+            "node": "📄 Markdown - 리포트 생성",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📄 Markdown - 리포트 생성": {
+      "main": [
+        [
+          {
+            "node": "📋 PDF - 리포트 생성",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📋 PDF - 리포트 생성": {
+      "main": [
+        [
+          {
+            "node": "💬 Slack - 요약 알림",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "📎 Slack - PDF 업로드",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "💬 Slack - 요약 알림": {
+      "main": [
+        [
+          {
+            "node": "✅ Webhook Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📎 Slack - PDF 업로드": {
+      "main": [
+        [
+          {
+            "node": "✅ Webhook Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "1",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "ai-report-generator"
+  },
+  "id": "ai-report-generator",
+  "tags": ["yago-vibe", "ai-report", "automation", "slack", "pdf", "openai"]
+}

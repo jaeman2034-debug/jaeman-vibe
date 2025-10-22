@@ -1,0 +1,28 @@
+version: '3.8'
+
+services:
+  mcp-server:
+    build: .
+    ports:
+      - "7331:7331"
+    environment:
+      - PORT=7331
+      - N8N_TOKEN=${N8N_TOKEN}
+      - N8N_WEBHOOK_MEETUP_CREATED=${N8N_WEBHOOK_MEETUP_CREATED}
+      - N8N_WEBHOOK_MARKET_CREATED=${N8N_WEBHOOK_MARKET_CREATED}
+      - N8N_WEBHOOK_SESSION_EVENT=${N8N_WEBHOOK_SESSION_EVENT}
+    env_file:
+      - .env
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:7331/tools', (res) => { process.exit(res.statusCode === 200 ? 0 : 1) })"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - mcp-network
+
+networks:
+  mcp-network:
+    driver: bridge

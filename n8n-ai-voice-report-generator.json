@@ -1,0 +1,558 @@
+{
+  "name": "YAGO VIBE AI 음성 리포트 자동 생성 시스템",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 0 * * *"
+            }
+          ]
+        }
+      },
+      "id": "cron-trigger",
+      "name": "⏰ Cron - 매일 00:00",
+      "type": "n8n-nodes-base.cron",
+      "typeVersion": 1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "url": "https://firestore.googleapis.com/v1/projects/{{ $env.FIREBASE_PROJECT_ID }}/databases/(default)/documents/notification_logs",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer {{ $env.FIREBASE_ACCESS_TOKEN }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "pageSize",
+              "value": "500"
+            },
+            {
+              "name": "orderBy",
+              "value": "timestamp desc"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "firestore-data-collector",
+      "name": "📊 Firestore - 데이터 수집",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "condition-1",
+              "leftValue": "={{ $json.documents?.length }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "filter-has-data",
+      "name": "🔍 Filter - 데이터 존재 확인",
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// 🧠 AI 음성 리포트 데이터 전처리 및 분석\nconst documents = items[0].json.documents || [];\nconst today = new Date().toLocaleDateString('ko-KR');\nconst yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000).toLocaleDateString('ko-KR');\n\n// 데이터 파싱 및 분석\nconst logs = documents.map(doc => {\n  const fields = doc.fields || {};\n  return {\n    title: fields.title?.stringValue || '제목 없음',\n    price: parseInt(fields.price?.integerValue || '0'),\n    address: fields.address?.stringValue || '주소 없음',\n    distance: parseInt(fields.distance_m?.integerValue || '0'),\n    category: fields.category?.stringValue || '기타',\n    condition: fields.condition?.stringValue || '중고',\n    timestamp: fields.timestamp?.timestampValue || new Date().toISOString()\n  };\n});\n\n// 날짜별 필터링 (어제 데이터)\nconst yesterdayLogs = logs.filter(log => {\n  const logDate = new Date(log.timestamp).toDateString();\n  return logDate === new Date(Date.now() - 24 * 60 * 60 * 1000).toDateString();\n});\n\n// 통계 계산\nconst totalCount = yesterdayLogs.length;\nconst totalValue = yesterdayLogs.reduce((sum, log) => sum + log.price, 0);\nconst avgPrice = totalCount > 0 ? Math.round(totalValue / totalCount) : 0;\nconst avgDistance = totalCount > 0 ? Math.round(yesterdayLogs.reduce((sum, log) => sum + log.distance, 0) / totalCount) : 0;\n\n// 지역별 집계\nconst regionStats = yesterdayLogs.reduce((acc, log) => {\n  const region = log.address.split(' ').slice(0, 2).join(' '); // 시/구 단위\n  if (!acc[region]) {\n    acc[region] = { count: 0, totalValue: 0, items: [] };\n  }\n  acc[region].count += 1;\n  acc[region].totalValue += log.price;\n  acc[region].items.push(log.title);\n  return acc;\n}, {});\n\n// 카테고리별 집계\nconst categoryStats = yesterdayLogs.reduce((acc, log) => {\n  if (!acc[log.category]) {\n    acc[log.category] = { count: 0, totalValue: 0 };\n  }\n  acc[log.category].count += 1;\n  acc[log.category].totalValue += log.price;\n  return acc;\n}, {});\n\n// TOP 지역 및 상품\nconst topArea = Object.entries(regionStats)\n  .sort(([,a], [,b]) => b.count - a.count)[0]?.[0] || '정보 없음';\nconst topItem = Object.entries(categoryStats)\n  .sort(([,a], [,b]) => b.totalValue - a.totalValue)[0]?.[0] || '정보 없음';\n\n// 🎧 TTS용 간결한 요약 텍스트 생성\nconst ttsSummary = `\n안녕하세요. 야고바이브 AI 리포트입니다.\n\n${yesterday} 거래 현황을 보고드리겠습니다.\n총 ${totalCount}건의 거래가 발생했습니다.\n총 거래액은 ${totalValue.toLocaleString()}원이며,\n평균 거래액은 ${avgPrice.toLocaleString()}원입니다.\n\n가장 활발한 지역은 ${topArea}이며,\n인기 상품은 ${topItem}입니다.\n\n상세한 분석은 첨부된 PDF를 참고해주세요.\n감사합니다.\n`;\n\n// GPT 프롬프트 생성 (PDF용 상세 분석)\nconst prompt = `\nYAGO VIBE 거래 알림 리포트를 작성해주세요.\n\n📅 **리포트 날짜**: ${yesterday}\n📊 **총 거래 건수**: ${totalCount}건\n💰 **총 거래액**: ${totalValue.toLocaleString()}원\n📏 **평균 거리**: ${avgDistance}m\n\n🏙️ **지역별 거래 현황**:\n${Object.entries(regionStats).map(([region, data]) => `  • ${region}: ${data.count}건 (${data.totalValue.toLocaleString()}원)`).join('\\n')}\n\n🏷️ **카테고리별 거래 현황**:\n${Object.entries(categoryStats).map(([category, data]) => `  • ${category}: ${data.count}건 (${data.totalValue.toLocaleString()}원)`).join('\\n')}\n\n**요청사항**:\n1. 위 데이터를 바탕으로 전문적이고 간결한 거래 리포트를 작성해주세요.\n2. 주요 인사이트와 트렌드를 분석해주세요.\n3. 비즈니스 관점에서의 결론을 제시해주세요.\n4. 마크다운 형식으로 작성해주세요.\n5. 이모지를 적절히 사용해주세요.\n`;\n\nreturn [{\n  json: {\n    prompt,\n    ttsSummary,\n    stats: {\n      totalCount,\n      totalValue,\n      avgPrice,\n      avgDistance,\n      regionStats,\n      categoryStats,\n      yesterday,\n      topArea,\n      topItem\n    },\n    rawData: yesterdayLogs\n  }\n}];"
+      },
+      "id": "data-processor",
+      "name": "🧠 Data Processor - 음성용 분석",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "url": "https://api.openai.com/v1/chat/completions",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer {{ $env.OPENAI_API_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"gpt-4\",\n  \"messages\": [\n    {\n      \"role\": \"system\",\n      \"content\": \"당신은 YAGO VIBE의 전문 데이터 분석가입니다. 거래 데이터를 분석하여 비즈니스 인사이트가 담긴 전문적인 리포트를 작성합니다.\"\n    },\n    {\n      \"role\": \"user\",\n      \"content\": \"{{ $json.prompt }}\"\n    }\n  ],\n  \"max_tokens\": 2000,\n  \"temperature\": 0.7\n}",
+        "options": {}
+      },
+      "id": "openai-gpt",
+      "name": "🤖 OpenAI - GPT 리포트 생성",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1120, 300]
+    },
+    {
+      "parameters": {
+        "url": "https://api.openai.com/v1/audio/speech",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer {{ $env.OPENAI_API_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"tts-1\",\n  \"input\": \"{{ $json.ttsSummary }}\",\n  \"voice\": \"alloy\",\n  \"format\": \"mp3\",\n  \"speed\": 1.0\n}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          }
+        }
+      },
+      "id": "openai-tts",
+      "name": "🎧 OpenAI - TTS 음성 생성",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1120, 500]
+    },
+    {
+      "parameters": {
+        "jsCode": "// 📄 PDF용 마크다운 콘텐츠 생성\nconst gptResponse = items[0].json.choices[0].message.content;\nconst stats = items[0].json.stats;\nconst today = new Date().toISOString().split('T')[0];\n\nconst markdownContent = `\n# 📊 YAGO VIBE AI 음성 리포트\n\n**생성일**: ${today}\n**리포트 기간**: ${stats.yesterday}\n\n---\n\n## 📈 주요 통계\n\n- **총 거래 건수**: ${stats.totalCount}건\n- **총 거래액**: ${stats.totalValue.toLocaleString()}원\n- **평균 거래액**: ${stats.avgPrice.toLocaleString()}원\n- **평균 거리**: ${stats.avgDistance}m\n\n---\n\n## 🏙️ 지역별 거래 현황\n\n${Object.entries(stats.regionStats)\n  .map(([region, data]) => `### ${region}\\n- 거래 건수: ${data.count}건\\n- 거래액: ${data.totalValue.toLocaleString()}원`)\n  .join('\\n\\n')}\n\n---\n\n## 🏷️ 카테고리별 거래 현황\n\n${Object.entries(stats.categoryStats)\n  .sort(([,a], [,b]) => b.totalValue - a.totalValue)\n  .map(([category, data]) => `### ${category}\\n- 거래 건수: ${data.count}건\\n- 거래액: ${data.totalValue.toLocaleString()}원`)\n  .join('\\n\\n')}\n\n---\n\n## 🧠 AI 분석 리포트\n\n${gptResponse}\n\n---\n\n## 🎧 음성 리포트\n\n이 리포트는 AI가 생성한 음성 요약도 함께 제공됩니다.\nSlack에서 음성 파일을 확인하세요.\n\n---\n\n## 📋 상세 거래 내역\n\n${stats.rawData.map((item, index) => \n  `${index + 1}. **${item.title}**\\n   - 주소: ${item.address}\\n   - 가격: ${item.price.toLocaleString()}원\\n   - 거리: ${item.distance}m\\n   - 카테고리: ${item.category}`\n).join('\\n\\n')}\n\n---\n\n*이 리포트는 YAGO VIBE AI 음성 시스템에 의해 자동 생성되었습니다.*\n`;\n\nreturn [{\n  json: {\n    filename: `YAGO_Voice_Report_${today}.md`,\n    content: markdownContent,\n    stats: stats,\n    aiSummary: gptResponse,\n    ttsSummary: items[0].json.ttsSummary\n  }\n}];"
+      },
+      "id": "markdown-generator",
+      "name": "📄 Markdown - 음성 리포트 생성",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1340, 300]
+    },
+    {
+      "parameters": {
+        "url": "https://api.html-pdf-node.com/convert",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"html\": \"<div style='font-family: Arial, sans-serif; padding: 30px; line-height: 1.8; color: #333;'>\" + \n    \"<style>\" +\n    \"h1 { color: #2563eb; border-bottom: 3px solid #2563eb; }\" +\n    \"h2 { color: #16a34a; margin-top: 30px; }\" +\n    \"h3 { color: #dc2626; }\" +\n    \".stats { background: #f8fafc; padding: 15px; border-radius: 8px; }\" +\n    \"</style>\" +\n    \"{{ $json.content.replace(/\\n/g, '<br>').replace(/\\*\\*(.*?)\\*\\*/g, '<strong>$1</strong>').replace(/### (.*?)/g, '<h3>$1</h3>').replace(/## (.*?)/g, '<h2>$1</h2>').replace(/# (.*?)/g, '<h1>$1</h1>') }}\"\n    + \"</div>\",\n  \"format\": \"A4\",\n  \"margin\": {\n    \"top\": \"20mm\",\n    \"right\": \"20mm\",\n    \"bottom\": \"20mm\",\n    \"left\": \"20mm\"\n  }\n}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          }
+        }
+      },
+      "id": "pdf-generator",
+      "name": "📋 PDF - 음성 리포트 생성",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1560, 300]
+    },
+    {
+      "parameters": {
+        "url": "https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"text\": \"🎧 YAGO VIBE AI 음성 리포트\",\n  \"blocks\": [\n    {\n      \"type\": \"header\",\n      \"text\": {\n        \"type\": \"plain_text\",\n        \"text\": \"🎧 YAGO VIBE AI 음성 리포트\"\n      }\n    },\n    {\n      \"type\": \"section\",\n      \"fields\": [\n        {\n          \"type\": \"mrkdwn\",\n          \"text\": \"*📅 리포트 기간:* {{ $json.stats.yesterday }}\"\n        },\n        {\n          \"type\": \"mrkdwn\",\n          \"text\": \"*📊 총 거래 건수:* {{ $json.stats.totalCount }}건\"\n        },\n        {\n          \"type\": \"mrkdwn\",\n          \"text\": \"*💰 총 거래액:* {{ $json.stats.totalValue.toLocaleString() }}원\"\n        },\n        {\n          \"type\": \"mrkdwn\",\n          \"text\": \"*🏙️ 주요 지역:* {{ $json.stats.topArea }}\"\n        }\n      ]\n    },\n    {\n      \"type\": \"section\",\n      \"text\": {\n        \"type\": \"mrkdwn\",\n        \"text\": \"*🎧 AI 음성 요약:*\\n{{ $json.ttsSummary.substring(0, 200) }}...\"\n      }\n    },\n    {\n      \"type\": \"divider\"\n    },\n    {\n      \"type\": \"context\",\n      \"elements\": [\n        {\n          \"type\": \"mrkdwn\",\n          \"text\": \"🤖 이 리포트는 YAGO VIBE AI 음성 시스템에 의해 자동 생성되었습니다.\"\n        }\n      ]\n    }\n  ]\n}",
+        "options": {}
+      },
+      "id": "slack-summary",
+      "name": "💬 Slack - 음성 리포트 요약",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1780, 200]
+    },
+    {
+      "parameters": {
+        "url": "https://slack.com/api/files.upload",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer {{ $credentials.slackBotToken }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "formData",
+        "formData": {
+          "parameters": [
+            {
+              "name": "channels",
+              "value": "#yago-reports"
+            },
+            {
+              "name": "title",
+              "value": "YAGO VIBE AI 음성 리포트"
+            },
+            {
+              "name": "initial_comment",
+              "value": "📄 AI 리포트 PDF ({{ $json.stats.yesterday }})"
+            },
+            {
+              "name": "file",
+              "value": "={{ $binary.data }}"
+            },
+            {
+              "name": "filename",
+              "value": "YAGO_Voice_Report_{{ $json.stats.yesterday.replace(/\\//g, '-') }}.pdf"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "slack-pdf-upload",
+      "name": "📎 Slack - PDF 업로드",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1780, 400]
+    },
+    {
+      "parameters": {
+        "url": "https://slack.com/api/files.upload",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer {{ $credentials.slackBotToken }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "formData",
+        "formData": {
+          "parameters": [
+            {
+              "name": "channels",
+              "value": "#yago-reports"
+            },
+            {
+              "name": "title",
+              "value": "YAGO VIBE AI 음성 리포트"
+            },
+            {
+              "name": "initial_comment",
+              "value": "🎧 AI 음성 요약 ({{ $json.stats.yesterday }})"
+            },
+            {
+              "name": "file",
+              "value": "={{ $binary.data }}"
+            },
+            {
+              "name": "filename",
+              "value": "YAGO_Voice_Report_{{ $json.stats.yesterday.replace(/\\//g, '-') }}.mp3"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "slack-audio-upload",
+      "name": "🎧 Slack - 음성 업로드",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1780, 600]
+    },
+    {
+      "parameters": {
+        "url": "https://gmail.googleapis.com/gmail/v1/users/me/messages/send",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer {{ $credentials.gmailAccessToken }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"raw\": \"{{ Buffer.from('From: YAGO VIBE AI <noreply@yagovibe.com>\\r\\nTo: founder@yagovibe.com, admin@yago.ai\\r\\nSubject: =?UTF-8?B?' + Buffer.from('[YAGO VIBE] 음성 리포트 포함 일간 거래 요약').toString('base64') + '?=\\r\\nMIME-Version: 1.0\\r\\nContent-Type: multipart/mixed; boundary=\"boundary123\"\\r\\n\\r\\n--boundary123\\r\\nContent-Type: text/html; charset=UTF-8\\r\\n\\r\\n<html><body>\\r\\n<h2>🎧 YAGO VIBE AI 음성 리포트</h2>\\r\\n<p>안녕하세요 형님 👋</p>\\r\\n<p>오늘자 야고바이브 AI 자동 리포트를 첨부드립니다.</p>\\r\\n<ul>\\r\\n<li>📄 PDF 리포트</li>\\r\\n<li>🎧 AI 음성 요약</li>\\r\\n</ul>\\r\\n<h3>🎯 주요 지표:</h3>\\r\\n<ul>\\r\\n<li>총 거래 {{ $json.stats.totalCount }}건</li>\\r\\n<li>주요 지역: {{ $json.stats.topArea }}</li>\\r\\n<li>인기 품목: {{ $json.stats.topItem }}</li>\\r\\n</ul>\\r\\n<p>감사합니다.</p>\\r\\n</body></html>\\r\\n\\r\\n--boundary123\\r\\nContent-Type: application/pdf\\r\\nContent-Disposition: attachment; filename=\"YAGO_Voice_Report_{{ $json.stats.yesterday.replace(/\\//g, '-') }}.pdf\"\\r\\nContent-Transfer-Encoding: base64\\r\\n\\r\\n' + $binary.data.toString('base64') + '\\r\\n\\r\\n--boundary123--\\r\\n').toString('base64') }}\"\n}",
+        "options": {}
+      },
+      "id": "gmail-send",
+      "name": "📧 Gmail - 음성 리포트 전송",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2000, 400]
+    },
+    {
+      "parameters": {
+        "url": "https://firestore.googleapis.com/v1/projects/{{ $env.FIREBASE_PROJECT_ID }}/databases/(default)/documents/ai_voice_reports",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer {{ $env.FIREBASE_ACCESS_TOKEN }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"fields\": {\n    \"reportDate\": { \"timestampValue\": \"{{ $json.stats.yesterday }}\" },\n    \"summary\": { \"stringValue\": \"{{ $json.aiSummary }}\" },\n    \"ttsSummary\": { \"stringValue\": \"{{ $json.ttsSummary }}\" },\n    \"pdfUrl\": { \"stringValue\": \"{{ $json.pdfUrl || 'slack_uploaded' }}\" },\n    \"audioUrl\": { \"stringValue\": \"{{ $binary.data.fileName || 'slack_audio_uploaded' }}\" },\n    \"channels\": { \"stringValue\": \"Slack,Gmail,Voice\" },\n    \"status\": { \"stringValue\": \"completed\" },\n    \"stats\": {\n      \"mapValue\": {\n        \"fields\": {\n          \"totalCount\": { \"integerValue\": \"{{ $json.stats.totalCount }}\" },\n          \"totalValue\": { \"integerValue\": \"{{ $json.stats.totalValue }}\" },\n          \"avgPrice\": { \"integerValue\": \"{{ $json.stats.avgPrice }}\" },\n          \"avgDistance\": { \"integerValue\": \"{{ $json.stats.avgDistance }}\" },\n          \"topArea\": { \"stringValue\": \"{{ $json.stats.topArea }}\" },\n          \"topItem\": { \"stringValue\": \"{{ $json.stats.topItem }}\" }\n        }\n      }\n    },\n    \"createdAt\": { \"timestampValue\": \"{{ new Date().toISOString() }}\" }\n  }\n}",
+        "options": {}
+      },
+      "id": "firestore-audio-logger",
+      "name": "📄 Firestore - 음성 리포트 로그",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2220, 400]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"ok\": true,\n  \"message\": \"AI 음성 리포트 생성 및 전송 완료\",\n  \"timestamp\": \"{{ new Date().toISOString() }}\",\n  \"reportDate\": \"{{ $json.stats.yesterday }}\",\n  \"totalTransactions\": {{ $json.stats.totalCount }},\n  \"totalValue\": {{ $json.stats.totalValue }},\n  \"channels\": [\"slack_summary\", \"slack_pdf\", \"slack_audio\", \"gmail\", \"firestore\"],\n  \"voiceReport\": true,\n  \"audioGenerated\": true\n}"
+      },
+      "id": "webhook-response",
+      "name": "✅ Webhook Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [2440, 400]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"ok\": false,\n  \"message\": \"데이터가 없어 음성 리포트를 생성할 수 없습니다\",\n  \"timestamp\": \"{{ new Date().toISOString() }}\",\n  \"expectedDate\": \"{{ new Date(Date.now() - 24 * 60 * 60 * 1000).toDateString() }}\"\n}"
+      },
+      "id": "no-data-response",
+      "name": "❌ No Data Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [900, 500]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "⏰ Cron - 매일 00:00": {
+      "main": [
+        [
+          {
+            "node": "📊 Firestore - 데이터 수집",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📊 Firestore - 데이터 수집": {
+      "main": [
+        [
+          {
+            "node": "🔍 Filter - 데이터 존재 확인",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔍 Filter - 데이터 존재 확인": {
+      "main": [
+        [
+          {
+            "node": "🧠 Data Processor - 음성용 분석",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "❌ No Data Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🧠 Data Processor - 음성용 분석": {
+      "main": [
+        [
+          {
+            "node": "🤖 OpenAI - GPT 리포트 생성",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "🎧 OpenAI - TTS 음성 생성",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🤖 OpenAI - GPT 리포트 생성": {
+      "main": [
+        [
+          {
+            "node": "📄 Markdown - 음성 리포트 생성",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🎧 OpenAI - TTS 음성 생성": {
+      "main": [
+        [
+          {
+            "node": "🎧 Slack - 음성 업로드",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📄 Markdown - 음성 리포트 생성": {
+      "main": [
+        [
+          {
+            "node": "📋 PDF - 음성 리포트 생성",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📋 PDF - 음성 리포트 생성": {
+      "main": [
+        [
+          {
+            "node": "💬 Slack - 음성 리포트 요약",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "📎 Slack - PDF 업로드",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "📧 Gmail - 음성 리포트 전송",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "💬 Slack - 음성 리포트 요약": {
+      "main": [
+        [
+          {
+            "node": "📄 Firestore - 음성 리포트 로그",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📎 Slack - PDF 업로드": {
+      "main": [
+        [
+          {
+            "node": "📄 Firestore - 음성 리포트 로그",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🎧 Slack - 음성 업로드": {
+      "main": [
+        [
+          {
+            "node": "📄 Firestore - 음성 리포트 로그",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📧 Gmail - 음성 리포트 전송": {
+      "main": [
+        [
+          {
+            "node": "📄 Firestore - 음성 리포트 로그",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📄 Firestore - 음성 리포트 로그": {
+      "main": [
+        [
+          {
+            "node": "✅ Webhook Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "1",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "ai-voice-report-generator"
+  },
+  "id": "ai-voice-report-generator",
+  "tags": ["yago-vibe", "ai-voice-report", "automation", "slack", "gmail", "tts", "openai"]
+}

@@ -1,0 +1,279 @@
+{
+  "name": "team-blog-create → Notion + SNS",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "team-blog-create",
+        "options": {
+          "binaryData": false
+        }
+      },
+      "id": "WebhookIn",
+      "name": "Webhook (In)",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "functionCode": "const b = items[0].json || {};\n// expected: { clubId, clubName, sport, branch, leafs, title, subtitle, eventStart, eventEnd, venue, city, price, tags, ctaUrl }\nconst slug = (b.slug || (b.title||'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'')) + '-' + Date.now().toString(36);\nconst qs = new URLSearchParams({ \n  title: b.title||'', \n  subtitle: b.subtitle||'', \n  sport: b.sport||'', \n  club: b.clubName||'', \n  date: new Date(b.eventStart||Date.now()).toLocaleString('ko-KR'), \n  bg: 'sport' \n});\nconst ogUrl = `${$json.baseUrl || 'http://localhost'}/og?${qs.toString()}`;\nreturn [{ json: { ...b, slug, ogUrl } }];"
+      },
+      "id": "Prep",
+      "name": "Prep (slug+og)",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "resource": "page",
+        "operation": "create",
+        "databaseId": "<NOTION_DATABASE_ID>",
+        "properties": {
+          "Title": {
+            "title": [
+              {
+                "text": {
+                  "content": "={{$json.title}}"
+                }
+              }
+            ]
+          },
+          "Slug": {
+            "rich_text": [
+              {
+                "text": {
+                  "content": "={{$json.slug}}"
+                }
+              }
+            ]
+          },
+          "Club": {
+            "select": {
+              "name": "={{$json.clubName}}"
+            }
+          },
+          "Sport": {
+            "select": {
+              "name": "={{$json.sport}}"
+            }
+          },
+          "Branch": {
+            "select": {
+              "name": "={{$json.branch}}"
+            }
+          },
+          "Leaf": {
+            "multi_select": "={{($json.leafs||[]).map(l=>({name:l}))}}"
+          },
+          "EventStart": {
+            "date": {
+              "start": "={{$json.eventStart}}",
+              "end": "={{$json.eventEnd}}"
+            }
+          },
+          "Venue": {
+            "rich_text": [
+              {
+                "text": {
+                  "content": "={{$json.venue||''}}"
+                }
+              }
+            ]
+          },
+          "City": {
+            "select": {
+              "name": "={{$json.city||''}}"
+            }
+          },
+          "Price": {
+            "number": "={{$json.price||0}}"
+          },
+          "OGUrl": {
+            "url": "={{$json.ogUrl}}"
+          },
+          "Published": {
+            "status": {
+              "name": "published"
+            }
+          },
+          "Tags": {
+            "multi_select": "={{($json.tags||[]).map(t=>({name:t}))}}"
+          },
+          "CTAUrl": {
+            "url": "={{$json.ctaUrl||''}}"
+          }
+        },
+        "simple": false,
+        "options": {
+          "pageContent": [
+            {
+              "type": "heading_1",
+              "heading_1": {
+                "rich_text": [
+                  {
+                    "text": {
+                      "content": "={{$json.title}}"
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "type": "callout",
+              "callout": {
+                "rich_text": [
+                  {
+                    "text": {
+                      "content": "장소: {{$json.venue||''}} | 시간: {{$json.eventStart}}"
+                    }
+                  }
+                ],
+                "icon": {
+                  "emoji": "📅"
+                }
+              }
+            },
+            {
+              "type": "paragraph",
+              "paragraph": {
+                "rich_text": [
+                  {
+                    "text": {
+                      "content": "={{$json.subtitle || '요약: 즐겁고 안전한 참여를 위해 기본 수칙을 확인해주세요.'}}"
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "type": "bulleted_list_item",
+              "bulleted_list_item": {
+                "rich_text": [
+                  {
+                    "text": {
+                      "content": "준비물: 운동화/물/수건"
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "type": "image",
+              "image": {
+                "type": "external",
+                "external": {
+                  "url": "={{$json.ogUrl}}"
+                }
+              }
+            },
+            {
+              "type": "paragraph",
+              "paragraph": {
+                "rich_text": [
+                  {
+                    "text": {
+                      "content": "신청하기: "
+                    }
+                  },
+                  {
+                    "type": "text",
+                    "text": {
+                      "content": "바로가기",
+                      "link": {
+                        "url": "={{$json.ctaUrl}}"
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      },
+      "id": "NotionCreate",
+      "name": "Notion → Create Page",
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 1,
+      "position": [680, 200]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Compose social caption\nconst b = $json;\nconst cap = `#${b.sport||'sports'} #${(b.branch||'meetup').replace(/_/g,'')}\\n${b.title}\\n${new Date(b.eventStart).toLocaleString('ko-KR')} · ${b.venue||''}\\n신청: ${b.ctaUrl}`;\nreturn [{ json: { caption: cap, image: b.ogUrl } }];"
+      },
+      "id": "ComposeSNS",
+      "name": "Compose SNS",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [680, 400]
+    },
+    {
+      "parameters": {
+        "requestMethod": "POST",
+        "url": "={{$json.SNS_RELAY_URL || ''}}",
+        "jsonParameters": true,
+        "options": {},
+        "queryParametersUi": {
+          "parameter": []
+        },
+        "bodyParametersUi": {
+          "parameter": [
+            {
+              "name": "caption",
+              "value": "={{$json.caption}}"
+            },
+            {
+              "name": "image",
+              "value": "={{$json.image}}"
+            }
+          ]
+        }
+      },
+      "id": "SNSRelay",
+      "name": "SNS Relay (optional)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [900, 400]
+    }
+  ],
+  "connections": {
+    "Prep": {
+      "main": [
+        [
+          {
+            "node": "NotionCreate",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "ComposeSNS",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook (In)": {
+      "main": [
+        [
+          {
+            "node": "Prep",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ComposeSNS": {
+      "main": [
+        [
+          {
+            "node": "SNSRelay",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

@@ -1,0 +1,9 @@
+﻿ules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 개발용: 모든 접근 허용 (에뮬레이터에서만 사용)
+    match /{document=**} {
+      allow read, write: if true;
+    }
+  }
+} 

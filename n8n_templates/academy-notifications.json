@@ -1,0 +1,79 @@
+﻿{
+  "name": "Academy Enrollment & Payment Alerts",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "enroll",
+        "options": {}
+      },
+      "id": "Webhook_Enroll",
+      "name": "Webhook Enroll",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 200]
+    },
+    {
+      "parameters": {
+        "path": "payment",
+        "options": {}
+      },
+      "id": "Webhook_Payment",
+      "name": "Webhook Payment",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 400]
+    },
+    {
+      "parameters": {
+        "channel": "#academy-alerts",
+        "text": "?뱼 ?섍컯 ?좎껌 ?뚮┝\n?숈깮: {{$json[\"student\"]}}\n媛뺤쥖: {{$json[\"courseTitle\"]}}\n?꾪솕踰덊샇: {{$json[\"phone\"]}}"
+      },
+      "id": "Slack_Enroll",
+      "name": "Slack Enroll Alert",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 1,
+      "position": [550, 200],
+      "credentials": {
+        "slackApi": "Slack API"
+      }
+    },
+    {
+      "parameters": {
+        "channel": "#academy-alerts",
+        "text": "?뮥 寃곗젣 ?꾨즺 ?뚮┝\n?숈깮: {{$json[\"student\"]}}\n媛뺤쥖: {{$json[\"courseTitle\"]}}\n?꾪솕踰덊샇: {{$json[\"phone\"]}}"
+      },
+      "id": "Slack_Payment",
+      "name": "Slack Payment Alert",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 1,
+      "position": [550, 400],
+      "credentials": {
+        "slackApi": "Slack API"
+      }
+    }
+  ],
+  "connections": {
+    "Webhook_Enroll": {
+      "main": [
+        [
+          {
+            "node": "Slack_Enroll",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook_Payment": {
+      "main": [
+        [
+          {
+            "node": "Slack_Payment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

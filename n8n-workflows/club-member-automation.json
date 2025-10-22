@@ -1,0 +1,98 @@
+{
+  "name": "Club – Apply/Approve Notify",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "club-apply"
+      },
+      "id": "apply",
+      "name": "Apply Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [-560, 0]
+    },
+    {
+      "parameters": {
+        "path": "club-approve"
+      },
+      "id": "approve",
+      "name": "Approve Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [-560, 200]
+    },
+    {
+      "parameters": {
+        "keepOnlySet": false,
+        "values": {
+          "string": [
+            {"name": "text", "value": "=🙋 신청: club {{$json.clubId}} / uid {{$json.uid}}"}
+          ]
+        }
+      },
+      "id": "setA",
+      "name": "Set A",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [-350, 0]
+    },
+    {
+      "parameters": {
+        "keepOnlySet": false,
+        "values": {
+          "string": [
+            {"name": "text", "value": "=✅ 승인: club {{$json.clubId}} / uid {{$json.uid}}"}
+          ]
+        }
+      },
+      "id": "setB",
+      "name": "Set B",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [-350, 200]
+    },
+    {
+      "parameters": {
+        "url": "={{$env.SLACK_KPI_WEBHOOK}}",
+        "jsonParameters": true,
+        "sendBody": true,
+        "bodyParametersJson": "={\n  \"text\": \"{{$json.text}}\"\n}"
+      },
+      "id": "slackA",
+      "name": "Slack A",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [-140, 0]
+    },
+    {
+      "parameters": {
+        "url": "={{$env.SLACK_KPI_WEBHOOK}}",
+        "jsonParameters": true,
+        "sendBody": true,
+        "bodyParametersJson": "={\n  \"text\": \"{{$json.text}}\"\n}"
+      },
+      "id": "slackB",
+      "name": "Slack B",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [-140, 200]
+    }
+  ],
+  "connections": {
+    "Apply Webhook": {
+      "main": [[{"node": "Set A", "type": "main", "index": 0}]]
+    },
+    "Approve Webhook": {
+      "main": [[{"node": "Set B", "type": "main", "index": 0}]]
+    },
+    "Set A": {
+      "main": [[{"node": "Slack A", "type": "main", "index": 0}]]
+    },
+    "Set B": {
+      "main": [[{"node": "Slack B", "type": "main", "index": 0}]]
+    }
+  },
+  "settings": {
+    "timezone": "Asia/Seoul"
+  }
+}

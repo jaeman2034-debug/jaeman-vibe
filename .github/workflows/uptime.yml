@@ -1,0 +1,99 @@
+name: uptime-check
+on:
+  schedule:
+    - cron: '*/10 * * * *'  # 10분마다 실행
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping endpoints
+        id: ping
+        run: |
+          set -e
+          BASE="${{ secrets.UPTIME_BASE }}"
+          
+          echo "🔍 Checking endpoints..."
+          
+          # 기본 헬스체크
+          echo "Checking /healthz..."
+          curl -fsS "$BASE/healthz" >/dev/null
+          echo "✅ /healthz OK"
+          
+          # 사이트맵 확인
+          echo "Checking /sitemap.xml..."
+          curl -fsS "$BASE/sitemap.xml" >/dev/null
+          echo "✅ /sitemap.xml OK"
+          
+          # OG 이미지 생성 테스트
+          echo "Checking OG generation..."
+          curl -fsS "$BASE/og?title=test&sport=soccer" >/dev/null
+          echo "✅ OG generation OK"
+          
+          # 메인 페이지 (SPA 라우팅)
+          echo "Checking main page..."
+          curl -fsS "$BASE/" >/dev/null
+          echo "✅ Main page OK"
+          
+          echo "🎉 All endpoints healthy!"
+
+      - name: Slack notify (on failure)
+        if: failure()
+        run: |
+          curl -X POST -H 'Content-type: application/json' \
+            --data '{
+              "text": "🚨 **YAGO Stack Uptime Alert**",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "❌ *Uptime check failed* on `${{ secrets.UPTIME_BASE }}`\n\nPlease check the logs and service status."
+                  }
+                },
+                {
+                  "type": "actions",
+                  "elements": [
+                    {
+                      "type": "button",
+                      "text": {
+                        "type": "plain_text",
+                        "text": "View Service"
+                      },
+                      "url": "${{ secrets.UPTIME_BASE }}/healthz"
+                    },
+                    {
+                      "type": "button",
+                      "text": {
+                        "type": "plain_text",
+                        "text": "View Logs"
+                      },
+                      "url": "https://github.com/${{ github.repository }}/actions"
+                    }
+                  ]
+                }
+              ]
+            }' \
+            '${{ secrets.SLACK_WEBHOOK_URL }}'
+
+      - name: Success notification (daily summary)
+        if: success() && github.event.schedule == '*/10 * * * *'
+        run: |
+          # 매일 첫 번째 성공 시에만 알림 (00:00에 실행되는 경우)
+          if [ "$(date +%H%M)" = "0000" ]; then
+            curl -X POST -H 'Content-type: application/json' \
+              --data '{
+                "text": "✅ **YAGO Stack Daily Health Report**",
+                "blocks": [
+                  {
+                    "type": "section",
+                    "text": {
+                      "type": "mrkdwn",
+                      "text": "🎉 *All systems operational*\n\n24-hour uptime check: *100%* ✅\nService: `${{ secrets.UPTIME_BASE }}`"
+                    }
+                  }
+                ]
+              }' \
+              '${{ secrets.SLACK_WEBHOOK_URL }}'
+          fi

@@ -1,0 +1,163 @@
+{
+  "name": "기본 승인 규칙",
+  "description": "일반적인 승인 프로세스",
+  "defaultRequired": 2,
+  "defaultTtlMinutes": 1440,
+  "defaultExpiryWarnMinutes": 10,
+  "stages": [
+    {
+      "name": "1차 검토",
+      "required": 1,
+      "description": "기본 검토 단계",
+      "approverAllowlist": null,
+      "autoApprove": false
+    },
+    {
+      "name": "2차 승인",
+      "required": 1,
+      "description": "최종 승인 단계",
+      "approverAllowlist": null,
+      "autoApprove": false
+    }
+  ],
+  "typeRules": {
+    "market": {
+      "name": "마켓 상품 승인",
+      "defaultRequired": 1,
+      "defaultTtlMinutes": 720,
+      "stages": [
+        {
+          "name": "상품 검토",
+          "required": 1,
+          "description": "상품 정보 및 가격 검토",
+          "approverAllowlist": ["U1234567890", "U0987654321"],
+          "autoApprove": false
+        }
+      ]
+    },
+    "meetup": {
+      "name": "모임 승인",
+      "defaultRequired": 2,
+      "defaultTtlMinutes": 2880,
+      "stages": [
+        {
+          "name": "내용 검토",
+          "required": 1,
+          "description": "모임 내용 및 일정 검토",
+          "approverAllowlist": ["U1234567890"],
+          "autoApprove": false
+        },
+        {
+          "name": "최종 승인",
+          "required": 1,
+          "description": "최종 승인",
+          "approverAllowlist": ["U0987654321", "U1122334455"],
+          "autoApprove": false
+        }
+      ]
+    },
+    "job": {
+      "name": "구인구직 승인",
+      "defaultRequired": 3,
+      "defaultTtlMinutes": 10080,
+      "stages": [
+        {
+          "name": "1차 검토",
+          "required": 1,
+          "description": "기본 정보 검토",
+          "approverAllowlist": ["U1234567890"],
+          "autoApprove": false
+        },
+        {
+          "name": "2차 승인",
+          "required": 1,
+          "description": "상세 내용 검토",
+          "approverAllowlist": ["U0987654321"],
+          "autoApprove": false
+        },
+        {
+          "name": "최종 승인",
+          "required": 1,
+          "description": "최종 승인",
+          "approverAllowlist": ["U1122334455"],
+          "autoApprove": false
+        }
+      ]
+    },
+    "event": {
+      "name": "이벤트 승인",
+      "defaultRequired": 2,
+      "defaultTtlMinutes": 1440,
+      "stages": [
+        {
+          "name": "내용 검토",
+          "required": 1,
+          "description": "이벤트 내용 검토",
+          "approverAllowlist": ["U1234567890"],
+          "autoApprove": false
+        },
+        {
+          "name": "최종 승인",
+          "required": 1,
+          "description": "최종 승인",
+          "approverAllowlist": ["U0987654321"],
+          "autoApprove": false
+        }
+      ]
+    }
+  },
+  "priorityRules": {
+    "urgent": {
+      "name": "긴급 승인",
+      "defaultRequired": 1,
+      "defaultTtlMinutes": 60,
+      "defaultExpiryWarnMinutes": 5,
+      "stages": [
+        {
+          "name": "긴급 승인",
+          "required": 1,
+          "description": "긴급 승인 처리",
+          "approverAllowlist": ["U9999999999"],
+          "autoApprove": false
+        }
+      ]
+    },
+    "high": {
+      "name": "높은 우선순위",
+      "defaultRequired": 2,
+      "defaultTtlMinutes": 720,
+      "defaultExpiryWarnMinutes": 30,
+      "stages": [
+        {
+          "name": "1차 검토",
+          "required": 1,
+          "description": "빠른 검토",
+          "approverAllowlist": null,
+          "autoApprove": false
+        },
+        {
+          "name": "2차 승인",
+          "required": 1,
+          "description": "최종 승인",
+          "approverAllowlist": null,
+          "autoApprove": false
+        }
+      ]
+    },
+    "low": {
+      "name": "낮은 우선순위",
+      "defaultRequired": 1,
+      "defaultTtlMinutes": 10080,
+      "defaultExpiryWarnMinutes": 1440,
+      "stages": [
+        {
+          "name": "일반 승인",
+          "required": 1,
+          "description": "일반 승인 처리",
+          "approverAllowlist": null,
+          "autoApprove": false
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Status · YAGO</title>
+  <style>
+    body { font-family: ui-sans-serif, system-ui; margin: 24px; color:#0b1220; }
+    .card { border:1px solid #e5e7eb; border-radius:12px; padding:16px; margin-bottom:12px; }
+    .row { display:flex; justify-content:space-between; align-items:center; margin:8px 0; }
+    .pill { padding:4px 10px; border-radius:999px; font-size:12px; }
+    .ok { background:#dcfce7; } .warn{ background:#fef9c3;} .bad{ background:#fee2e2;}
+    small { color:#6b7280; }
+  </style>
+</head>
+<body>
+  <h1>시스템 상태</h1>
+  <div class="card">
+    <div class="row"><div>API /healthz</div><div id="api" class="pill">검사 중…</div></div>
+    <div class="row"><div>FCM Fanout ACK(최근)</div><div id="ack" class="pill">검사 중…</div></div>
+    <div class="row"><div>앱 배포 리비전</div><div id="rev"><small>—</small></div></div>
+    <div><small>자동 새로고침: 30초</small></div>
+  </div>
+
+  <script>
+    const $ = (id)=>document.getElementById(id);
+    function set(id, ok, text) {
+      const el = $(id);
+      el.className = 'pill ' + (ok===true ? 'ok' : ok===false ? 'bad' : 'warn');
+      el.textContent = text;
+    }
+    async function ping() {
+      // API 헬스
+      try {
+        const r = await fetch('/healthz', { cache: 'no-store' });
+        const j = await r.json();
+        set('api', j.ok, j.ok ? '정상' : '오류');
+        $('rev').innerHTML = `<small>${j.rev||'unknown'}</small>`;
+      } catch { set('api', false, '오류'); }
+
+      // ACK 집계(최근 15분)
+      try {
+        const r = await fetch('/ackz?m=15', { cache: 'no-store' });
+        const a = await r.json();
+        if (a.ok) {
+          const rate = Math.round((a.ackRate || 0) * 100);
+          const p90 = a.p90Sec != null ? Math.round(a.p90Sec) : null;
+          const txt = `성공률 ${rate}% / P90 ${p90 ?? '-'}s (n=${a.total})`;
+
+          // 규칙: 성공률≥90% && P90≤60s → 정상 / 그 외 경고 / 성공률<50% → 오류
+          const ok = (rate >= 90 && (p90 ?? 0) <= 60) ? true : (rate < 50 ? false : null);
+          set('ack', ok, txt);
+        } else {
+          set('ack', null, '경고');
+        }
+      } catch { set('ack', null, '경고'); }
+    }
+    ping(); setInterval(ping, 30000);
+  </script>
+</body>
+</html>

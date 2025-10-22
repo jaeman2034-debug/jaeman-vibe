@@ -1,0 +1,240 @@
+﻿{
+  "name": "YAGO VIBE - Team Report with Push Notification",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 9 * * 1"
+            }
+          ]
+        }
+      },
+      "name": "Cron - Every Monday 9AM",
+      "type": "n8n-nodes-base.cron",
+      "typeVersion": 1,
+      "position": [250, 400],
+      "id": "cron-node"
+    },
+    {
+      "parameters": {
+        "resource": "document",
+        "operation": "getAll",
+        "projectId": "={{$env.FIREBASE_PROJECT_ID}}",
+        "collection": "chat_summaries",
+        "options": {
+          "filters": {
+            "field": "createdAt",
+            "operator": ">=",
+            "value": "={{$now.minus(7, 'days').toISO()}}"
+          },
+          "orderBy": {
+            "field": "createdAt",
+            "direction": "desc"
+          }
+        }
+      },
+      "name": "Firestore - Get Summaries",
+      "type": "n8n-nodes-base.googleFirestore",
+      "typeVersion": 1,
+      "position": [470, 400],
+      "id": "firestore-node"
+    },
+    {
+      "parameters": {
+        "functionCode": "const { jsPDF } = require('jspdf');\n\nconst teams = {\n  soheul60: { name: '?뚰쓽FC 60', docs: [], email: 'coach60@yagovibe.com' },\n  soheul88: { name: '?뚰쓽FC 88', docs: [], email: 'coach88@yagovibe.com' },\n  academy: { name: '?뚰쓽 ?꾩뭅?곕?', docs: [], email: 'academy@yagovibe.com' },\n};\n\nitems.forEach((item) => {\n  const { teamId, sentiment, summary } = item.json;\n  const tid = teamId || 'academy';\n  if (teams[tid]) {\n    teams[tid].docs.push({ sentiment, summary });\n  }\n});\n\nfunction makeReport(team) {\n  const doc = new jsPDF();\n  doc.setFont('helvetica', 'normal');\n  doc.setFontSize(18);\n  doc.text(`?뱤 YAGO VIBE - ${team.name}`, 20, 20);\n  doc.setFontSize(12);\n  doc.text(`Generated: ${new Date().toLocaleDateString('ko-KR')}`, 20, 30);\n  \n  const counts = { positive: 0, neutral: 0, negative: 0 };\n  team.docs.forEach((d) => {\n    const s = (d.sentiment || 'neutral').toLowerCase();\n    if (s.includes('positive')) counts.positive++;\n    else if (s.includes('negative')) counts.negative++;\n    else counts.neutral++;\n  });\n  \n  const total = team.docs.length || 1;\n  doc.text(`Positive: ${counts.positive} (${(counts.positive/total*100).toFixed(1)}%)`, 20, 45);\n  doc.text(`Neutral: ${counts.neutral} (${(counts.neutral/total*100).toFixed(1)}%)`, 20, 52);\n  doc.text(`Negative: ${counts.negative} (${(counts.negative/total*100).toFixed(1)}%)`, 20, 59);\n  \n  let y = 75;\n  team.docs.slice(0, 10).forEach((d, i) => {\n    const text = `${i+1}. ${d.summary}`;\n    const lines = doc.splitTextToSize(text, 170);\n    doc.text(lines, 20, y);\n    y += lines.length * 6;\n    if (y > 270) { doc.addPage(); y = 20; }\n  });\n  \n  return {\n    teamId: Object.keys(teams).find(k => teams[k].name === team.name),\n    teamName: team.name,\n    email: team.email,\n    filename: `YAGO_${team.name.replace(/\\s+/g, '_')}_${new Date().toISOString().slice(0,10)}.pdf`,\n    pdfBase64: Buffer.from(doc.output('arraybuffer')).toString('base64'),\n    positiveCount: counts.positive,\n    neutralCount: counts.neutral,\n    negativeCount: counts.negative,\n    positivePercent: (counts.positive/total*100).toFixed(1)\n  };\n}\n\nconst outputs = Object.values(teams).map((team) => ({\n  json: makeReport(team)\n}));\n\nreturn outputs;"
+      },
+      "name": "Function - Generate PDFs",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [690, 400],
+      "id": "function-node"
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "send",
+        "to": "={{$json.email}}",
+        "subject": "?뱤 [YAGO VIBE] {{$json.teamName}} 二쇨컙 由ы룷??,
+        "message": "?덈뀞?섏꽭??{{$json.teamName}} 肄붿튂??\n\n?대쾲 二?AI 遺꾩꽍 由ы룷?몄엯?덈떎.\n\n湲띿젙: {{$json.positivePercent}}%\n以묐┰: {{$json.neutralCount}}媛?n遺?? {{$json.negativeCount}}媛?n\nYAGO VIBE",
+        "options": {
+          "attachments": "pdf"
+        }
+      },
+      "name": "Gmail - Send Reports",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2,
+      "position": [910, 200],
+      "id": "gmail-node"
+    },
+    {
+      "parameters": {
+        "url": "={{$env.SLACK_WEBHOOK_URL}}",
+        "options": {
+          "bodyContentType": "json"
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "text",
+              "value": "?뱤 YAGO VIBE 二쇨컙 由ы룷??諛쒖넚 ?꾨즺!\\n\\n?룇 ?蹂?湲띿젙瑜?\\n???뚰쓽FC 60: {{$item(0).$json.positivePercent}}%\\n???뚰쓽FC 88: {{$item(1).$json.positivePercent}}%\\n???꾩뭅?곕?: {{$item(2).$json.positivePercent}}%"
+            }
+          ]
+        }
+      },
+      "name": "Slack - Summary",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [910, 400],
+      "id": "slack-node"
+    },
+    {
+      "parameters": {
+        "url": "={{$env.DISCORD_WEBHOOK_URL}}",
+        "options": {
+          "bodyContentType": "json"
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "embeds",
+              "value": "=[{\"title\":\"??YAGO VIBE 二쇨컙 由ы룷??",\"description\":\"3媛?? AI 遺꾩꽍 ?꾨즺\",\"color\":5814783,\"fields\":[{\"name\":\"?뚰쓽FC 60\",\"value\":\"?삃 {{$item(0).$json.positivePercent}}%\",\"inline\":true},{\"name\":\"?뚰쓽FC 88\",\"value\":\"?삃 {{$item(1).$json.positivePercent}}%\",\"inline\":true},{\"name\":\"?꾩뭅?곕?\",\"value\":\"?삃 {{$item(2).$json.positivePercent}}%\",\"inline\":true}]}]"
+            }
+          ]
+        }
+      },
+      "name": "Discord - Embed",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [910, 600],
+      "id": "discord-node"
+    },
+    {
+      "parameters": {
+        "url": "https://us-central1-{{$env.FIREBASE_PROJECT_ID}}.cloudfunctions.net/sendAdminPush",
+        "authentication": "genericCredentialType",
+        "options": {
+          "bodyContentType": "json"
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "title",
+              "value": "?뱤 二쇨컙 由ы룷???앹꽦 ?꾨즺!"
+            },
+            {
+              "name": "body",
+              "value": "?뚰쓽FC 60/88/?꾩뭅?곕? 由ы룷?멸? ?대찓?쇰줈 諛쒖넚?섏뿀?듬땲??"
+            },
+            {
+              "name": "url",
+              "value": "/admin/reports/pdf"
+            }
+          ]
+        }
+      },
+      "name": "Firebase Function - Push Notification",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1130, 400],
+      "id": "fcm-node"
+    }
+  ],
+  "connections": {
+    "Cron - Every Monday 9AM": {
+      "main": [
+        [
+          {
+            "node": "Firestore - Get Summaries",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Firestore - Get Summaries": {
+      "main": [
+        [
+          {
+            "node": "Function - Generate PDFs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Function - Generate PDFs": {
+      "main": [
+        [
+          {
+            "node": "Gmail - Send Reports",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Slack - Summary",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Discord - Embed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gmail - Send Reports": {
+      "main": [
+        [
+          {
+            "node": "Firebase Function - Push Notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Slack - Summary": {
+      "main": [
+        [
+          {
+            "node": "Firebase Function - Push Notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Discord - Embed": {
+      "main": [
+        [
+          {
+            "node": "Firebase Function - Push Notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [
+    {
+      "id": "1",
+      "name": "YAGO VIBE"
+    },
+    {
+      "id": "2",
+      "name": "Push Notification"
+    }
+  ]
+}
+

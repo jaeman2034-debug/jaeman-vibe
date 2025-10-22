@@ -1,0 +1,86 @@
+{
+  "name": "YAGO – Team Blog AutoCreate",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "yago/team-blog-create",
+        "responseMode": "lastNode"
+      },
+      "id": "Webhook",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [0, 300]
+    },
+    {
+      "parameters": {
+        "functionCode": "const { clubId, clubName, sport, region, ogUrl, description='' } = $json;\nconst title = `${clubName} — ${sport||''}`.trim();\nconst summary = region? `${region}`: '';\nconst html = `<h1>${clubName}</h1><p>${description}</p>`;\nreturn [{ json: { clubId, clubName, sport, region, ogUrl, title, summary, html } }];"
+      },
+      "name": "Build",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [260, 300]
+    },
+    {
+      "parameters": {
+        "requestMethod": "POST",
+        "url": "https://api.notion.com/v1/pages",
+        "jsonParameters": true,
+        "options": {
+          "headers": {
+            "Authorization": "=\"Bearer \" + $env.NOTION_TOKEN",
+            "Notion-Version": "={{$env.NOTION_VERSION || '2022-06-28'}}",
+            "Content-Type": "application/json"
+          }
+        },
+        "bodyParametersJson": "={\n  \"parent\": { \"database_id\": \"{{$env.NOTION_DATABASE_ID}}\" },\n  \"cover\": { \"type\": \"external\", \"external\": { \"url\": \"{{$json.ogUrl}}\" } },\n  \"properties\": {\n    \"Name\": { \"title\": [{ \"text\": { \"content\": \"{{$json.title}}\" } }] },\n    \"Club\": { \"rich_text\": [{ \"text\": { \"content\": \"{{$json.clubName}}\" } }] },\n    \"Sport\": { \"select\": { \"name\": \"{{$json.sport}}\" } },\n    \"Region\": { \"rich_text\": [{ \"text\": { \"content\": \"{{$json.region}}\" } }] },\n    \"Slug\": { \"rich_text\": [{ \"text\": { \"content\": \"{{$json.clubId}}\" } }] },\n    \"Published\": { \"checkbox\": true }\n  },\n  \"children\": [\n    { \"object\": \"block\", \"type\": \"image\", \"image\": { \"type\": \"external\", \"external\": { \"url\": \"{{$json.ogUrl}}\" } } },\n    { \"object\": \"block\", \"type\": \"paragraph\", \"paragraph\": { \"rich_text\": [{ \"type\": \"text\", \"text\": { \"content\": \"{{$json.summary}}\" } }] } }\n  ]\n}"
+      },
+      "name": "Notion – Create Page",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [520, 300],
+      "disabled": false
+    },
+    {
+      "parameters": {
+        "requestMethod": "POST",
+        "url": "={{$env.APPS_SCRIPT_WEBAPP_URL}}",
+        "jsonParameters": true,
+        "bodyParametersJson": "={\n  \"clubId\": $json.clubId,\n  \"title\": $json.title,\n  \"ogUrl\": $json.ogUrl,\n  \"html\": $json.html\n}"
+      },
+      "name": "Apps Script – Publish (optional)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [520, 520],
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "responseBody": "={{$json}}",
+        "responseCode": 200
+      },
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [820, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [[{"node": "Build", "type": "main", "index": 0}]]
+    },
+    "Build": {
+      "main": [
+        [{"node": "Notion – Create Page", "type": "main", "index": 0}],
+        [{"node": "Apps Script – Publish (optional)", "type": "main", "index": 0}]
+      ]
+    },
+    "Notion – Create Page": {
+      "main": [[{"node": "Respond", "type": "main", "index": 0}]]
+    },
+    "Apps Script – Publish (optional)": {
+      "main": [[{"node": "Respond", "type": "main", "index": 0}]]
+    }
+  }
+}

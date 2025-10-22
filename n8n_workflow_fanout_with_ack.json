@@ -1,0 +1,180 @@
+{
+  "name": "YAGO | Payment Confirm Fan-out (Email+ICS+FCM+ACK)",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "confirm",
+        "httpMethod": "POST",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "WebhookConfirm",
+      "name": "Webhook: /confirm",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [260, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{$json[\"headers\"][\"x-auth\"]}}",
+              "operation": "equal",
+              "value2": "={{$env.N8N_SHARED_SECRET}}"
+            }
+          ]
+        }
+      },
+      "id": "IfAuth",
+      "name": "IF: x-auth OK?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [520, 300]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Build ICS\nconst src = $json.body ?? $json;\nconst event = src.event || {};\nconst isoToICS = v => new Date(v).toISOString().replace(/[-:]/g,'').replace(/\\.\\d{3}Z$/,'Z');\nconst dtstamp = isoToICS(new Date());\nconst ics = [\n 'BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//YAGO VIBE//KO','CALSCALE:GREGORIAN','METHOD:PUBLISH','BEGIN:VEVENT',\n `UID:${(src.registrationId||'reg')+'@yagovibe'}`,\n `DTSTAMP:${dtstamp}`,\n event.startUtc?`DTSTART:${event.startUtc}`:'',\n event.endUtc?`DTEND:${event.endUtc}`:'',\n `SUMMARY:${event.title||'이벤트'}`,\n event.location?`LOCATION:${event.location}`:'',\n 'END:VEVENT','END:VCALENDAR'\n].filter(Boolean).join('\\r\\n');\nitem.json = src;\nitem.binary = { ics: { data: Buffer.from(ics,'utf8').toString('base64'), fileName: `event-${src.eventId||'x'}.ics`, mimeType:'text/calendar' } };\nreturn item;"
+      },
+      "id": "FnBuildICS",
+      "name": "Function Item: Build ICS",
+      "type": "n8n-nodes-base.functionItem",
+      "typeVersion": 1,
+      "position": [780, 300]
+    },
+    {
+      "parameters": {
+        "fromEmail": "",
+        "toEmail": "={{$json.user.email}}",
+        "subject": "={{`[확정] ${$json.event.title || '이벤트'}`}}",
+        "text": "={{`참가가 확정되었습니다. ICS를 캘린더에 추가해 주세요.`}}",
+        "options": { "attachments": [{ "binaryPropertyName": "ics" }] }
+      },
+      "id": "EmailSend",
+      "name": "Email: Send ICS",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2,
+      "position": [1040, 260],
+      "credentials": { "smtp": { "name": "smtp-main" } }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{$env.FNS_FANOUT_ACK_URL}}",
+        "sendBody": true,
+        "jsonParameters": true,
+        "options": {},
+        "headerParametersJson": "={\"x-auth\":\"{{$env.N8N_SHARED_SECRET}}\",\"Content-Type\":\"application/json\"}",
+        "bodyParametersJson": "={\n  \"eventId\": \"{{$json.eventId}}\",\n  \"outboxId\": \"{{$json._outboxId}}\",\n  \"channel\": \"email\",\n  \"ok\": true\n}"
+      },
+      "id": "AckEmailOK",
+      "name": "ACK: email ok",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [1300, 200]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{$env.FNS_FANOUT_ACK_URL}}",
+        "sendBody": true,
+        "jsonParameters": true,
+        "options": {},
+        "headerParametersJson": "={\"x-auth\":\"{{$env.N8N_SHARED_SECRET}}\",\"Content-Type\":\"application/json\"}",
+        "bodyParametersJson": "={\n  \"eventId\": \"{{$json.eventId}}\",\n  \"outboxId\": \"{{$json._outboxId}}\",\n  \"channel\": \"email\",\n  \"ok\": false,\n  \"error\": \"={{$json.error || 'send_failed'}}\"\n}"
+      },
+      "id": "AckEmailNG",
+      "name": "ACK: email ng",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [1300, 320]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{$env.FNS_SEND_FCM_URL}}",
+        "sendBody": true,
+        "jsonParameters": true,
+        "options": {},
+        "headerParametersJson": "={\"x-auth\":\"{{$env.N8N_SHARED_SECRET}}\",\"Content-Type\":\"application/json\"}",
+        "bodyParametersJson": "={\n  \"uid\": \"{{$json.user.uid}}\",\n  \"title\": \"{{`[확정] ${$json.event.title || '이벤트'}`}}\",\n  \"body\": \"참가가 확정되었습니다.\",\n  \"data\": { \"type\":\"PAYMENT_CONFIRMED\", \"eventId\":\"{{$json.eventId}}\", \"registrationId\":\"{{$json.registrationId}}\" }\n}"
+      },
+      "id": "HttpFCM",
+      "name": "HTTP: sendFcm",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [1040, 420]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{$env.FNS_FANOUT_ACK_URL}}",
+        "sendBody": true,
+        "jsonParameters": true,
+        "options": {},
+        "headerParametersJson": "={\"x-auth\":\"{{$env.N8N_SHARED_SECRET}}\",\"Content-Type\":\"application/json\"}",
+        "bodyParametersJson": "={\n  \"eventId\": \"{{$json.eventId}}\",\n  \"outboxId\": \"{{$json._outboxId}}\",\n  \"channel\": \"fcm\",\n  \"ok\": true\n}"
+      },
+      "id": "AckFcmOK",
+      "name": "ACK: fcm ok",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [1300, 420]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{$env.FNS_FANOUT_ACK_URL}}",
+        "sendBody": true,
+        "jsonParameters": true,
+        "options": {},
+        "headerParametersJson": "={\"x-auth\":\"{{$env.N8N_SHARED_SECRET}}\",\"Content-Type\":\"application/json\"}",
+        "bodyParametersJson": "={\n  \"eventId\": \"{{$json.eventId}}\",\n  \"outboxId\": \"{{$json._outboxId}}\",\n  \"channel\": \"fcm\",\n  \"ok\": false,\n  \"error\": \"={{$json.error || 'send_failed'}}\"\n}"
+      },
+      "id": "AckFcmNG",
+      "name": "ACK: fcm ng",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [1300, 540]
+    },
+    {
+      "parameters": { "responseData": "={\"ok\": true}", "options": { "responseCode": 200 } },
+      "id": "RespondOK",
+      "name": "Respond 200",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1560, 360]
+    }
+  ],
+  "connections": {
+    "Webhook: /confirm": { "main": [[{ "node": "IF: x-auth OK?", "type": "main", "index": 0 }]] },
+    "IF: x-auth OK?": {
+      "main": [
+        [{ "node": "Function Item: Build ICS", "type": "main", "index": 0 }],
+        [{ "node": "Respond 200", "type": "main", "index": 0 }]
+      ]
+    },
+    "Function Item: Build ICS": {
+      "main": [
+        [{ "node": "Email: Send ICS", "type": "main", "index": 0 }],
+        [{ "node": "HTTP: sendFcm", "type": "main", "index": 0 }]
+      ]
+    },
+    "Email: Send ICS": {
+      "main": [
+        [{ "node": "ACK: email ok", "type": "main", "index": 0 }],
+        [{ "node": "ACK: email ng", "type": "main", "index": 0 }]
+      ]
+    },
+    "HTTP: sendFcm": {
+      "main": [
+        [{ "node": "ACK: fcm ok", "type": "main", "index": 0 }],
+        [{ "node": "ACK: fcm ng", "type": "main", "index": 0 }]
+      ]
+    },
+    "ACK: email ok": { "main": [[{ "node": "Respond 200", "type": "main", "index": 0 }]] },
+    "ACK: email ng": { "main": [[{ "node": "Respond 200", "type": "main", "index": 0 }]] },
+    "ACK: fcm ok": { "main": [[{ "node": "Respond 200", "type": "main", "index": 0 }]] },
+    "ACK: fcm ng": { "main": [[{ "node": "Respond 200", "type": "main", "index": 0 }]] }
+  }
+}

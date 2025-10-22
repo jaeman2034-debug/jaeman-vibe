@@ -1,0 +1,128 @@
+{
+  "nodes": [
+    {
+      "id": "1",
+      "name": "CI Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [300, 300],
+      "parameters": {
+        "path": "ci-result",
+        "httpMethod": "POST"
+      }
+    },
+    {
+      "id": "2",
+      "name": "Switch by Status",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 1,
+      "position": [600, 300],
+      "parameters": {
+        "propertyName": "status",
+        "rules": [
+          { "operation": "equal", "value": "success" },
+          { "operation": "equal", "value": "failure" }
+        ]
+      }
+    },
+    {
+      "id": "3",
+      "name": "카톡 성공 알림",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [900, 150],
+      "parameters": {
+        "url": "https://kapi.kakao.com/v2/api/talk/memo/default/send",
+        "method": "POST",
+        "authentication": "headerAuth",
+        "sendBody": true,
+        "jsonParameters": true,
+        "bodyParametersJson": "={\"template_object\": {\n  \"object_type\": \"text\",\n  \"text\": \"✅ CI 성공!\\nRepo: {{$json[\"repo\"]}}\\nRun: {{$json[\"run\"]}}\\nActor: {{$json[\"actor\"]}}\\nCommit: {{$json[\"commit_msg\"]}}\\nDuration: {{$json[\"duration\"]}}\\n👉 상세보기: {{$json[\"url\"]}}\",\n  \"link\": {\"web_url\": \"{{$json[\"url\"]}}\"}\n}}"
+      }
+    },
+    {
+      "id": "4",
+      "name": "카톡 실패 알림",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [900, 250],
+      "parameters": {
+        "url": "https://kapi.kakao.com/v2/api/talk/memo/default/send",
+        "method": "POST",
+        "authentication": "headerAuth",
+        "sendBody": true,
+        "jsonParameters": true,
+        "bodyParametersJson": "={\"template_object\": {\n  \"object_type\": \"text\",\n  \"text\": \"❌ CI 실패!\\nRepo: {{$json[\"repo\"]}}\\nRun: {{$json[\"run\"]}}\\nActor: {{$json[\"actor\"]}}\\nCommit: {{$json[\"commit_msg\"]}}\\nDuration: {{$json[\"duration\"]}}\\n👉 상세보기: {{$json[\"url\"]}}\",\n  \"link\": {\"web_url\": \"{{$json[\"url\"]}}\"}\n}}"
+      }
+    },
+    {
+      "id": "5",
+      "name": "Slack 성공 알림",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [900, 350],
+      "parameters": {
+        "url": "={{$json[\"SLACK_WEBHOOK_URL\"]}}",
+        "method": "POST",
+        "sendBody": true,
+        "jsonParameters": true,
+        "bodyParametersJson": "={\n  \"text\": \":white_check_mark: *CI 성공!*\\n*Repo:* {{$json[\"repo\"]}}\\n*Run:* {{$json[\"run\"]}}\\n*Actor:* {{$json[\"actor\"]}}\\n*Commit:* {{$json[\"commit_msg\"]}}\\n*Duration:* {{$json[\"duration\"]}}\\n<{{$json[\"url\"]}}|상세보기>\"\n}"
+      }
+    },
+    {
+      "id": "6",
+      "name": "Slack 실패 알림",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [900, 450],
+      "parameters": {
+        "url": "={{$json[\"SLACK_WEBHOOK_URL\"]}}",
+        "method": "POST",
+        "sendBody": true,
+        "jsonParameters": true,
+        "bodyParametersJson": "={\n  \"text\": \":x: *CI 실패!*\\n*Repo:* {{$json[\"repo\"]}}\\n*Run:* {{$json[\"run\"]}}\\n*Actor:* {{$json[\"actor\"]}}\\n*Commit:* {{$json[\"commit_msg\"]}}\\n*Duration:* {{$json[\"duration\"]}}\\n<{{$json[\"url\"]}}|상세보기>\\n\\n*최근 로그 (마지막 10줄):*\\n```{{$json[\"log_snippet\"]}}```\"\n}"
+      }
+    },
+    {
+      "id": "7",
+      "name": "Slack 로그 파일 업로드",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [1150, 500],
+      "parameters": {
+        "url": "https://slack.com/api/files.upload",
+        "method": "POST",
+        "authentication": "headerAuth",
+        "sendBody": true,
+        "jsonParameters": false,
+        "options": {},
+        "bodyContentType": "form-data-multipart",
+        "bodyParameters": {
+          "channels": "#ci-alerts",
+          "filename": "test_output.log",
+          "filetype": "text",
+          "title": "전체 CI 로그",
+          "content": "={{Buffer.from($json[\"log_file_b64\"], 'base64').toString('utf8')}}"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "CI Webhook": {
+      "main": [[{ "node": "Switch by Status", "type": "main", "index": 0 }]]
+    },
+    "Switch by Status": {
+      "main": [
+        [
+          { "node": "카톡 성공 알림", "type": "main", "index": 0 },
+          { "node": "Slack 성공 알림", "type": "main", "index": 0 }
+        ],
+        [
+          { "node": "카톡 실패 알림", "type": "main", "index": 0 },
+          { "node": "Slack 실패 알림", "type": "main", "index": 0 },
+          { "node": "Slack 로그 파일 업로드", "type": "main", "index": 0 }
+        ]
+      ]
+    }
+  }
+}

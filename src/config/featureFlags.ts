@@ -1,0 +1,1 @@
+// featureFlags.ts - ê¸°ëŠ¥ ?Œëž˜ê·?ê´€ë¦?export const ENABLE_VAD = false; // ???”ë©´?€ VAD ë¯¸ì‚¬??(?˜ì¤‘??ì¼???true)// ?¤ë¥¸ ê¸°ëŠ¥ ?Œëž˜ê·¸ë“¤???¬ê¸°??ì¶”ê? ê°€??export const ENABLE_DEBUG_MODE = process.env.NODE_ENV === 'development';export const ENABLE_ANALYTICS = true; 

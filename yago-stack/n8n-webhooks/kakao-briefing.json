@@ -1,0 +1,176 @@
+{
+  "name": "🎤 Kakao Mini 브리핑 웹훅",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "briefing",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "🔗 Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://firebase-emulator:8080/v1/projects/{{ $env.FIREBASE_PROJECT_ID }}/databases/(default)/documents/ai_voice_reports",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer {{ $env.FIREBASE_TOKEN }}"
+            }
+          ]
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "pageSize",
+              "value": "1"
+            },
+            {
+              "name": "orderBy",
+              "value": "createdAt desc"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "get-latest-report",
+      "name": "📊 최신 리포트 조회",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "condition-1",
+              "leftValue": "={{ $json.documents?.length }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "check-report-exists",
+      "name": "🔍 리포트 존재 확인",
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Kakao i 오픈빌더 응답 포맷 생성\nconst doc = $input.first().json.documents[0];\nconst fields = doc.fields;\n\nconst audioUrl = fields.audioUrl?.stringValue;\nconst summary = fields.summary?.stringValue || fields.ttsSummary?.stringValue || 'AI 음성 리포트';\nconst reportDate = fields.reportDate?.stringValue || '오늘';\nconst totalCount = fields.stats?.mapValue?.fields?.totalCount?.integerValue || 0;\nconst totalValue = fields.stats?.mapValue?.fields?.totalValue?.integerValue || 0;\n\n// Kakao 응답 포맷\nconst kakaoResponse = {\n  version: '2.0',\n  template: {\n    outputs: []\n  }\n};\n\nif (audioUrl) {\n  const title = `🎧 ${reportDate} 야고 브리핑`;\n  const description = `총 ${totalCount}건 거래, ${Math.round(totalValue / 10000)}만원 거래액`;\n  \n  kakaoResponse.template.outputs = [\n    {\n      simpleText: {\n        text: `📊 오늘의 야고 브리핑\\n\\n${summary.slice(0, 80)}...\\n\\n${description}\\n\\n재생을 시작합니다! 🎵`\n      }\n    },\n    {\n      media: {\n        type: 'audio',\n        content: {\n          title: 'YAGO VIBE AI 리포트',\n          description: description,\n          url: audioUrl\n        }\n      }\n    }\n  ];\n} else {\n  kakaoResponse.template.outputs = [\n    {\n      simpleText: {\n        text: `📊 ${reportDate} 야고 브리핑\\n\\n${summary.slice(0, 150)}...\\n\\n오디오 파일이 준비되지 않았습니다. 웹 대시보드에서 확인해보세요!`\n      }\n    }\n  ];\n}\n\nreturn kakaoResponse;"
+      },
+      "id": "generate-kakao-response",
+      "name": "🎤 Kakao 응답 생성",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}"
+      },
+      "id": "kakao-response",
+      "name": "✅ Kakao 응답",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1120, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"version\": \"2.0\",\n  \"template\": {\n    \"outputs\": [\n      {\n        \"simpleText\": {\n          \"text\": \"📊 야고 브리핑\\n\\n오늘은 생성된 AI 브리핑이 없어요. 매일 00:00에 자동으로 생성됩니다. 내일 다시 시도해보세요! 🎧\"\n        }\n      }\n    ]\n  }\n}"
+      },
+      "id": "no-report-response",
+      "name": "❌ No Report Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [680, 500]
+    }
+  ],
+  "connections": {
+    "🔗 Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "📊 최신 리포트 조회",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📊 최신 리포트 조회": {
+      "main": [
+        [
+          {
+            "node": "🔍 리포트 존재 확인",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔍 리포트 존재 확인": {
+      "main": [
+        [
+          {
+            "node": "🎤 Kakao 응답 생성",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "❌ No Report Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🎤 Kakao 응답 생성": {
+      "main": [
+        [
+          {
+            "node": "✅ Kakao 응답",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "1",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "kakao-briefing-webhook"
+  },
+  "id": "kakao-briefing-webhook",
+  "tags": ["yago-vibe", "kakao-mini", "briefing", "webhook"]
+}

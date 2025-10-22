@@ -1,0 +1,38 @@
+{
+  "info": {
+    "name": "YAGO VIBE – Payments & Fanout",
+    "_postman_id": "1a1b1c1d-verify-fanout-scan",
+    "description": "verifyPayment / sendFcm 호출 컬렉션 (에뮬/프로드 모두 변수로 지원)",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Verify Payment (mock) → confirm & outbox",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": { "raw": "{{fn_base}}/verifyPayment", "host": ["{{fn_base}}"], "path": ["verifyPayment"] },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"eventId\": \"{{eventId}}\",\n  \"registrationId\": \"{{regId}}\",\n  \"provider\": \"mock\",\n  \"payload\": { \"amount\": {{amount}} }\n}"
+        }
+      }
+    },
+    {
+      "name": "sendFcm (from n8n)",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "x-auth", "value": "{{N8N_SHARED_SECRET}}" }
+        ],
+        "url": { "raw": "{{fn_base}}/sendFcm", "host": ["{{fn_base}}"], "path": ["sendFcm"] },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"uid\": \"{{uid}}\",\n  \"title\": \"[테스트] 푸시\",\n  \"body\": \"팬아웃 경로 검증\",\n  \"data\": { \"ping\": \"1\", \"eventId\": \"{{eventId}}\", \"registrationId\": \"{{regId}}\" }\n}"
+        }
+      }
+    }
+  ],
+  "variable": []
+}

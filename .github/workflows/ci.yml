@@ -1,0 +1,55 @@
+name: CI - Kakao 알림 테스트
+
+on:
+  push:
+    branches: [ "develop" ]
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@v4
+
+      - name: Run Tests
+        run: |
+          echo "Running tests..."
+          npm install
+          # 테스트 로그 저장
+          npm test 2>&1 | tee test_output.log
+
+  notify:
+    runs-on: ubuntu-latest
+    needs: build-test
+    if: always()
+    steps:
+      - name: Send n8n notification
+        run: |
+          START=$(date -d "${{ needs.build-test.started-at }}" +%s)
+          END=$(date -d "${{ needs.build-test.completed-at }}" +%s)
+          DURATION=$((END-START))
+
+          if [ "${{ needs.build-test.result }}" == "success" ]; then
+            STATUS="success"
+            LOG_SNIPPET=""
+          else
+            STATUS="failure"
+            LOG_SNIPPET=$(tail -n 10 test_output.log | sed 's/\"/\\\"/g')
+            # 전체 로그를 업로드할 수 있도록 Base64 인코딩
+            LOG_FILE=$(base64 -w 0 test_output.log)
+          fi
+
+          curl -X POST -H "Content-Type: application/json" \
+            -d "{
+              \"status\": \"$STATUS\",
+              \"repo\": \"$GITHUB_REPOSITORY\",
+              \"run\": \"$GITHUB_RUN_NUMBER\",
+              \"url\": \"https://github.com/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID\",
+              \"actor\": \"$GITHUB_ACTOR\",
+              \"commit_msg\": \"${{ github.event.head_commit.message }}\",
+              \"duration\": \"${DURATION}s\",
+              \"log_snippet\": \"$LOG_SNIPPET\",
+              \"log_file_b64\": \"$LOG_FILE\",
+              \"SLACK_WEBHOOK_URL\": \"${{ secrets.SLACK_WEBHOOK_URL }}\"
+            }" \
+            ${{ secrets.N8N_WEBHOOK_URL }}

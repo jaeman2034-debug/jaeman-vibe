@@ -1,0 +1,14 @@
+User-agent: *
+Allow: /
+
+# 관리자 페이지 제외
+Disallow: /admin/
+Disallow: /api/
+Disallow: /_next/
+Disallow: /__webpack_hmr/
+
+# 사이트맵
+Sitemap: https://app.yagovibe.com/sitemap.xml
+
+# 크롤링 지연 (선택적)
+Crawl-delay: 1

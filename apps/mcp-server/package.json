@@ -1,0 +1,38 @@
+{
+  "name": "yagovibe-mcp-server",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx src/index.ts",
+    "build": "tsc -p .",
+    "start": "node dist/index.js",
+    "docker:build": "docker-compose build",
+    "docker:up": "docker-compose up -d",
+    "docker:down": "docker-compose down",
+    "docker:logs": "docker-compose logs -f",
+    "docker:prod": "docker-compose -f docker-compose.prod.yml up -d",
+    "docker:prod:down": "docker-compose -f docker-compose.prod.yml down",
+    "docker:prod:logs": "docker-compose -f docker-compose.prod.yml logs -f",
+    "pm2:start": "bash scripts/pm2-start.sh",
+    "pm2:stop": "pm2 stop yagovibe-mcp-server",
+    "pm2:restart": "pm2 restart yagovibe-mcp-server",
+    "pm2:logs": "pm2 logs yagovibe-mcp-server",
+    "pm2:monit": "pm2 monit",
+    "deploy:prod": "bash scripts/deploy-prod.sh",
+    "smoke:test": "bash scripts/smoke-test.sh",
+    "local:n8n": "bash scripts/local-n8n.sh",
+    "test": "bash scripts/test-mcp.sh",
+    "test:ps1": "powershell -ExecutionPolicy Bypass -File test-mcp.ps1"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "zod": "^3.23.8",
+    "undici": "^6.19.8",
+    "@modelcontextprotocol/sdk": "^0.1.0"
+  },
+  "devDependencies": {
+    "tsx": "^4.15.7",
+    "typescript": "^5.5.4"
+  }
+}

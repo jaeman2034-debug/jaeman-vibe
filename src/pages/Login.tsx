@@ -1,0 +1,1 @@
+import { useAuth } from '@/lib/auth';export default function Login() {  const { signInWithGoogle } = useAuth();  return (    <div className="p-6">      <h1 className="text-xl font-bold">로그??/h1>      <button className="btn mt-4" onClick={signInWithGoogle}>        Google�?로그??      </button>    </div>  );} 

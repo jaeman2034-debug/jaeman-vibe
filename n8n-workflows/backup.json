@@ -1,0 +1,186 @@
+{
+  "name": "Daily Backup (03:00 KST)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "value": "0 3 * * *"
+            }
+          ]
+        },
+        "options": {
+          "timezone": "Asia/Seoul"
+        }
+      },
+      "id": "Cron",
+      "name": "Cron (03:00 KST)",
+      "type": "n8n-nodes-base.cron",
+      "typeVersion": 1,
+      "position": [220, 200]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Parse workflow IDs from environment variable\nconst workflowIds = $env.BACKUP_WORKFLOW_IDS.split(',').map(id => id.trim());\nconst today = new Date().toISOString().slice(0, 10);\n\nreturn workflowIds.map(id => ({\n  json: {\n    workflowId: id,\n    date: today,\n    path: `backups/${today}/workflow-${id}.json`\n  }\n}));"
+      },
+      "id": "Function",
+      "name": "Parse Workflow IDs",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 2,
+      "position": [460, 200]
+    },
+    {
+      "parameters": {
+        "url": "={{$env.N8N_BASE}}/api/v1/workflows/{{$json.workflowId}}",
+        "options": {
+          "headers": {
+            "parameters": [
+              {
+                "name": "Authorization",
+                "value": "Bearer {{$env.N8N_API_KEY}}"
+              }
+            ]
+          }
+        }
+      },
+      "id": "Get Workflow",
+      "name": "Get Workflow JSON",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [720, 200]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Prepare GitHub API request\nconst workflowData = $input.first().json;\nconst path = $json.path;\nconst content = JSON.stringify(workflowData, null, 2);\nconst encodedContent = Buffer.from(content).toString('base64');\n\nreturn [{\n  json: {\n    path: path,\n    content: encodedContent,\n    message: `Backup workflow ${$json.workflowId} - ${new Date().toISOString()}`\n  }\n}];"
+      },
+      "id": "Prepare",
+      "name": "Prepare GitHub Upload",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 2,
+      "position": [980, 200]
+    },
+    {
+      "parameters": {
+        "url": "=https://api.github.com/repos/{{$env.GH_OWNER}}/{{$env.GH_REPO}}/contents/{{$json.path}}",
+        "method": "PUT",
+        "options": {
+          "headers": {
+            "parameters": [
+              {
+                "name": "Authorization",
+                "value": "token {{$env.GH_TOKEN}}"
+              },
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              }
+            ]
+          }
+        },
+        "body": {
+          "message": "={{$json.message}}",
+          "content": "={{$json.content}}"
+        }
+      },
+      "id": "GitHub Upload",
+      "name": "Upload to GitHub",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1240, 200]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Count success/failure\nconst items = $input.all();\nconst success = items.filter(item => item.json.statusCode >= 200 && item.json.statusCode < 300).length;\nconst failure = items.length - success;\nconst today = new Date().toISOString().slice(0, 10);\n\nreturn [{\n  json: {\n    total: items.length,\n    success: success,\n    failure: failure,\n    date: today\n  }\n}];"
+      },
+      "id": "Count",
+      "name": "Count Results",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 2,
+      "position": [1500, 200]
+    },
+    {
+      "parameters": {
+        "channel": "#kpi",
+        "text": "=📦 Daily Backup Complete | {{$json.total}} workflows | ✅ {{$json.success}} success, ❌ {{$json.failure}} failure | {{$json.date}}"
+      },
+      "id": "Slack Report",
+      "name": "Slack Report",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 1,
+      "position": [1760, 200]
+    }
+  ],
+  "connections": {
+    "Cron (03:00 KST)": {
+      "main": [
+        [
+          {
+            "node": "Parse Workflow IDs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Workflow IDs": {
+      "main": [
+        [
+          {
+            "node": "Get Workflow JSON",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Workflow JSON": {
+      "main": [
+        [
+          {
+            "node": "Prepare GitHub Upload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare GitHub Upload": {
+      "main": [
+        [
+          {
+            "node": "Upload to GitHub",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload to GitHub": {
+      "main": [
+        [
+          {
+            "node": "Count Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Count Results": {
+      "main": [
+        [
+          {
+            "node": "Slack Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {},
+  "staticData": {}
+}

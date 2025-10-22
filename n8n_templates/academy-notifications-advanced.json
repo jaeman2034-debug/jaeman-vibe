@@ -1,0 +1,460 @@
+﻿{
+  "name": "?꾩뭅?곕? ?뚮┝ ?쒖뒪??(怨좉툒)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "academy-enroll",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-enroll",
+      "name": "?섍컯?좎껌 Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 300],
+      "webhookId": "academy-enroll"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "academy-payment",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-payment",
+      "name": "寃곗젣?꾨즺 Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 500],
+      "webhookId": "academy-payment"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "condition-enroll",
+              "leftValue": "={{ $json.type }}",
+              "rightValue": "enroll",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-enroll",
+      "name": "?섍컯?좎껌?멸??",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "condition-payment",
+              "leftValue": "={{ $json.type }}",
+              "rightValue": "payment",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-payment",
+      "name": "寃곗젣?꾨즺?멸??",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [460, 500]
+    },
+    {
+      "parameters": {
+        "message": "?럳 [?꾩뭅?곕? ?섍컯?좎껌]\n\n???숈깮: {{ $json.student }}\n??媛뺤쥖: {{ $json.courseTitle }}\n???곕씫泥? {{ $json.phone }}\n??肄붿튂: {{ $json.coach }}\n??湲곌컙: {{ $json.startDate }} ~ {{ $json.endDate }}\n???섍컯猷? {{ $json.price }}??n\n?뱟 ?좎껌?쇱떆: {{ $json.createdAt }}",
+        "channel": "#academy-notifications",
+        "username": "?꾩뭅?곕?遊?,
+        "iconEmoji": ":school:"
+      },
+      "id": "slack-enroll",
+      "name": "Slack ?섍컯?좎껌 ?뚮┝",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 1,
+      "position": [680, 200]
+    },
+    {
+      "parameters": {
+        "message": "?뮥 [?꾩뭅?곕? 寃곗젣?꾨즺]\n\n???숈깮: {{ $json.student }}\n??媛뺤쥖: {{ $json.courseTitle }}\n??寃곗젣湲덉븸: {{ $json.paymentAmount }}??n??寃곗젣?섎떒: {{ $json.paymentMethod }}\n??肄붿튂: {{ $json.coach }}\n??湲곌컙: {{ $json.startDate }} ~ {{ $json.endDate }}\n\n?럦 ?섍컯???뺤젙?섏뿀?듬땲??",
+        "channel": "#academy-notifications",
+        "username": "?꾩뭅?곕?遊?,
+        "iconEmoji": ":money_with_wings:"
+      },
+      "id": "slack-payment",
+      "name": "Slack 寃곗젣?꾨즺 ?뚮┝",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 1,
+      "position": [680, 400]
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "fromEmail": "noreply@yago.sports",
+        "toEmail": "={{ $json.email }}",
+        "subject": "?럳 [{{ $json.courseTitle }}] ?섍컯?좎껌 ?묒닔 ?꾨즺",
+        "message": "<h2>?럳 ?섍컯?좎껌???묒닔?섏뿀?듬땲??</h2>\n\n<p><strong>?덈뀞?섏꽭??{{ $json.student }}??</strong></p>\n\n<p>?ㅼ쓬 媛뺤쥖???섍컯?좎껌???깃났?곸쑝濡??묒닔?섏뿀?듬땲??</p>\n\n<ul>\n<li><strong>媛뺤쥖紐?</strong> {{ $json.courseTitle }}</li>\n<li><strong>肄붿튂:</strong> {{ $json.coach }}</li>\n<li><strong>湲곌컙:</strong> {{ $json.startDate }} ~ {{ $json.endDate }}</li>\n<li><strong>?섍컯猷?</strong> {{ $json.price }}??/li>\n</ul>\n\n<p>寃곗젣 ?꾨즺 ???섍컯???뺤젙?⑸땲?? 寃곗젣???꾨옒 留곹겕?먯꽌 吏꾪뻾?댁＜?몄슂:</p>\n\n<p><a href=\"https://yago.sports/academy/payment/{{ $json.enrollId }}\">?뮩 寃곗젣?섍린</a></p>\n\n<p>臾몄쓽?ы빆???덉쑝?쒕㈃ ?몄젣???곕씫二쇱꽭??</p>\n\n<p>媛먯궗?⑸땲??<br>YAGO ?ㅽ룷痢??꾩뭅?곕?</p>",
+        "options": {}
+      },
+      "id": "email-enroll",
+      "name": "?대찓???섍컯?좎껌 ?덈궡",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2,
+      "position": [900, 200]
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "fromEmail": "noreply@yago.sports",
+        "toEmail": "={{ $json.email }}",
+        "subject": "?럦 [{{ $json.courseTitle }}] ?섍컯 ?뺤젙 ?덈궡",
+        "message": "<h2>?럦 ?섍컯???뺤젙?섏뿀?듬땲??</h2>\n\n<p><strong>?덈뀞?섏꽭??{{ $json.student }}??</strong></p>\n\n<p>寃곗젣媛 ?꾨즺?섏뼱 ?ㅼ쓬 媛뺤쥖???섍컯???뺤젙?섏뿀?듬땲??</p>\n\n<ul>\n<li><strong>媛뺤쥖紐?</strong> {{ $json.courseTitle }}</li>\n<li><strong>肄붿튂:</strong> {{ $json.coach }}</li>\n<li><strong>湲곌컙:</strong> {{ $json.startDate }} ~ {{ $json.endDate }}</li>\n<li><strong>寃곗젣湲덉븸:</strong> {{ $json.paymentAmount }}??/li>\n<li><strong>寃곗젣?섎떒:</strong> {{ $json.paymentMethod }}</li>\n</ul>\n\n<p><strong>?뱟 泥??섏뾽??</strong> {{ $json.startDate }}</p>\n<p><strong>?뱧 ?μ냼:</strong> YAGO ?ㅽ룷痢??쇳꽣</p>\n\n<p>?섏뾽 以鍮꾨Ъ怨?二쇱쓽?ы빆? 蹂꾨룄濡??덈궡?쒕━寃좎뒿?덈떎.</p>\n\n<p>沅곴툑???먯씠 ?덉쑝?쒕㈃ ?몄젣???곕씫二쇱꽭??</p>\n\n<p>媛먯궗?⑸땲??<br>YAGO ?ㅽ룷痢??꾩뭅?곕?</p>",
+        "options": {}
+      },
+      "id": "email-payment",
+      "name": "?대찓???섍컯?뺤젙 ?덈궡",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2,
+      "position": [900, 400]
+    },
+    {
+      "parameters": {
+        "url": "https://kapi.kakao.com/v2/api/talk/memo/default/send",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "kakaoTalkApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer {{ $credentials.kakaoTalkApi.accessToken }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "template_object",
+              "value": "{\n  \"object_type\": \"text\",\n  \"text\": \"?럳 [{{ $json.courseTitle }}] ?섍컯?좎껌 ?묒닔 ?꾨즺\\n\\n?덈뀞?섏꽭??{{ $json.student }}??\\n\\n?섍컯?좎껌???깃났?곸쑝濡??묒닔?섏뿀?듬땲??\\n\\n媛뺤쥖: {{ $json.courseTitle }}\\n肄붿튂: {{ $json.coach }}\\n湲곌컙: {{ $json.startDate }} ~ {{ $json.endDate }}\\n?섍컯猷? {{ $json.price }}??\n\\n寃곗젣 ?꾨즺 ???섍컯???뺤젙?⑸땲??\\n\\n媛먯궗?⑸땲??\\nYAGO ?ㅽ룷痢??꾩뭅?곕?\",\n  \"link\": {\n    \"web_url\": \"https://yago.sports/academy/payment/{{ $json.enrollId }}\",\n    \"mobile_web_url\": \"https://yago.sports/academy/payment/{{ $json.enrollId }}\"\n  },\n  \"button_title\": \"寃곗젣?섍린\"\n}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "kakao-enroll",
+      "name": "移댁뭅?ㅽ넚 ?섍컯?좎껌 ?뚮┝",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1120, 200]
+    },
+    {
+      "parameters": {
+        "url": "https://kapi.kakao.com/v2/api/talk/memo/default/send",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "kakaoTalkApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer {{ $credentials.kakaoTalkApi.accessToken }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "template_object",
+              "value": "{\n  \"object_type\": \"text\",\n  \"text\": \"?럦 [{{ $json.courseTitle }}] ?섍컯 ?뺤젙 ?덈궡\\n\\n?덈뀞?섏꽭??{{ $json.student }}??\\n\\n寃곗젣媛 ?꾨즺?섏뼱 ?섍컯???뺤젙?섏뿀?듬땲??\\n\\n媛뺤쥖: {{ $json.courseTitle }}\\n肄붿튂: {{ $json.coach }}\\n湲곌컙: {{ $json.startDate }} ~ {{ $json.endDate }}\\n寃곗젣湲덉븸: {{ $json.paymentAmount }}??\n寃곗젣?섎떒: {{ $json.paymentMethod }}\\n\\n泥??섏뾽?? {{ $json.startDate }}\\n?μ냼: YAGO ?ㅽ룷痢??쇳꽣\\n\\n?섏뾽 以鍮꾨Ъ怨?二쇱쓽?ы빆? 蹂꾨룄濡??덈궡?쒕━寃좎뒿?덈떎.\\n\\n媛먯궗?⑸땲??\\nYAGO ?ㅽ룷痢??꾩뭅?곕?\",\n  \"link\": {\n    \"web_url\": \"https://yago.sports/academy/my-courses\",\n    \"mobile_web_url\": \"https://yago.sports/academy/my-courses\"\n  },\n  \"button_title\": \"??媛뺤쥖 蹂닿린\"\n}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "kakao-payment",
+      "name": "移댁뭅?ㅽ넚 ?섍컯?뺤젙 ?뚮┝",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1120, 400]
+    },
+    {
+      "parameters": {
+        "url": "https://api.twilio.com/2010-04-01/Accounts/{{ $credentials.twilioApi.accountSid }}/Messages.json",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "twilioApi",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "From",
+              "value": "+1234567890"
+            },
+            {
+              "name": "To",
+              "value": "={{ $json.phone }}"
+            },
+            {
+              "name": "Body",
+              "value": "?럳 YAGO ?ㅽ룷痢??꾩뭅?곕?\n\n{{ $json.student }}?? [{{ $json.courseTitle }}] ?섍컯?좎껌???묒닔?섏뿀?듬땲??\n\n肄붿튂: {{ $json.coach }}\n湲곌컙: {{ $json.startDate }} ~ {{ $json.endDate }}\n?섍컯猷? {{ $json.price }}??n\n寃곗젣 ?꾨즺 ???섍컯???뺤젙?⑸땲??\n\n媛먯궗?⑸땲??"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "sms-enroll",
+      "name": "SMS ?섍컯?좎껌 ?뚮┝",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1340, 200]
+    },
+    {
+      "parameters": {
+        "url": "https://api.twilio.com/2010-04-01/Accounts/{{ $credentials.twilioApi.accountSid }}/Messages.json",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "twilioApi",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "From",
+              "value": "+1234567890"
+            },
+            {
+              "name": "To",
+              "value": "={{ $json.phone }}"
+            },
+            {
+              "name": "Body",
+              "value": "?럦 YAGO ?ㅽ룷痢??꾩뭅?곕?\n\n{{ $json.student }}?? [{{ $json.courseTitle }}] ?섍컯???뺤젙?섏뿀?듬땲??\n\n肄붿튂: {{ $json.coach }}\n湲곌컙: {{ $json.startDate }} ~ {{ $json.endDate }}\n寃곗젣湲덉븸: {{ $json.paymentAmount }}??n\n泥??섏뾽?? {{ $json.startDate }}\n?μ냼: YAGO ?ㅽ룷痢??쇳꽣\n\n媛먯궗?⑸땲??"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "sms-payment",
+      "name": "SMS ?섍컯?뺤젙 ?뚮┝",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1340, 400]
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "???뚮┝ 諛쒖넚 ?꾨즺"
+      },
+      "id": "response",
+      "name": "?묐떟",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1560, 300]
+    }
+  ],
+  "connections": {
+    "webhook-enroll": {
+      "main": [
+        [
+          {
+            "node": "if-enroll",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "webhook-payment": {
+      "main": [
+        [
+          {
+            "node": "if-payment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "if-enroll": {
+      "main": [
+        [
+          {
+            "node": "slack-enroll",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "email-enroll",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "kakao-enroll",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "sms-enroll",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "if-payment": {
+      "main": [
+        [
+          {
+            "node": "slack-payment",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "email-payment",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "kakao-payment",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "sms-payment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "slack-enroll": {
+      "main": [
+        [
+          {
+            "node": "response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "slack-payment": {
+      "main": [
+        [
+          {
+            "node": "response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "email-enroll": {
+      "main": [
+        [
+          {
+            "node": "response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "email-payment": {
+      "main": [
+        [
+          {
+            "node": "response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "kakao-enroll": {
+      "main": [
+        [
+          {
+            "node": "response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "kakao-payment": {
+      "main": [
+        [
+          {
+            "node": "response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "sms-enroll": {
+      "main": [
+        [
+          {
+            "node": "response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "sms-payment": {
+      "main": [
+        [
+          {
+            "node": "response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "createdAt": "2024-01-15T10:00:00.000Z",
+      "updatedAt": "2024-01-15T10:00:00.000Z",
+      "id": "academy",
+      "name": "?꾩뭅?곕?"
+    }
+  ],
+  "triggerCount": 2,
+  "updatedAt": "2024-01-15T10:00:00.000Z",
+  "versionId": "1"
+}

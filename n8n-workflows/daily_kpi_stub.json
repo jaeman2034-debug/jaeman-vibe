@@ -1,0 +1,10 @@
+{
+  "name": "Daily KPI 08:30 → Slack",
+  "nodes": [
+    {"parameters": {"triggerTimes": {"item": [{"hour": 8, "minute": 30}]}}, "id": "Cron", "name": "Cron 08:30", "type": "n8n-nodes-base.cron", "typeVersion": 1, "position": [220, 200]},
+    {"parameters": {"functionCode": "return [{ json: { kpi: 'stub', gmv: 0, funnel3s: 0, noShow: 0 } }];"}, "id": "Function", "name": "Aggregate (stub)", "type": "n8n-nodes-base.function", "typeVersion": 2, "position": [460, 200]},
+    {"parameters": {"channel": "#kpi", "text": "=🧭 Daily KPI: GMV {{$json.gmv}}, 3sFunnel {{$json.funnel3s}}, NoShow {{$json.noShow}}"}, "id": "Slack", "name": "Slack", "type": "n8n-nodes-base.slack", "typeVersion": 1, "position": [720, 200]}
+  ],
+  "connections": {"Cron 08:30": {"main": [[{"node": "Aggregate (stub)", "type": "main", "index": 0}]]}, "Aggregate (stub)": {"main": [[{"node": "Slack", "type": "main", "index": 0}]]}},
+  "active": false, "settings": {}, "staticData": {}
+}

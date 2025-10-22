@@ -1,0 +1,177 @@
+{
+  "name": "MCP Healthcheck (5분 주기)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "value": "*/5 * * * *"
+            }
+          ]
+        }
+      },
+      "id": "Cron",
+      "name": "Cron (Every 5 min)",
+      "type": "n8n-nodes-base.cron",
+      "typeVersion": 1,
+      "position": [220, 200]
+    },
+    {
+      "parameters": {
+        "url": "={{$env.MCP_HEALTH_URL}}/tools",
+        "options": {
+          "timeout": 10000,
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "MCP Health",
+      "name": "MCP /tools Check",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [460, 140]
+    },
+    {
+      "parameters": {
+        "url": "={{$env.FN_SESSION_EVENT}}",
+        "options": {
+          "timeout": 10000,
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "Session Health",
+      "name": "Session Event Check",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [460, 260]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "mcp_status",
+              "leftValue": "={{$json.statusCode}}",
+              "rightValue": 200,
+              "operator": {
+                "type": "number",
+                "operation": "notEqual"
+              }
+            },
+            {
+              "id": "session_status",
+              "leftValue": "={{$('Session Event Check').item.json.statusCode}}",
+              "rightValue": 200,
+              "operator": {
+                "type": "number",
+                "operation": "notEqual"
+              }
+            }
+          ],
+          "combinator": "or"
+        }
+      },
+      "id": "IF",
+      "name": "IF (Any Failed)",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [720, 200]
+    },
+    {
+      "parameters": {
+        "channel": "#alerts",
+        "text": "=🚨 Healthcheck FAIL | MCP /tools={{$('MCP /tools Check').item.json.statusCode}}, Session={{$('Session Event Check').item.json.statusCode}} | {{ $now.format('YYYY-MM-DD HH:mm:ss') }} (KST)"
+      },
+      "id": "Slack Alert",
+      "name": "Slack Alert",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 1,
+      "position": [980, 160]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Healthcheck passed - no action needed\nreturn [];"
+      },
+      "id": "Function",
+      "name": "Health OK",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 2,
+      "position": [980, 240]
+    }
+  ],
+  "connections": {
+    "Cron (Every 5 min)": {
+      "main": [
+        [
+          {
+            "node": "MCP /tools Check",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Session Event Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "MCP /tools Check": {
+      "main": [
+        [
+          {
+            "node": "IF (Any Failed)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Session Event Check": {
+      "main": [
+        [
+          {
+            "node": "IF (Any Failed)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF (Any Failed)": {
+      "main": [
+        [
+          {
+            "node": "Slack Alert",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Health OK",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {},
+  "staticData": {}
+}

@@ -1,0 +1,121 @@
+{
+  "name": "Dues – Receipt PDF & Email",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "stripe-invoice"
+      },
+      "id": "wh",
+      "name": "Webhook (Stripe)",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [-860, 60]
+    },
+    {
+      "parameters": {
+        "functionCode": "const ev=$json; if(ev.type!=='invoice.paid') { return []; } return [{json: ev.data.object}];"
+      },
+      "id": "fn",
+      "name": "Filter Paid",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 2,
+      "position": [-640, 60]
+    },
+    {
+      "parameters": {
+        "operation": "copy",
+        "fileId": "={{$env.GDRIVE_RECEIPT_TEMPLATE_ID}}",
+        "options": {
+          "parents": ["={{$env.GDRIVE_RECEIPTS_FOLDER}}"],
+          "fileName": "=receipt_{{$json.number}}"
+        }
+      },
+      "id": "copy",
+      "name": "Copy Template",
+      "type": "n8n-nodes-base.googleDocs",
+      "typeVersion": 1,
+      "position": [-420, 60],
+      "credentials": {
+        "googleDocsOAuth2Api": {
+          "id": "REPLACE",
+          "name": "Google Docs OAuth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "replaceText",
+        "fileId": "={{$json[\"Copy Template\"].id}}",
+        "textUi": {
+          "keyValue": [
+            {"key": "{{AMOUNT}}", "value": "={{$json.amount_paid/100}}"},
+            {"key": "{{DATE}}", "value": "={{$json.status_transitions.paid_at}}"},
+            {"key": "{{NAME}}", "value": "={{$json.customer_name||''}}"}
+          ]
+        }
+      },
+      "id": "replace",
+      "name": "Replace",
+      "type": "n8n-nodes-base.googleDocs",
+      "typeVersion": 1,
+      "position": [-200, 60]
+    },
+    {
+      "parameters": {
+        "operation": "export",
+        "fileId": "={{$json[\"Copy Template\"].id}}",
+        "options": {
+          "exportType": "pdf"
+        }
+      },
+      "id": "export",
+      "name": "Export PDF",
+      "type": "n8n-nodes-base.googleDocs",
+      "typeVersion": 1,
+      "position": [10, 60]
+    },
+    {
+      "parameters": {
+        "fromEmail": "={{$env.GMAIL_SENDER}}",
+        "toEmail": "={{$json.customer_email}}",
+        "subject": "[YAGO] 결제 영수증",
+        "text": "=영수증을 첨부합니다.",
+        "binaryAttachments": [
+          {"property": "data"}
+        ]
+      },
+      "id": "mail",
+      "name": "Send Gmail",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2,
+      "position": [220, 60],
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "REPLACE",
+          "name": "Gmail"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook (Stripe)": {
+      "main": [[{"node": "Filter Paid", "type": "main", "index": 0}]]
+    },
+    "Filter Paid": {
+      "main": [[{"node": "Copy Template", "type": "main", "index": 0}]]
+    },
+    "Copy Template": {
+      "main": [[{"node": "Replace", "type": "main", "index": 0}]]
+    },
+    "Replace": {
+      "main": [[{"node": "Export PDF", "type": "main", "index": 0}]]
+    },
+    "Export PDF": {
+      "main": [[{"node": "Send Gmail", "type": "main", "index": 0}]]
+    }
+  },
+  "settings": {
+    "timezone": "Asia/Seoul"
+  }
+}

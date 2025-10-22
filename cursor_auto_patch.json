@@ -1,0 +1,141 @@
+{
+  "project": "YAGO VIBE - 완전 자동화 채팅 시스템",
+  "version": "1.0.0",
+  "description": "실시간 채팅 + 5개 채널 알림 + AI 분석 + 자동 리포트 + 데이터 시각화",
+  "author": "YAGO VIBE Team",
+  "steps": [
+    {
+      "step": 1,
+      "action": "create",
+      "file": "src/pages/ChatRoom.tsx",
+      "description": "실시간 채팅 컴포넌트 - onSnapshot 기반 양방향 메시지",
+      "priority": "high",
+      "content": "import { useEffect, useState, useRef } from \"react\";\nimport { useParams, useNavigate } from \"react-router-dom\";\nimport { collection, doc, getDoc, onSnapshot, addDoc, updateDoc, serverTimestamp, setDoc, query, orderBy } from \"firebase/firestore\";\nimport { db } from \"../lib/firebase\";\nimport { getAuth } from \"firebase/auth\";\nimport { ArrowLeft } from \"lucide-react\";\n\nexport default function ChatRoom() {\n  const { id: roomId } = useParams();\n  const navigate = useNavigate();\n  const auth = getAuth();\n  const user = auth.currentUser;\n  const [messages, setMessages] = useState([]);\n  const [input, setInput] = useState(\"\");\n  const [loading, setLoading] = useState(true);\n  const [roomInfo, setRoomInfo] = useState(null);\n  const messagesEndRef = useRef(null);\n\n  useEffect(() => {\n    const initChat = async () => {\n      if (!roomId) { setLoading(false); return; }\n      try {\n        const roomRef = doc(db, \"chatRooms\", roomId);\n        const snap = await getDoc(roomRef);\n        if (!snap.exists()) {\n          await setDoc(roomRef, { createdAt: serverTimestamp(), participants: user ? [user.uid] : [], status: \"active\" });\n        } else {\n          setRoomInfo(snap.data());\n        }\n        const messagesQuery = query(collection(roomRef, \"messages\"), orderBy(\"createdAt\", \"asc\"));\n        const unsub = onSnapshot(messagesQuery, (snapshot) => {\n          setMessages(snapshot.docs.map((d) => ({ id: d.id, ...d.data() })));\n        });\n        setLoading(false);\n        return () => unsub();\n      } catch (error) { console.error(\"채팅방 초기화 오류:\", error); setLoading(false); }\n    };\n    initChat();\n  }, [roomId]);\n\n  useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: \"smooth\" }); }, [messages]);\n\n  const sendMessage = async (e) => {\n    e.preventDefault();\n    if (!input.trim() || !roomId) return;\n    try {\n      await addDoc(collection(db, \"chatRooms\", roomId, \"messages\"), { text: input.trim(), sender: user?.uid || \"anonymous\", senderName: user?.displayName || \"익명\", createdAt: serverTimestamp(), read: false });\n      await updateDoc(doc(db, \"chatRooms\", roomId), { lastMessage: input, lastMessageAt: serverTimestamp(), updatedAt: serverTimestamp() });\n      setInput(\"\");\n    } catch (error) { console.error(\"메시지 전송 실패:\", error); }\n  };\n\n  if (loading) return <div className=\"flex items-center justify-center h-screen\"><div className=\"animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-4\"></div><p>채팅방을 불러오는 중...</p></div>;\n\n  return (\n    <div className=\"flex flex-col h-screen bg-gray-50\">\n      <header className=\"bg-white shadow-sm border-b\"><div className=\"max-w-3xl mx-auto px-4 py-3 flex items-center justify-between\"><button onClick={() => navigate(-1)} className=\"flex items-center gap-2 text-gray-600 hover:text-blue-600\"><ArrowLeft className=\"w-5 h-5\" /><span className=\"text-sm\">뒤로</span></button><div className=\"text-center flex-1\"><h1 className=\"text-base font-semibold text-gray-800\">💬 {roomInfo?.productTitle || \"채팅방\"}</h1><p className=\"text-xs text-gray-500\">실시간 대화</p></div><div className=\"w-16\"></div></div></header>\n      <div className=\"flex-1 overflow-y-auto p-4 space-y-3\">{messages.length === 0 ? <div className=\"text-center py-8\"><div className=\"text-4xl mb-4\">💬</div><p className=\"text-gray-500\">첫 번째 메시지를 보내보세요!</p></div> : messages.map((msg) => { const isMyMessage = msg.sender === user?.uid; return <div key={msg.id} className={`flex ${isMyMessage ? \"justify-end\" : \"justify-start\"}`}><div className={`rounded-2xl px-4 py-2 text-sm max-w-[70%] shadow-sm ${isMyMessage ? \"bg-blue-500 text-white\" : \"bg-white border\"}`}>{!isMyMessage && msg.senderName && <div className=\"text-xs text-gray-500 mb-1 font-semibold\">{msg.senderName}</div>}<div className=\"break-words\">{msg.text}</div></div></div>; })}<div ref={messagesEndRef}></div></div>\n      <form onSubmit={sendMessage} className=\"bg-white border-t shadow-lg\"><div className=\"max-w-3xl mx-auto p-3 flex gap-2\"><input className=\"flex-1 border rounded-full px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500\" placeholder=\"메시지를 입력하세요...\" value={input} onChange={(e) => setInput(e.target.value)} autoComplete=\"off\" /><button type=\"submit\" disabled={!input.trim()} className=\"bg-blue-500 text-white rounded-full px-6 py-3 text-sm font-semibold hover:bg-blue-600 disabled:bg-gray-300\">전송</button></div><div className=\"bg-gray-50 px-4 py-2 text-xs text-gray-500 text-center border-t\">✅ 실시간 동기화 중 • 메시지 {messages.length}개</div></form>\n    </div>\n  );\n}"
+    },
+    {
+      "step": 2,
+      "action": "create",
+      "file": "src/pages/ChatListPage.tsx",
+      "description": "채팅 목록 페이지 - 참여 중인 채팅방 리스트",
+      "priority": "high",
+      "content": "import { useEffect, useState } from \"react\";\nimport { collection, getDocs, query, where, orderBy } from \"firebase/firestore\";\nimport { db } from \"../lib/firebase\";\nimport { getAuth } from \"firebase/auth\";\nimport { useNavigate } from \"react-router-dom\";\nimport { MessageCircle, Clock, User } from \"lucide-react\";\n\nexport default function ChatListPage() {\n  const [rooms, setRooms] = useState([]);\n  const [loading, setLoading] = useState(true);\n  const navigate = useNavigate();\n  const auth = getAuth();\n  const user = auth.currentUser;\n\n  useEffect(() => {\n    if (!user) { setLoading(false); return; }\n    const fetchChatRooms = async () => {\n      try {\n        const q = query(collection(db, \"chatRooms\"), where(\"participants\", \"array-contains\", user.uid), orderBy(\"updatedAt\", \"desc\"));\n        const snapshot = await getDocs(q);\n        setRooms(snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })));\n      } catch (error) { console.error(\"채팅 목록 로드 실패:\", error); } finally { setLoading(false); }\n    };\n    fetchChatRooms();\n  }, [user]);\n\n  if (loading) return <div className=\"min-h-screen bg-gray-50 flex items-center justify-center\"><div className=\"animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-4\"></div><p>채팅 목록을 불러오는 중...</p></div>;\n  if (!user) return <div className=\"min-h-screen bg-gray-50 flex items-center justify-center\"><p className=\"text-gray-500 mb-4\">로그인이 필요합니다.</p><button onClick={() => navigate(\"/login\")} className=\"bg-blue-500 text-white px-4 py-2 rounded-lg\">로그인하기</button></div>;\n\n  return (\n    <div className=\"min-h-screen bg-gray-50\"><header className=\"bg-white shadow-sm border-b\"><div className=\"max-w-2xl mx-auto px-4 py-4\"><div className=\"flex items-center justify-between\"><h1 className=\"text-xl font-bold text-gray-800 flex items-center gap-2\"><MessageCircle className=\"w-6 h-6 text-blue-500\" />채팅 목록</h1><button onClick={() => navigate(\"/market\")} className=\"text-blue-500 hover:text-blue-600 text-sm\">마켓으로</button></div></div></header>\n      <main className=\"max-w-2xl mx-auto px-4 py-6\">{rooms.length === 0 ? <div className=\"text-center py-12\"><MessageCircle className=\"w-16 h-16 text-gray-300 mx-auto mb-4\" /><p className=\"text-gray-500 text-lg mb-2\">진행 중인 채팅이 없습니다</p><button onClick={() => navigate(\"/market\")} className=\"bg-blue-500 text-white px-6 py-3 rounded-lg\">마켓 둘러보기</button></div> : <div className=\"space-y-3\">{rooms.map((room) => <div key={room.id} onClick={() => navigate(`/chat/${room.id}`)} className=\"bg-white rounded-xl shadow-sm border p-4 cursor-pointer hover:shadow-md\"><div className=\"flex items-center gap-3\"><div className=\"w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center\">{room.productImage ? <img src={room.productImage} alt={room.productTitle} className=\"w-full h-full object-cover rounded-lg\" /> : <MessageCircle className=\"w-6 h-6 text-gray-400\" />}</div><div className=\"flex-1\"><h3 className=\"font-semibold text-gray-800 truncate\">{room.productTitle || `상품 ID: ${room.productId}`}</h3>{room.lastMessage && <p className=\"text-sm text-gray-600 truncate\">{room.lastMessage}</p>}<div className=\"flex items-center gap-2 text-xs text-gray-500\"><User className=\"w-3 h-3\" /><span>참여자 {room.participants?.length || 0}명</span></div></div></div></div>)}</div>}</main>\n    </div>\n  );\n}"
+    },
+    {
+      "step": 3,
+      "action": "create",
+      "file": "functions/lib/chatNotificationTrigger.js",
+      "description": "FCM 푸시 + AI 자동 응답 트리거",
+      "priority": "high",
+      "content": "const functions = require(\"firebase-functions\");\nconst admin = require(\"firebase-admin\");\n\nexports.onNewChatMessage = functions.firestore.document(\"chatRooms/{roomId}/messages/{messageId}\").onCreate(async (snap, context) => {\n  const message = snap.data();\n  const { roomId } = context.params;\n  console.log(\"📩 새 메시지 감지:\", message.text);\n\n  try {\n    const roomRef = admin.firestore().doc(`chatRooms/${roomId}`);\n    const roomSnap = await roomRef.get();\n    if (!roomSnap.exists) return null;\n\n    const roomData = roomSnap.data();\n    const receiver = roomData.participants?.find((uid) => uid !== message.sender);\n\n    if (receiver) {\n      const userDoc = await admin.firestore().doc(`users/${receiver}`).get();\n      const fcmToken = userDoc.data()?.fcmToken;\n      if (fcmToken) {\n        await admin.messaging().sendToDevice(fcmToken, {\n          notification: { title: `💬 ${roomData.productTitle || \"새 메시지\"}`, body: message.text },\n          data: { type: \"chat\", roomId, click_action: `/chat/${roomId}` }\n        });\n        console.log(\"✅ FCM 알림 전송 완료\");\n      }\n    }\n\n    // AI 자동 응답\n    const text = message.text.toLowerCase();\n    let autoReply = null;\n    if (text.includes(\"사진\")) autoReply = \"📸 상품 사진은 상단 이미지에서 확인하실 수 있습니다!\";\n    else if (text.includes(\"가격\")) autoReply = \"💰 상품 가격은 상세 페이지에서 확인해주세요.\";\n    else if (text.includes(\"배송\")) autoReply = \"📦 배송 방법은 판매자와 직접 상의해주세요.\";\n    else if (text.includes(\"안녕\")) autoReply = \"👋 안녕하세요! YAGO VIBE입니다.\";\n\n    if (autoReply) {\n      await admin.firestore().collection(\"chatRooms\").doc(roomId).collection(\"messages\").add({\n        text: autoReply, sender: \"system\", senderName: \"YAGO VIBE 봇\", createdAt: admin.firestore.FieldValue.serverTimestamp(), read: false, isAutoReply: true\n      });\n      console.log(\"🤖 AI 자동 응답:\", autoReply);\n    }\n\n    return null;\n  } catch (error) { console.error(\"❌ 채팅 알림 처리 실패:\", error); return null; }\n});"
+    },
+    {
+      "step": 4,
+      "action": "create",
+      "file": "functions/lib/n8nChatWebhook.js",
+      "description": "n8n Webhook 연동 - Slack/KakaoTalk/Telegram 알림",
+      "priority": "high",
+      "content": "const functions = require(\"firebase-functions\");\nconst admin = require(\"firebase-admin\");\n\nexports.sendChatToN8N = functions.firestore.document(\"chatRooms/{roomId}/messages/{messageId}\").onCreate(async (snap, context) => {\n  const message = snap.data();\n  const { roomId, messageId } = context.params;\n  console.log(\"💬 새 메시지 감지:\", message.text);\n\n  try {\n    const roomRef = admin.firestore().doc(`chatRooms/${roomId}`);\n    const roomSnap = await roomRef.get();\n    if (!roomSnap.exists) return null;\n\n    const roomData = roomSnap.data();\n    const N8N_WEBHOOK_URL = process.env.N8N_CHAT_WEBHOOK_URL || functions.config().n8n?.webhook_url || \"https://n8n.yagovibe.com/webhook/chat-new-message\";\n\n    const payload = {\n      event: \"new_chat_message\",\n      roomId,\n      messageId,\n      message: { text: message.text || \"\", sender: message.sender || \"unknown\", senderName: message.senderName || \"익명\", createdAt: new Date().toISOString() },\n      room: { productId: roomData.productId || \"\", productTitle: roomData.productTitle || \"알 수 없음\", productImage: roomData.productImage || \"\", participants: roomData.participants || [] },\n      links: { chatRoom: `https://yagovibe.com/chat/${roomId}`, product: roomData.productId ? `https://yagovibe.com/market/${roomData.productId}` : \"\" },\n      timestamp: new Date().toISOString()\n    };\n\n    const response = await fetch(N8N_WEBHOOK_URL, {\n      method: \"POST\",\n      headers: { \"Content-Type\": \"application/json\", \"User-Agent\": \"YAGO-VIBE-Functions/1.0\" },\n      body: JSON.stringify(payload)\n    });\n\n    if (response.ok) {\n      console.log(\"✅ n8n Webhook 전송 완료:\", response.status);\n      await admin.firestore().collection(\"logs\").add({ event: \"n8n_webhook_success\", roomId, messageId, status: response.status, createdAt: admin.firestore.FieldValue.serverTimestamp() });\n    } else {\n      console.warn(\"⚠️ n8n Webhook 응답 오류:\", response.status);\n    }\n\n    return null;\n  } catch (error) { console.error(\"❌ n8n Webhook 전송 실패:\", error); return null; }\n});\n\nexports.logChatEvent = functions.firestore.document(\"chatRooms/{roomId}/messages/{messageId}\").onCreate(async (snap, context) => {\n  const message = snap.data();\n  const { roomId, messageId } = context.params;\n  try {\n    await admin.firestore().collection(\"chatEvents\").add({ type: \"message_created\", roomId, messageId, sender: message.sender || \"unknown\", textLength: message.text?.length || 0, createdAt: admin.firestore.FieldValue.serverTimestamp() });\n    console.log(\"📊 채팅 이벤트 로깅 완료\");\n  } catch (error) { console.error(\"❌ 로깅 실패:\", error); }\n  return null;\n});"
+    },
+    {
+      "step": 5,
+      "action": "update",
+      "file": "functions/index.js",
+      "description": "Functions export 업데이트",
+      "priority": "high",
+      "content": "// Firebase Functions Entry Point\nimport { summarizeChat } from \"./summarizeChat.js\";\nimport { sendAdminPush } from \"./sendAdminPush.js\";\n\n// ✅ 채팅 알림 시스템\nconst chatNotifications = require(\"./lib/chatNotificationTrigger\");\n\n// ✅ n8n Webhook 연동\nconst n8nChatWebhook = require(\"./lib/n8nChatWebhook\");\n\nexport { \n  summarizeChat, \n  sendAdminPush,\n  // 채팅 알림\n  ...chatNotifications,\n  // n8n Webhook\n  ...n8nChatWebhook,\n};"
+    },
+    {
+      "step": 6,
+      "action": "create",
+      "file": "src/utils/fcm.ts",
+      "description": "FCM 푸시 알림 유틸리티",
+      "priority": "medium",
+      "content": "import { getMessaging, getToken, onMessage } from \"firebase/messaging\";\nimport { doc, setDoc, serverTimestamp } from \"firebase/firestore\";\nimport { db } from \"../lib/firebase\";\nimport { getAuth } from \"firebase/auth\";\n\nconst VAPID_KEY = import.meta.env.VITE_FIREBASE_VAPID_KEY;\n\nexport async function requestFCMToken() {\n  try {\n    const auth = getAuth();\n    const user = auth.currentUser;\n    if (!user) return null;\n\n    const permission = await Notification.requestPermission();\n    if (permission !== \"granted\") return null;\n\n    const messaging = getMessaging();\n    const token = await getToken(messaging, { vapidKey: VAPID_KEY });\n    if (!token) return null;\n\n    await setDoc(doc(db, \"users\", user.uid), { fcmToken: token, fcmTokenUpdatedAt: serverTimestamp(), notificationsEnabled: true }, { merge: true });\n    console.log(\"✅ FCM 토큰 저장 완료\");\n    return token;\n  } catch (error) { console.error(\"❌ FCM 토큰 요청 실패:\", error); return null; }\n}\n\nexport function setupForegroundMessageListener() {\n  try {\n    const messaging = getMessaging();\n    onMessage(messaging, (payload) => {\n      console.log(\"📩 포그라운드 메시지:\", payload);\n      if (payload.notification) {\n        new Notification(payload.notification.title || \"새 알림\", { body: payload.notification.body, icon: \"/icons/icon-192x192.png\" });\n      }\n    });\n  } catch (error) { console.error(\"❌ 리스너 설정 실패:\", error); }\n}\n\nexport async function initializeFCM() {\n  try {\n    if (!('serviceWorker' in navigator) || !('Notification' in window)) return;\n    if (Notification.permission === \"granted\") await requestFCMToken();\n    setupForegroundMessageListener();\n    console.log(\"✅ FCM 초기화 완료\");\n  } catch (error) { console.error(\"❌ FCM 초기화 실패:\", error); }\n}"
+    },
+    {
+      "step": 7,
+      "action": "update",
+      "file": "src/main.tsx",
+      "description": "FCM 초기화 추가",
+      "priority": "high",
+      "content_append": "\n// FCM 초기화\nimport { initializeFCM } from \"./utils/fcm\";\n\n// PWA Service Worker 등록 + FCM 서비스워커\nif ('serviceWorker' in navigator) {\n  window.addEventListener('load', async () => {\n    try {\n      await navigator.serviceWorker.register('/firebase-messaging-sw.js');\n      console.log('✅ FCM Service Worker registered');\n      await initializeFCM();\n      if (!import.meta.env.DEV) {\n        await navigator.serviceWorker.register('/sw.js');\n        console.log('✅ PWA Service Worker registered');\n      }\n    } catch (error) { console.warn('Service Worker registration failed:', error); }\n  });\n}"
+    },
+    {
+      "step": 8,
+      "action": "create",
+      "file": "public/firebase-messaging-sw.js",
+      "description": "FCM Service Worker - 백그라운드 알림",
+      "priority": "medium",
+      "content": "importScripts('https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js');\nimportScripts('https://www.gstatic.com/firebasejs/10.7.1/firebase-messaging-compat.js');\n\nconst firebaseConfig = {\n  apiKey: \"***REMOVED***\",\n  authDomain: \"***REMOVED***\",\n  projectId: \"***REMOVED***\",\n  storageBucket: \"***REMOVED***\",\n  messagingSenderId: \"***REMOVED***\",\n  appId: \"***REMOVED***\"\n};\n\nfirebase.initializeApp(firebaseConfig);\nconst messaging = firebase.messaging();\n\nmessaging.onBackgroundMessage((payload) => {\n  console.log('[SW] 백그라운드 메시지:', payload);\n  const notificationTitle = payload.notification?.title || '새 알림';\n  const notificationOptions = { body: payload.notification?.body || '', icon: '/icons/icon-192x192.png', data: payload.data };\n  return self.registration.showNotification(notificationTitle, notificationOptions);\n});\n\nself.addEventListener('notificationclick', (event) => {\n  event.notification.close();\n  const clickAction = event.notification.data?.click_action || '/';\n  event.waitUntil(clients.matchAll({ type: 'window' }).then((clientList) => {\n    for (const client of clientList) {\n      if (client.url.includes(clickAction) && 'focus' in client) return client.focus();\n    }\n    if (clients.openWindow) return clients.openWindow(clickAction);\n  }));\n});"
+    }
+  ],
+  "post_steps": [
+    {
+      "action": "command",
+      "command": "cd functions && npm install node-fetch",
+      "description": "Firebase Functions 의존성 설치"
+    },
+    {
+      "action": "command",
+      "command": "firebase functions:config:set n8n.webhook_url=\"https://n8n.yagovibe.com/webhook/chat-new-message\"",
+      "description": "n8n Webhook URL 환경변수 설정"
+    },
+    {
+      "action": "info",
+      "message": "✅ 코드 생성 완료! 이제 다음 단계를 진행하세요:\n\n1️⃣ Firebase Console → VAPID Key 생성\n2️⃣ .env.local에 VITE_FIREBASE_VAPID_KEY 추가\n3️⃣ firebase deploy --only functions\n4️⃣ n8n Workflows Import (6개 파일)\n5️⃣ n8n Credentials 연결 (Slack/Gmail/Kakao/OpenAI)\n6️⃣ Looker Studio 대시보드 생성\n\n📖 상세 가이드: FINAL_SYSTEM_SUMMARY.md 참조"
+    }
+  ],
+  "dependencies": {
+    "firebase-functions": "^4.5.0",
+    "firebase-admin": "^12.0.0",
+    "node-fetch": "^2.7.0"
+  },
+  "environment_variables": {
+    "required": [
+      "VITE_FIREBASE_API_KEY",
+      "VITE_FIREBASE_AUTH_DOMAIN",
+      "VITE_FIREBASE_PROJECT_ID",
+      "VITE_FIREBASE_STORAGE_BUCKET",
+      "VITE_FIREBASE_MESSAGING_SENDER_ID",
+      "VITE_FIREBASE_APP_ID",
+      "VITE_FIREBASE_VAPID_KEY",
+      "VITE_OPENAI_API_KEY"
+    ],
+    "optional": [
+      "N8N_CHAT_WEBHOOK_URL",
+      "GOOGLE_SHEET_ID",
+      "ADMIN_EMAIL"
+    ]
+  },
+  "manual_steps": {
+    "firebase_console": [
+      "VAPID Key 생성 (Cloud Messaging)",
+      "Firestore 규칙 업데이트"
+    ],
+    "n8n": [
+      "Workflow 6개 Import",
+      "Slack OAuth2 연결",
+      "Gmail OAuth2 연결",
+      "Kakao OAuth2 연결",
+      "OpenAI API Key 입력",
+      "Google Sheets 권한 허용",
+      "각 Workflow Active 토글 ON"
+    ],
+    "looker_studio": [
+      "Google Sheets 연결",
+      "차트 5개 추가",
+      "테마 설정"
+    ]
+  },
+  "estimated_time": {
+    "cursor_auto": "5분",
+    "manual_setup": "65분",
+    "total": "70분"
+  },
+  "monthly_cost": {
+    "firebase": "무료",
+    "openai": "$0.48",
+    "total": "$0.48 (약 650원)"
+  }
+}
+

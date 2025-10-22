@@ -1,0 +1,56 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 팀 문서 접근 규칙
+    match /teams/{teamId} {
+      allow read: if true; // 팀 정보는 공개
+      allow write: if request.auth != null; // 로그인된 사용자만 수정 가능
+      
+      // 팀 회원 관리 규칙 - 강화된 보안
+      match /members/{memberId} {
+        allow read: if request.auth != null && 
+          (request.auth.token.teamId == teamId || 
+           request.auth.token.role == "admin");
+        allow create, update, delete: if request.auth != null && 
+          request.auth.token.role == "admin";
+      }
+      
+      // 팀 회계 관리 규칙 - 강화된 보안
+      match /finance/{recordId} {
+        allow read: if request.auth != null && 
+          (request.auth.token.teamId == teamId || 
+           request.auth.token.role == "admin");
+        allow create, update, delete: if request.auth != null && 
+          request.auth.token.role == "admin";
+      }
+    }
+    
+    // 블로그 문서 접근 규칙
+    match /blogs/{blogId} {
+      allow read: if true; // 블로그는 공개
+      allow write: if request.auth != null; // 로그인된 사용자만 작성 가능
+    }
+    
+    // 댓글 문서 접근 규칙
+    match /comments/{commentId} {
+      allow read: if true; // 댓글은 공개
+      allow write: if request.auth != null; // 로그인된 사용자만 작성 가능
+    }
+    
+    // 사용자 프로필 접근 규칙
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // 팀 초대 및 권한 관리
+    match /teamInvites/{inviteId} {
+      allow read: if request.auth != null && 
+        (request.auth.token.teamId == resource.data.teamId || 
+         request.auth.token.role == "admin");
+      allow create: if request.auth != null && 
+        request.auth.token.role == "admin";
+      allow update, delete: if request.auth != null && 
+        request.auth.token.role == "admin";
+    }
+  }
+}

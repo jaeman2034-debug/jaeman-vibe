@@ -1,0 +1,37 @@
+[
+  {
+    "origin": [
+      "http://localhost:5173",
+      "http://localhost:3000",
+      "https://jaeman-vibe-platform.web.app",
+      "https://jaeman-vibe-platform.firebaseapp.com"
+    ],
+    "method": ["GET", "HEAD", "POST", "PUT", "DELETE", "OPTIONS"],
+    "responseHeader": [
+      "Content-Type",
+      "Access-Control-Allow-Origin",
+      "Access-Control-Allow-Methods",
+      "Access-Control-Allow-Headers",
+      "Authorization",
+      "X-Firebase-AppCheck",
+      "x-goog-meta-*",
+      "x-goog-upload-url",
+      "x-goog-upload-status",
+      "x-goog-upload-command",
+      "x-goog-upload-offset",
+      "x-goog-resumable",
+      "Content-Length",
+      "Content-Range",
+      "Accept",
+      "Accept-Encoding",
+      "Accept-Language",
+      "Cache-Control",
+      "Connection",
+      "Host",
+      "Origin",
+      "Referer",
+      "User-Agent"
+    ],
+    "maxAgeSeconds": 3600
+  }
+]

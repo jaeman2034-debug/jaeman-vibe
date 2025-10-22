@@ -1,0 +1,69 @@
+﻿{
+  "name": "Kakao Token Refresh",
+  "nodes": [
+    {
+      "parameters": {
+        "cronExpression": "0 */30 * * * *"
+      },
+      "id": "1",
+      "name": "Every 30min",
+      "type": "n8n-nodes-base.cron",
+      "typeVersion": 1,
+      "position": [300, 300]
+    },
+    {
+      "parameters": {
+        "url": "https://kauth.kakao.com/oauth/token",
+        "method": "POST",
+        "sendBody": true,
+        "options": {},
+        "bodyParameters": {
+          "grant_type": "refresh_token",
+          "client_id": "={{ $json[\"KAKAO_CLIENT_ID\"] }}",
+          "refresh_token": "={{ $json[\"KAKAO_REFRESH_TOKEN\"] }}"
+        }
+      },
+      "id": "2",
+      "name": "Refresh Token Request",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [500, 300]
+    },
+    {
+      "parameters": {
+        "operation": "set",
+        "value": "={{ $json[\"access_token\"] }}",
+        "key": "KAKAO_ACCESS_TOKEN"
+      },
+      "id": "3",
+      "name": "Update Token in n8n",
+      "type": "n8n-nodes-base.workflowData",
+      "typeVersion": 1,
+      "position": [700, 300]
+    }
+  ],
+  "connections": {
+    "Every 30min": {
+      "main": [
+        [
+          {
+            "node": "Refresh Token Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Refresh Token Request": {
+      "main": [
+        [
+          {
+            "node": "Update Token in n8n",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

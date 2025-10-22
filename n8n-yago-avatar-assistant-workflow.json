@@ -1,0 +1,90 @@
+{
+  "name": "YAGO VIBE - 3D 실시간 AI 아바타 비서",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "yago-voice-assistant",
+        "responseMode": "onReceived",
+        "responseData": "={{$json}}"
+      },
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [300, 200],
+      "webhookId": "yago-voice-assistant"
+    },
+    {
+      "parameters": {
+        "authentication": "headerAuth",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "responseFormat": "json",
+        "options": {},
+        "headerParametersJson": "{\n  \"Authorization\": \"Bearer {{$env.OPENAI_API_KEY}}\",\n  \"Content-Type\": \"application/json\"\n}",
+        "bodyParametersJson": "={\n  \"model\": \"gpt-4o-mini\",\n  \"messages\": [\n    {\n      \"role\": \"system\",\n      \"content\": \"당신은 YAGO VIBE의 개인 비서입니다. 사용자 말투를 존중하고, 친근하고 짧게 대답하세요. 사용자가 판매, 등록, 일정, 조회 관련 요청을 하면 실행 의도(intent)까지 함께 반환하세요.\\n\\n출력 형식:\\n{\\\"reply\\\": \\\"형님, 오늘 등록된 축구화는 2개입니다. 하나는 포천팀에서 예약했어요 😎\\\", \\\"emotion\\\": \\\"happy\\\", \\\"intent\\\": \\\"show_stats\\\"}\\n\\n감정 옵션: happy, excited, sad, neutral\\n의도 옵션: navigate_upload, navigate_market, navigate_report, show_stats, greeting, gratitude, clarification\"\n    },\n    {\n      \"role\": \"user\",\n      \"content\": \"{{$json.message}}\"\n    }\n  ],\n  \"max_tokens\": 300\n}"
+      },
+      "name": "OpenAI GPT-4o",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [600, 200]
+    },
+    {
+      "parameters": {
+        "functionCode": "const content = $json[\"choices\"][0][\"message\"][\"content\"];\nlet parsed;\n\ntry {\n  parsed = JSON.parse(content);\n} catch (e) {\n  // JSON 파싱 실패 시 기본 응답\n  parsed = {\n    reply: content || \"무슨 뜻인지 다시 말씀해주실래요?\",\n    emotion: \"neutral\",\n    intent: \"\"\n  };\n}\n\n// 감정 분석 (키워드 기반)\nconst userMessage = $json[\"message\"] || \"\";\nif (userMessage.includes(\"고마워\") || userMessage.includes(\"감사\")) {\n  parsed.emotion = \"happy\";\n} else if (userMessage.includes(\"보고서\") || userMessage.includes(\"분석\")) {\n  parsed.emotion = \"excited\";\n} else if (userMessage.includes(\"실패\") || userMessage.includes(\"오류\")) {\n  parsed.emotion = \"sad\";\n}\n\n// 의도 분석\nif (userMessage.includes(\"등록\") || userMessage.includes(\"올리\")) {\n  parsed.intent = \"navigate_upload\";\n} else if (userMessage.includes(\"마켓\") || userMessage.includes(\"상품\")) {\n  parsed.intent = \"navigate_market\";\n} else if (userMessage.includes(\"보고서\") || userMessage.includes(\"통계\")) {\n  parsed.intent = \"navigate_report\";\n} else if (userMessage.includes(\"안녕\") || userMessage.includes(\"하이\")) {\n  parsed.intent = \"greeting\";\n}\n\nreturn {\n  reply: parsed.reply || \"무슨 뜻인지 다시 말씀해주실래요?\",\n  emotion: parsed.emotion || \"neutral\",\n  intent: parsed.intent || \"\",\n  timestamp: new Date().toISOString()\n};"
+      },
+      "name": "Parse Response",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [900, 200]
+    },
+    {
+      "parameters": {
+        "responseBody": "={{$json}}",
+        "responseCode": 200,
+        "options": {}
+      },
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1200, 200]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "OpenAI GPT-4o",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI GPT-4o": {
+      "main": [
+        [
+          {
+            "node": "Parse Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Response": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {},
+  "versionId": "1.0.0"
+}

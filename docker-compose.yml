@@ -1,0 +1,24 @@
+version: "3.8"
+services:
+  n8n:
+    image: n8nio/n8n
+    container_name: yago-n8n
+    restart: always
+    ports:
+      - "5678:5678"
+    env_file:
+      - .env
+    volumes:
+      - ./n8n_data:/home/node/.n8n
+      - ./data:/data
+    depends_on:
+      - sqlite-init
+
+  sqlite-init:
+    image: nouchka/sqlite3:latest
+    container_name: sqlite-init
+    volumes:
+      - ./db:/db
+      - ./data:/data
+    entrypoint: >
+      sh -c "sqlite3 /data/market.db < /db/init.sql || true"

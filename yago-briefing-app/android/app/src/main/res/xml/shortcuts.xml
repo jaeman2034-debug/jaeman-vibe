@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- 야고 브리핑 바로가기 -->
+    <shortcut
+        android:shortcutId="yago_briefing"
+        android:enabled="true"
+        android:icon="@drawable/ic_voice"
+        android:shortcutShortLabel="@string/briefing_short_label"
+        android:shortcutLongLabel="@string/briefing_long_label">
+        
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="com.yagovibe.briefing"
+            android:targetClass="com.yagovibe.briefing.MainActivity"
+            android:data="yago://briefing/latest" />
+        
+        <categories android:name="android.shortcut.conversation" />
+    </shortcut>
+    
+    <!-- 어제 브리핑 바로가기 -->
+    <shortcut
+        android:shortcutId="yago_briefing_yesterday"
+        android:enabled="true"
+        android:icon="@drawable/ic_calendar"
+        android:shortcutShortLabel="@string/briefing_yesterday_short"
+        android:shortcutLongLabel="@string/briefing_yesterday_long">
+        
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="com.yagovibe.briefing"
+            android:targetClass="com.yagovibe.briefing.MainActivity"
+            android:data="yago://briefing/yesterday" />
+        
+        <categories android:name="android.shortcut.conversation" />
+    </shortcut>
+    
+    <!-- 일주일 요약 바로가기 -->
+    <shortcut
+        android:shortcutId="yago_briefing_weekly"
+        android:enabled="true"
+        android:icon="@drawable/ic_chart"
+        android:shortcutShortLabel="@string/briefing_weekly_short"
+        android:shortcutLongLabel="@string/briefing_weekly_long">
+        
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="com.yagovibe.briefing"
+            android:targetClass="com.yagovibe.briefing.MainActivity"
+            android:data="yago://briefing/weekly" />
+        
+        <categories android:name="android.shortcut.conversation" />
+    </shortcut>
+</shortcuts>

@@ -1,0 +1,16 @@
+{
+  "name": "Market Created → Moderate → Slack",
+  "nodes": [
+    {"parameters": {"httpMethod": "POST", "path": "market-created"}, "id": "Webhook", "name": "Webhook", "type": "n8n-nodes-base.webhook", "typeVersion": 1, "position": [220, 200]},
+    {"parameters": {"rules": [{"operations": {"regex": {"keepEmpty": false, "value": ".*(사기|금지|도박).*"}}, "type": "string", "value1": "={{$json[\"title\"]}}"}]}, "id": "Switch", "name": "Switch(title regex)", "type": "n8n-nodes-base.switch", "typeVersion": 2, "position": [420, 140]},
+    {"parameters": {"conditions": {"number": [{"value1": "={{$json[\"price\"]}}", "operation": "smaller", "value2": 1}]}}, "id": "IF", "name": "IF(price<1)", "type": "n8n-nodes-base.if", "typeVersion": 1, "position": [420, 260]},
+    {"parameters": {"channel": "#ops", "text": "=🚨 Moderation: {{$json.title}} (price: {{$json.price}})"}, "id": "Slack Alert", "name": "Slack Alert", "type": "n8n-nodes-base.slack", "typeVersion": 1, "position": [660, 160]},
+    {"parameters": {"responseBody": "={\"ok\":true}"}, "id": "Respond OK", "name": "Respond OK", "type": "n8n-nodes-base.respondToWebhook", "typeVersion": 1, "position": [660, 300]}
+  ],
+  "connections": {
+    "Webhook": {"main": [[{"node": "Switch(title regex)", "type": "main", "index": 0}, {"node": "IF(price<1)", "type": "main", "index": 0}]]},
+    "Switch(title regex)": {"main": [[{"node": "Slack Alert", "type": "main", "index": 0}], [{"node": "Respond OK", "type": "main", "index": 0}]]},
+    "IF(price<1)": {"main": [[{"node": "Slack Alert", "type": "main", "index": 0}], [{"node": "Respond OK", "type": "main", "index": 0}]]}
+  },
+  "active": false, "settings": {}, "staticData": {}
+}

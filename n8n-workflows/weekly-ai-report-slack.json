@@ -1,0 +1,127 @@
+﻿{
+  "name": "?뱤 Weekly AI Report ??Slack",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "weekly-ai-report",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "webhook_report",
+      "name": "?뱿 Webhook: weekly-ai-report",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $input.all()[0].json;\n\nconsole.log('?벂 二쇨컙 由ы룷???곗씠???섏떊:', input);\n\nreturn {\n  event: input.event,\n  sellerId: input.sellerId,\n  reportId: input.reportId,\n  aiResponseRate: input.aiResponseRate,\n  qualityScore: input.qualityScore,\n  topKeywords: input.topKeywords || [],\n  evaluation: input.evaluation || '?됯? ?놁쓬',\n  reportUrl: input.reportUrl || '#'\n};"
+      },
+      "id": "function_validate",
+      "name": "?㎥ ?곗씠??寃利?,
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "content": "=?뱤 **YAGO VIBE 二쇨컙 AI ?덉쭏 由ы룷??*\n\n**?먮ℓ??ID:** `{{ $json.sellerId }}`\n**由ы룷??ID:** `{{ $json.reportId }}`\n\n**?뱢 二쇱슂 吏??**\n??AI ?묐떟瑜? **{{ $json.aiResponseRate }}%**\n??AI ?덉쭏 ?먯닔: **{{ $json.qualityScore }}??*\n\n**?뤇截?二쇱슂 臾몄쓽 ?ㅼ썙??**\n{{ $json.topKeywords.join(', ') || '?놁쓬' }}\n\n**?쨼 AI ?덉쭏 ?됯?:**\n```\n{{ $json.evaluation.substring(0, 300) }}...\n```\n\n**?뵕 ?꾩껜 由ы룷??蹂닿린:**\n{{ $json.reportUrl }}\n\n??{{ $now.toLocaleString('ko-KR') }}",
+        "channel": "={{$env.SLACK_CHANNEL || '#ai-reports'}}",
+        "username": "YAGO VIBE AI Reporter",
+        "icon_emoji": ":bar_chart:"
+      },
+      "id": "slack_notify",
+      "name": "?뮠 Slack ?뚮┝",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.1,
+      "position": [680, 300],
+      "credentials": {
+        "slackApi": {
+          "id": "1",
+          "name": "Slack account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "status",
+              "name": "status",
+              "value": "completed",
+              "type": "string"
+            },
+            {
+              "id": "message",
+              "name": "message",
+              "value": "=??二쇨컙 由ы룷??Slack ?꾩넚 ?꾨즺: {{ $json.sellerId }}",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "id": "response_complete",
+      "name": "???꾨즺 ?묐떟",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.3,
+      "position": [900, 300]
+    }
+  ],
+  "connections": {
+    "?뱿 Webhook: weekly-ai-report": {
+      "main": [
+        [
+          {
+            "node": "?㎥ ?곗씠??寃利?,
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "?㎥ ?곗씠??寃利?: {
+      "main": [
+        [
+          {
+            "node": "?뮠 Slack ?뚮┝",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "?뮠 Slack ?뚮┝": {
+      "main": [
+        [
+          {
+            "node": "???꾨즺 ?묐떟",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [
+    {
+      "id": "1",
+      "name": "reports"
+    },
+    {
+      "id": "2",
+      "name": "ai"
+    },
+    {
+      "id": "3",
+      "name": "slack"
+    }
+  ],
+  "active": false,
+  "id": "weekly-ai-report-slack"
+}
+

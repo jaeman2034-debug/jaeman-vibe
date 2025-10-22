@@ -1,0 +1,7 @@
+﻿{
+    "intent":  "blog.create",
+    "payload":  {
+                    "content":  "자동화 테스트용 본문입니다.",
+                    "title":  "첫 번째 블로그 글"
+                }
+}

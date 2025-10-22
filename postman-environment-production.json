@@ -1,0 +1,13 @@
+{
+  "name": "YAGO – Production",
+  "values": [
+    { "key": "project", "value": "jaeman-vibe-platform", "type": "text" },
+    { "key": "region",  "value": "asia-northeast3", "type": "text" },
+    { "key": "fn_base", "value": "https://asia-northeast3-jaeman-vibe-platform.cloudfunctions.net", "type": "text" },
+    { "key": "N8N_SHARED_SECRET", "value": "set-in-prod", "type": "secret" },
+    { "key": "eventId", "value": "E1", "type": "text" },
+    { "key": "regId", "value": "R1", "type": "text" },
+    { "key": "uid", "value": "prod-user-uid", "type": "text" },
+    { "key": "amount", "value": "10000", "type": "text" }
+  ]
+}

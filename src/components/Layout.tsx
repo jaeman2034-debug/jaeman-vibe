@@ -1,0 +1,215 @@
+import { useState } from "react";
+import { Outlet, Link } from "react-router-dom";
+import { useAuth } from "@/context/AuthProvider";
+import {
+  Home,
+  ShoppingBag,
+  LayoutDashboard,
+  Users,
+  GraduationCap,
+  Building,
+  Menu,
+  X,
+  MessageCircle,
+  BarChart3,
+  TestTube,
+  Bot,
+} from "lucide-react";
+
+export default function Layout() {
+  const { user, logout, isAdmin } = useAuth();
+  const [open, setOpen] = useState(false);
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      {/* ?ïÏãù ?úÎπÑ?§Ïö© Î∞òÏùë???§Îçî */}
+      <header className="w-full bg-white border-b shadow-sm fixed top-0 left-0 z-50">
+        <div className="max-w-6xl mx-auto px-4 flex items-center justify-between h-14">
+          {/* Î°úÍ≥† */}
+          <Link to="/" className="flex items-center gap-2 font-bold text-lg">
+            <span className="text-2xl">??/span>
+            <span>YAGO VIBE</span>
+          </Link>
+
+          {/* ?∞Ïä§?¨ÌÉë ?§ÎπÑÍ≤åÏù¥??*/}
+          <nav className="hidden md:flex items-center gap-6 text-sm font-medium text-gray-700">
+            <Link to="/" className="flex items-center gap-1 hover:text-blue-600">
+              <Home size={16} /> ??            </Link>
+            <Link to="/market" className="flex items-center gap-1 hover:text-blue-600">
+              <ShoppingBag size={16} /> ÎßàÏºì
+            </Link>
+            <Link to="/dashboard" className="flex items-center gap-1 hover:text-blue-600">
+              <LayoutDashboard size={16} /> ?Ä?úÎ≥¥??            </Link>
+            <Link to="/club" className="flex items-center gap-1 hover:text-blue-600">
+              <Users size={16} /> ?¥ÎüΩ
+            </Link>
+            <Link to="/academy" className="flex items-center gap-1 hover:text-blue-600">
+              <GraduationCap size={16} /> ?ÑÏπ¥?∞Î?
+            </Link>
+            <Link to="/facilities" className="flex items-center gap-1 hover:text-blue-600">
+              <Building size={16} /> ?úÏÑ§
+            </Link>
+            {isAdmin && (
+              <>
+                <Link to="/admin/home" className="flex items-center gap-1 hover:text-blue-600">
+                  <LayoutDashboard size={16} /> Í¥ÄÎ¶¨Ïûê ??                </Link>
+                <Link to="/admin/ai-chat" className="flex items-center gap-1 hover:text-lime-600">
+                  <Bot size={16} /> ?§ñ AI ?Ä??                </Link>
+                <Link to="/admin/chat-dashboard" className="flex items-center gap-1 hover:text-purple-600">
+                  <MessageCircle size={16} /> AI Ï±ÑÌåÖ Í¥ÄÎ¶?                </Link>
+                <Link to="/admin/chat-stats" className="flex items-center gap-1 hover:text-indigo-600">
+                  <BarChart3 size={16} /> AI ?µÍ≥Ñ
+                </Link>
+                <Link to="/admin/slack-test" className="flex items-center gap-1 hover:text-green-600">
+                  <TestTube size={16} /> Slack ?åÏä§??                </Link>
+              </>
+            )}
+          </nav>
+
+          {/* ?¨Ïö©??Î°úÍ∑∏??*/}
+          <div className="hidden md:flex items-center gap-3 text-sm">
+            {user ? (
+              <>
+                <span className="text-gray-600">
+                  ?àÎÖï?òÏÑ∏?? {user.displayName || user.email || "?¨Ïö©??}??
+                </span>
+                <button
+                  onClick={logout}
+                  className="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded-md"
+                >
+                  Î°úÍ∑∏?ÑÏõÉ
+                </button>
+              </>
+            ) : (
+              <Link
+                to="/login"
+                className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded-md"
+              >
+                Î°úÍ∑∏??              </Link>
+            )}
+          </div>
+
+          {/* Î™®Î∞î??Î©îÎâ¥ Î≤ÑÌäº */}
+          <button
+            className="md:hidden flex items-center justify-center text-gray-700"
+            onClick={() => setOpen(!open)}
+          >
+            {open ? <X size={24} /> : <Menu size={24} />}
+          </button>
+        </div>
+
+        {/* Î™®Î∞î???úÎ°≠?§Ïö¥ Î©îÎâ¥ */}
+        {open && (
+          <div className="md:hidden bg-white border-t shadow-sm flex flex-col items-start px-6 py-4 space-y-3 text-sm font-medium text-gray-700">
+            <Link
+              to="/"
+              className="flex items-center gap-2 hover:text-blue-600"
+              onClick={() => setOpen(false)}
+            >
+              <Home size={16} /> ??            </Link>
+            <Link
+              to="/market"
+              className="flex items-center gap-2 hover:text-blue-600"
+              onClick={() => setOpen(false)}
+            >
+              <ShoppingBag size={16} /> ÎßàÏºì
+            </Link>
+            <Link
+              to="/dashboard"
+              className="flex items-center gap-2 hover:text-blue-600"
+              onClick={() => setOpen(false)}
+            >
+              <LayoutDashboard size={16} /> ?Ä?úÎ≥¥??            </Link>
+            <Link
+              to="/club"
+              className="flex items-center gap-2 hover:text-blue-600"
+              onClick={() => setOpen(false)}
+            >
+              <Users size={16} /> ?¥ÎüΩ
+            </Link>
+            <Link
+              to="/academy"
+              className="flex items-center gap-2 hover:text-blue-600"
+              onClick={() => setOpen(false)}
+            >
+              <GraduationCap size={16} /> ?ÑÏπ¥?∞Î?
+            </Link>
+            <Link
+              to="/facilities"
+              className="flex items-center gap-2 hover:text-blue-600"
+              onClick={() => setOpen(false)}
+            >
+              <Building size={16} /> ?úÏÑ§
+            </Link>
+            {isAdmin && (
+              <>
+                <Link
+                  to="/admin/home"
+                  className="flex items-center gap-2 hover:text-blue-600"
+                  onClick={() => setOpen(false)}
+                >
+                  <LayoutDashboard size={16} /> Í¥ÄÎ¶¨Ïûê ??                </Link>
+                <Link
+                  to="/admin/ai-chat"
+                  className="flex items-center gap-2 hover:text-lime-600"
+                  onClick={() => setOpen(false)}
+                >
+                  <Bot size={16} /> ?§ñ AI ?Ä??                </Link>
+                <Link
+                  to="/admin/chat-dashboard"
+                  className="flex items-center gap-2 hover:text-purple-600"
+                  onClick={() => setOpen(false)}
+                >
+                  <MessageCircle size={16} /> AI Ï±ÑÌåÖ Í¥ÄÎ¶?                </Link>
+                <Link
+                  to="/admin/chat-stats"
+                  className="flex items-center gap-2 hover:text-indigo-600"
+                  onClick={() => setOpen(false)}
+                >
+                  <BarChart3 size={16} /> AI ?µÍ≥Ñ
+                </Link>
+                <Link
+                  to="/admin/slack-test"
+                  className="flex items-center gap-2 hover:text-green-600"
+                  onClick={() => setOpen(false)}
+                >
+                  <TestTube size={16} /> Slack ?åÏä§??                </Link>
+              </>
+            )}
+
+            <div className="border-t w-full pt-3 mt-2">
+              {user ? (
+                <>
+                  <span className="text-gray-600 block mb-2">
+                    ?àÎÖï?òÏÑ∏?? {user.displayName || user.email || "?¨Ïö©??}??
+                  </span>
+                  <button
+                    onClick={() => {
+                      logout();
+                      setOpen(false);
+                    }}
+                    className="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded-md"
+                  >
+                    Î°úÍ∑∏?ÑÏõÉ
+                  </button>
+                </>
+              ) : (
+                <Link
+                  to="/login"
+                  className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded-md"
+                  onClick={() => setOpen(false)}
+                >
+                  Î°úÍ∑∏??                </Link>
+              )}
+            </div>
+          </div>
+        )}
+      </header>
+
+      {/* Î©îÏù∏ ÏΩòÌÖêÏ∏??ÅÏó≠ (?§Îçî ?íÏù¥ÎßåÌÅº ?®Îî© Ï∂îÍ?) */}
+      <main className="pt-14">
+        <Outlet />
+      </main>
+    </div>
+  );
+}

@@ -1,0 +1,352 @@
+import { useEffect, useState } from "react";
+import { db } from "../lib/firebase";
+import { collection, query, orderBy, limit, onSnapshot } from "firebase/firestore";
+import { Link } from "react-router-dom";
+import { motion } from "framer-motion";
+import { requestAndSaveFCMToken, setupForegroundPushListener } from "../lib/fcmNotifications";
+
+interface BeforeInstallPromptEvent extends Event {
+  prompt: () => Promise<void>;
+  userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
+}
+
+export default function AdminPWA() {
+  const [installEvt, setInstallEvt] = useState<BeforeInstallPromptEvent | null>(null);
+  const [latest, setLatest] = useState<any[]>([]);
+  const [stats, setStats] = useState({ pos: 0, neu: 0, neg: 0, total: 0 });
+  const [online, setOnline] = useState(navigator.onLine);
+
+  // PWA ?§Ïπò ?ÑÎ°¨?ÑÌä∏ Ï∫êÏπò
+  useEffect(() => {
+    const handler = (e: any) => {
+      e.preventDefault();
+      console.log("?ì± PWA ?§Ïπò ?ÑÎ°¨?ÑÌä∏ Ï§ÄÎπÑÎê®");
+      setInstallEvt(e);
+    };
+    window.addEventListener("beforeinstallprompt", handler);
+    return () => window.removeEventListener("beforeinstallprompt", handler);
+  }, []);
+
+  // ?®Îùº???§ÌîÑ?ºÏù∏ Í∞êÏ?
+  useEffect(() => {
+    const onlineHandler = () => {
+      console.log("???®Îùº??Î≥µÍ?");
+      setOnline(true);
+    };
+    const offlineHandler = () => {
+      console.log("?ì¥ ?§ÌîÑ?ºÏù∏");
+      setOnline(false);
+    };
+    window.addEventListener("online", onlineHandler);
+    window.addEventListener("offline", offlineHandler);
+    return () => {
+      window.removeEventListener("online", onlineHandler);
+      window.removeEventListener("offline", offlineHandler);
+    };
+  }, []);
+
+  // ?îî FCM ?∏Ïãú ?åÎ¶º ?§Ï†ï
+  useEffect(() => {
+    const setupFCM = async () => {
+      try {
+        // FCM ?†ÌÅ∞ ?îÏ≤≠ Î∞?Firestore ?Ä??        const token = await requestAndSaveFCMToken();
+        if (token) {
+          console.log("??FCM ?§Ï†ï ?ÑÎ£å");
+        }
+
+        // ?¨Í∑∏?ºÏö¥???∏Ïãú Î¶¨Ïä§???úÏÑ±??        setupForegroundPushListener();
+      } catch (error) {
+        console.error("??FCM ?§Ï†ï ?§Î•ò:", error);
+      }
+    };
+
+    // 1Ï¥???FCM ?§Ï†ï (PWA Ï¥àÍ∏∞????
+    const timer = setTimeout(setupFCM, 1000);
+    return () => clearTimeout(timer);
+  }, []);
+
+  // ÏµúÍ∑º ?îÏïΩ 50Í∞?+ Í∞êÏ†ï ÏßëÍ≥Ñ
+  useEffect(() => {
+    const q = query(
+      collection(db, "chat_summaries"),
+      orderBy("createdAt", "desc"),
+      limit(50)
+    );
+    
+    const unsub = onSnapshot(
+      q,
+      (snap) => {
+        const data = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+        setLatest(data.slice(0, 5));
+        
+        const count = { pos: 0, neu: 0, neg: 0, total: data.length };
+        data.forEach((s: any) => {
+          const sentiment = (s.sentiment || s.emotion || "neutral").toLowerCase();
+          if (sentiment.includes("positive") || sentiment === "Í∏çÏ†ï") count.pos++;
+          else if (sentiment.includes("negative") || sentiment === "Î∂Ä??) count.neg++;
+          else count.neu++;
+        });
+        setStats(count);
+        console.log("?ìä ?µÍ≥Ñ ?ÖÎç∞?¥Ìä∏:", count);
+      },
+      (error) => {
+        console.error("??Firestore Íµ¨ÎèÖ ?§Î•ò:", error);
+      }
+    );
+    
+    return () => unsub();
+  }, []);
+
+  const handleInstall = async () => {
+    if (!installEvt) {
+      alert("?§ÏπòÍ∞Ä ?¥Î? ?ÑÎ£å?òÏóàÍ±∞ÎÇò ÏßÄ?êÎêòÏßÄ ?äÎäî ?òÍ≤Ω?ÖÎãà??");
+      return;
+    }
+    
+    try {
+      await installEvt.prompt();
+      const choice = await installEvt.userChoice;
+      console.log("?ì± PWA ?§Ïπò ?†ÌÉù:", choice.outcome);
+      
+      if (choice.outcome === 'accepted') {
+        console.log("??PWA ?§Ïπò??);
+      }
+      
+      setInstallEvt(null);
+    } catch (error) {
+      console.error("??PWA ?§Ïπò ?§Î•ò:", error);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50 pb-20">
+      <div className="p-4 max-w-xl mx-auto">
+        {/* ?§Îçî */}
+        <motion.header 
+          className="text-center mb-6 pt-8"
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+        >
+          <div className="flex items-center justify-center gap-2 mb-2">
+            <img 
+              src="/images/yago-logo.png" 
+              alt="YAGO" 
+              className="w-12 h-12 rounded-xl shadow-md"
+              onError={(e) => {
+                e.currentTarget.style.display = 'none';
+              }}
+            />
+            <h1 className="text-3xl font-bold text-gray-900">YAGO VIBE</h1>
+          </div>
+          <p className="text-sm text-gray-600">Admin Dashboard</p>
+          
+          {/* ?®Îùº???§ÌîÑ?ºÏù∏ ?ÅÌÉú */}
+          <div className={`inline-flex items-center gap-2 mt-2 px-3 py-1 rounded-full text-xs ${
+            online 
+              ? "bg-green-100 text-green-700" 
+              : "bg-red-100 text-red-700"
+          }`}>
+            <span className={`w-2 h-2 rounded-full ${
+              online ? "bg-green-500" : "bg-red-500"
+            } animate-pulse`}></span>
+            {online ? "?®Îùº?? : "?§ÌîÑ?ºÏù∏"}
+          </div>
+        </motion.header>
+
+        {/* PWA ?§Ïπò Î∞∞ÎÑà */}
+        {installEvt && (
+          <motion.div 
+            className="bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-2xl p-4 mb-6 shadow-lg"
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.3 }}
+          >
+            <div className="flex items-center gap-3">
+              <div className="text-4xl">?ì±</div>
+              <div className="flex-1">
+                <p className="font-semibold mb-1">?±ÏúºÎ°??§Ïπò?òÍ∏∞</p>
+                <p className="text-xs opacity-90">???îÎ©¥??Ï∂îÍ??òÎ©¥ ??Îπ†Î•¥Í≤??ëÍ∑º?????àÏñ¥??</p>
+              </div>
+              <button 
+                onClick={handleInstall}
+                className="px-4 py-2 bg-white text-blue-600 rounded-xl font-semibold hover:bg-blue-50 transition-colors text-sm"
+              >
+                ?§Ïπò
+              </button>
+            </div>
+          </motion.div>
+        )}
+
+        {/* Í∞êÏ†ï ?îÏïΩ Ïπ¥Îìú */}
+        <motion.div 
+          className="grid grid-cols-3 gap-3 mb-6"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.1 }}
+        >
+          <div className="bg-white rounded-2xl p-4 shadow-md text-center hover:shadow-lg transition-shadow">
+            <p className="text-xs text-gray-500 mb-1">Í∏çÏ†ï</p>
+            <p className="text-3xl font-bold text-green-600 mb-1">{stats.pos}</p>
+            <p className="text-xs text-gray-400">
+              {stats.total > 0 ? ((stats.pos / stats.total) * 100).toFixed(1) : 0}%
+            </p>
+          </div>
+          <div className="bg-white rounded-2xl p-4 shadow-md text-center hover:shadow-lg transition-shadow">
+            <p className="text-xs text-gray-500 mb-1">Ï§ëÎ¶Ω</p>
+            <p className="text-3xl font-bold text-blue-600 mb-1">{stats.neu}</p>
+            <p className="text-xs text-gray-400">
+              {stats.total > 0 ? ((stats.neu / stats.total) * 100).toFixed(1) : 0}%
+            </p>
+          </div>
+          <div className="bg-white rounded-2xl p-4 shadow-md text-center hover:shadow-lg transition-shadow">
+            <p className="text-xs text-gray-500 mb-1">Î∂Ä??/p>
+            <p className="text-3xl font-bold text-red-600 mb-1">{stats.neg}</p>
+            <p className="text-xs text-gray-400">
+              {stats.total > 0 ? ((stats.neg / stats.total) * 100).toFixed(1) : 0}%
+            </p>
+          </div>
+        </motion.div>
+
+        {/* Îπ†Î•∏ ?¥Îèô */}
+        <motion.div 
+          className="grid grid-cols-2 gap-3 mb-6"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.2 }}
+        >
+          <Link 
+            to="/admin/calendar" 
+            className="bg-white rounded-2xl p-5 shadow-md hover:shadow-lg hover:bg-gradient-to-br hover:from-sky-50 hover:to-sky-100 transition-all active:scale-95"
+          >
+            <div className="text-3xl mb-2">?ìÖ</div>
+            <p className="font-semibold text-gray-900 mb-1">?ºÏ†ï Ï∫òÎ¶∞??/p>
+            <p className="text-xs text-gray-500">?Ä ?àÎ†® / Í≤ΩÍ∏∞ ?ºÏ†ï</p>
+          </Link>
+          
+          <Link 
+            to="/admin/chat-report" 
+            className="bg-white rounded-2xl p-5 shadow-md hover:shadow-lg hover:bg-gradient-to-br hover:from-blue-50 hover:to-blue-100 transition-all active:scale-95"
+          >
+            <div className="text-3xl mb-2">?ìä</div>
+            <p className="font-semibold text-gray-900 mb-1">AI Î¶¨Ìè¨??/p>
+            <p className="text-xs text-gray-500">Í∞êÏ†ï ÎπÑÏú® / ÏµúÍ∑º ?îÏïΩ</p>
+          </Link>
+          
+          <Link 
+            to="/admin/teams" 
+            className="bg-white rounded-2xl p-5 shadow-md hover:shadow-lg hover:bg-gradient-to-br hover:from-green-50 hover:to-green-100 transition-all active:scale-95"
+          >
+            <div className="text-3xl mb-2">??/div>
+            <p className="font-semibold text-gray-900 mb-1">?ÄÎ≥?ÎπÑÍµê</p>
+            <p className="text-xs text-gray-500">?åÌùò60/88/?ÑÏπ¥?∞Î?</p>
+          </Link>
+          
+          <Link 
+            to="/admin/reports/pdf" 
+            className="bg-white rounded-2xl p-5 shadow-md hover:shadow-lg hover:bg-gradient-to-br hover:from-purple-50 hover:to-purple-100 transition-all active:scale-95"
+          >
+            <div className="text-3xl mb-2">?ìÑ</div>
+            <p className="font-semibold text-gray-900 mb-1">PDF ?ùÏÑ±</p>
+            <p className="text-xs text-gray-500">Ï£ºÍ∞Ñ/?îÍ∞Ñ Î¶¨Ìè¨??/p>
+          </Link>
+          
+          <Link 
+            to="/admin/teams/pdf" 
+            className="bg-white rounded-2xl p-5 shadow-md hover:shadow-lg hover:bg-gradient-to-br hover:from-orange-50 hover:to-orange-100 transition-all active:scale-95"
+          >
+            <div className="text-3xl mb-2">?ßæ</div>
+            <p className="font-semibold text-gray-900 mb-1">?ÄÎ≥?PDF</p>
+            <p className="text-xs text-gray-500">3?Ä ÎπÑÍµê Î¶¨Ìè¨??/p>
+          </Link>
+          
+          <Link 
+            to="/admin/reports/ai" 
+            className="bg-white rounded-2xl p-5 shadow-md hover:shadow-lg hover:bg-gradient-to-br hover:from-pink-50 hover:to-pink-100 transition-all active:scale-95"
+          >
+            <div className="text-3xl mb-2">?èÜ</div>
+            <p className="font-semibold text-gray-900 mb-1">AI Î¶¨Ìè¨??/p>
+            <p className="text-xs text-gray-500">?ºÏ†ï ?µÍ≥Ñ ?êÎèô ?îÏïΩ</p>
+          </Link>
+        </motion.div>
+
+        {/* ÏµúÍ∑º ?îÏïΩ */}
+        <motion.div 
+          className="bg-white rounded-2xl p-5 shadow-md"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.3 }}
+        >
+          <div className="flex items-center justify-between mb-4">
+            <p className="font-semibold text-gray-900">?ß† ÏµúÍ∑º ?îÏïΩ TOP 5</p>
+            <Link 
+              to="/admin/chat-report" 
+              className="text-xs text-blue-600 hover:text-blue-700"
+            >
+              ?ÑÏ≤¥Î≥¥Í∏∞ ??            </Link>
+          </div>
+          
+          {latest.length === 0 ? (
+            <p className="text-sm text-gray-400 text-center py-8">
+              {online ? "?îÏïΩ ?∞Ïù¥?∞Î? Î∂àÎü¨?§Îäî Ï§?.." : "?§ÌîÑ?ºÏù∏ ?ÅÌÉú?ÖÎãà??"}
+            </p>
+          ) : (
+            <ul className="space-y-3">
+              {latest.map((s: any, i) => (
+                <li 
+                  key={s.id || i} 
+                  className="border-b border-gray-100 pb-3 last:border-0 hover:bg-gray-50 px-2 py-1 rounded-lg transition-colors"
+                >
+                  <div className="flex items-start gap-2">
+                    <span className="text-gray-400 text-xs mt-0.5">??/span>
+                    <div className="flex-1">
+                      <p className="text-sm text-gray-800 leading-relaxed">
+                        {s.summary || "?îÏïΩ ?ÜÏùå"}
+                      </p>
+                      <div className="flex items-center gap-2 mt-1">
+                        <span className={`text-xs px-2 py-0.5 rounded-full ${
+                          (s.sentiment || s.emotion || "").toLowerCase().includes("positive") || 
+                          (s.sentiment || s.emotion) === "Í∏çÏ†ï"
+                            ? "bg-green-100 text-green-700"
+                            : (s.sentiment || s.emotion || "").toLowerCase().includes("negative") ||
+                              (s.sentiment || s.emotion) === "Î∂Ä??
+                            ? "bg-red-100 text-red-700"
+                            : "bg-blue-100 text-blue-700"
+                        }`}>
+                          {(s.sentiment || s.emotion || "neutral").toLowerCase().includes("positive") || 
+                           (s.sentiment || s.emotion) === "Í∏çÏ†ï"
+                            ? "Í∏çÏ†ï"
+                            : (s.sentiment || s.emotion || "").toLowerCase().includes("negative") ||
+                              (s.sentiment || s.emotion) === "Î∂Ä??
+                            ? "Î∂Ä??
+                            : "Ï§ëÎ¶Ω"}
+                        </span>
+                        {s.createdAt && (
+                          <span className="text-xs text-gray-400">
+                            {new Date(s.createdAt.toDate()).toLocaleDateString("ko-KR", {
+                              month: "short",
+                              day: "numeric",
+                              hour: "2-digit",
+                              minute: "2-digit"
+                            })}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </motion.div>
+
+        {/* ?∏ÌÑ∞ */}
+        <div className="text-center mt-8 text-xs text-gray-400">
+          <p>YAGO VIBE Admin v1.0</p>
+          <p className="mt-1">Powered by AI & Firebase</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+

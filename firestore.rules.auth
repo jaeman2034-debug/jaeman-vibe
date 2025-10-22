@@ -1,0 +1,38 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 팀 멤버 관리 규칙
+    match /teams/{teamId}/members/{memberId} {
+      // 팀원은 읽기만 가능, 관리자는 모든 권한
+      allow read: if request.auth != null && 
+        (request.auth.token.teamId == teamId || 
+         resource.data.uid == request.auth.uid);
+      allow create, update, delete: if request.auth != null && 
+        request.auth.token.role == "admin";
+    }
+    
+    // 팀 회계 관리 규칙
+    match /teams/{teamId}/finance/{recordId} {
+      // 팀원은 읽기만 가능, 관리자는 모든 권한
+      allow read: if request.auth != null && 
+        request.auth.token.teamId == teamId;
+      allow create, update, delete: if request.auth != null && 
+        request.auth.token.role == "admin";
+    }
+    
+    // 팀 정보 규칙
+    match /teams/{teamId} {
+      // 팀원은 읽기만 가능, 관리자는 모든 권한
+      allow read: if request.auth != null && 
+        request.auth.token.teamId == teamId;
+      allow create, update, delete: if request.auth != null && 
+        request.auth.token.role == "admin";
+    }
+    
+    // 블로그 규칙 (기존)
+    match /blogs/{blogId} {
+      allow read: if true; // 공개 읽기
+      allow write: if request.auth != null;
+    }
+  }
+}

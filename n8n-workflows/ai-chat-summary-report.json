@@ -1,0 +1,208 @@
+﻿{
+  "name": "YAGO VIBE - AI Chat Summary Report",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "chat-new-message",
+        "options": {
+          "responseData": "allEntries",
+          "responseMode": "lastNode"
+        }
+      },
+      "id": "webhook-entry",
+      "name": "Webhook Entry",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [300, 300],
+      "webhookId": "chat-new-message",
+      "notes": "??Receives POST data from Firebase Function when a new chat message is created."
+    },
+    {
+      "parameters": {
+        "model": "gpt-4o-mini",
+        "messages": {
+          "values": [
+            {
+              "role": "system",
+              "content": "?뱀떊? YAGO VIBE 梨꾪똿 遺꾩꽍 ?꾨Ц媛?낅땲?? 梨꾪똿 硫붿떆吏瑜?媛꾧껐?섍쾶 ?붿빟?섍퀬 ?듭떖 ?ㅼ썙?쒕? 異붿텧?섏꽭??"
+            },
+            {
+              "role": "user",
+              "content": "=?ㅼ쓬 梨꾪똿 硫붿떆吏瑜?遺꾩꽍?댁＜?몄슂:\n\n?곹뭹: {{$json.room.productTitle}}\n蹂대궦?? {{$json.message.senderName}}\n?댁슜: {{$json.message.text}}\n?쒓컙: {{$json.message.createdAt}}\n\n?ㅼ쓬 ?뺤떇?쇰줈 異쒕젰?댁＜?몄슂:\n\n?붿빟: (??臾몄옣?쇰줈 ?듭떖 ?댁슜 ?붿빟)\n?ㅼ썙?? (?쇳몴濡?援щ텇??3-5媛??ㅼ썙??\n媛먯젙: (湲띿젙/以묐┰/遺??\n?곗꽑?쒖쐞: (?믪쓬/蹂댄넻/??쓬)"
+            }
+          ]
+        },
+        "options": {
+          "temperature": 0.3,
+          "maxTokens": 200
+        }
+      },
+      "id": "openai-summary",
+      "name": "AI Summary & Analysis",
+      "type": "n8n-nodes-base.openAi",
+      "typeVersion": 1.3,
+      "position": [650, 300],
+      "credentials": {
+        "openAiApi": {
+          "id": "1",
+          "name": "OpenAI API"
+        }
+      },
+      "notes": "??Uses GPT-4o-mini for cost-effective analysis"
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "#yagovibe-reports",
+          "mode": "name"
+        },
+        "text": "=?뱤 *梨꾪똿 遺꾩꽍 由ы룷??\n\n*?곹뭹:* {{$json.room.productTitle}}\n*諛⑸쾲??* {{$json.roomId}}\n*蹂대궦??* {{$json.message.senderName}}\n*?쒓컙:* {{$json.message.createdAt}}\n\n?곣봺?곣봺?곣봺?곣봺?곣봺?곣봺?곣봺??n*?먮낯 硫붿떆吏:*\n{{$json.message.text}}\n\n?곣봺?곣봺?곣봺?곣봺?곣봺?곣봺?곣봺??n*?쨼 AI 遺꾩꽍 寃곌낵:*\n{{$node[\"AI Summary & Analysis\"].json.choices[0].message.content}}\n\n?곣봺?곣봺?곣봺?곣봺?곣봺?곣봺?곣봺??n?뵕 <{{$json.links.chatRoom}}|梨꾪똿諛??닿린> | <{{$json.links.product}}|?곹뭹 蹂닿린>",
+        "otherOptions": {
+          "includeLinkToWorkflow": false
+        }
+      },
+      "id": "slack-report",
+      "name": "Send Slack Report",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.1,
+      "position": [1000, 200],
+      "credentials": {
+        "slackOAuth2Api": {
+          "id": "1",
+          "name": "Slack OAuth2 API"
+        }
+      },
+      "notes": "??Sends AI analysis to Slack #yagovibe-reports channel"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "{{$env.GOOGLE_SHEET_ID}}",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Chat Reports",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "?좎쭨": "={{$json.message.createdAt}}",
+            "諛⑸쾲??: "={{$json.roomId}}",
+            "?곹뭹": "={{$json.room.productTitle}}",
+            "蹂대궦??: "={{$json.message.senderName}}",
+            "?먮낯硫붿떆吏": "={{$json.message.text}}",
+            "AI?붿빟": "={{$node[\"AI Summary & Analysis\"].json.choices[0].message.content}}",
+            "梨꾪똿諛⑸쭅??: "={{$json.links.chatRoom}}"
+          }
+        },
+        "options": {}
+      },
+      "id": "google-sheets",
+      "name": "Save to Google Sheets",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.2,
+      "position": [1000, 400],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "1",
+          "name": "Google Sheets OAuth2 API"
+        }
+      },
+      "notes": "??Saves analysis results to Google Sheets for long-term tracking"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": true,\n  \"message\": \"AI 遺꾩꽍 諛?由ы룷???꾩넚 ?꾨즺\",\n  \"roomId\": \"{{$json.roomId}}\",\n  \"analysis\": \"{{$node[\"AI Summary & Analysis\"].json.choices[0].message.content}}\",\n  \"timestamp\": \"{{$now}}\"\n}",
+        "options": {}
+      },
+      "id": "webhook-response",
+      "name": "Webhook Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1250, 300],
+      "notes": "??Returns success response to Firebase Function"
+    }
+  ],
+  "connections": {
+    "Webhook Entry": {
+      "main": [
+        [
+          {
+            "node": "AI Summary & Analysis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Summary & Analysis": {
+      "main": [
+        [
+          {
+            "node": "Send Slack Report",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Save to Google Sheets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Slack Report": {
+      "main": [
+        [
+          {
+            "node": "Webhook Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": "",
+    "timezone": "Asia/Seoul"
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "createdAt": "2025-01-13T00:00:00.000Z",
+      "updatedAt": "2025-01-13T00:00:00.000Z",
+      "id": "1",
+      "name": "YAGO VIBE"
+    },
+    {
+      "createdAt": "2025-01-13T00:00:00.000Z",
+      "updatedAt": "2025-01-13T00:00:00.000Z",
+      "id": "2",
+      "name": "AI"
+    },
+    {
+      "createdAt": "2025-01-13T00:00:00.000Z",
+      "updatedAt": "2025-01-13T00:00:00.000Z",
+      "id": "3",
+      "name": "由ы룷??
+    }
+  ],
+  "triggerCount": 1,
+  "updatedAt": "2025-01-13T00:00:00.000Z",
+  "versionId": "yagovibe-ai-report-v1",
+  "active": true
+}
+

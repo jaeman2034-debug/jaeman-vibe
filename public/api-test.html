@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>네이버 블로그 API 테스트</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 8px; }
+        .test-section h3 { margin-top: 0; color: #333; }
+        button { padding: 10px 15px; margin: 5px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        button:hover { background: #0056b3; }
+        .result { margin-top: 10px; padding: 10px; background: #f8f9fa; border-radius: 4px; white-space: pre-wrap; }
+        input, textarea { width: 100%; padding: 8px; margin: 5px 0; border: 1px solid #ddd; border-radius: 4px; }
+    </style>
+</head>
+<body>
+    <h1>네이버 블로그 API 테스트</h1>
+    
+    <div class="test-section">
+        <h3>1. 네이버 로그인 테스트</h3>
+        <p>Firebase UID를 입력하고 네이버 로그인을 시작합니다.</p>
+        <input type="text" id="uid" placeholder="Firebase UID (예: demo)" value="demo">
+        <button onclick="testNaverLogin()">네이버 로그인 시작</button>
+        <div id="loginResult" class="result"></div>
+    </div>
+
+    <div class="test-section">
+        <h3>2. 카테고리 조회 테스트</h3>
+        <p>연동된 네이버 블로그의 카테고리 목록을 조회합니다.</p>
+        <button onclick="testNaverCategories()">카테고리 조회</button>
+        <div id="categoriesResult" class="result"></div>
+    </div>
+
+    <div class="test-section">
+        <h3>3. 글 발행 테스트</h3>
+        <p>네이버 블로그에 테스트 글을 발행합니다.</p>
+        <input type="text" id="postTitle" placeholder="글 제목" value="AI 생성 테스트 글">
+        <textarea id="postContent" placeholder="글 내용 (HTML)" rows="5"><h2>AI 생성 테스트</h2><p>이것은 AI가 생성한 테스트 글입니다.</p><img src="https://via.placeholder.com/400x300/4F46E5/FFFFFF?text=AI+Image" alt="AI 이미지"></textarea>
+        <input type="text" id="categoryNo" placeholder="카테고리 번호 (선택사항)">
+        <button onclick="testNaverPost()">글 발행</button>
+        <div id="postResult" class="result"></div>
+    </div>
+
+    <script>
+        const BASE_URL = 'http://127.0.0.1:5183'; // 로컬 개발 서버
+        
+        async function testNaverLogin() {
+            const uid = document.getElementById('uid').value || 'demo';
+            const resultDiv = document.getElementById('loginResult');
+            
+            try {
+                resultDiv.textContent = '네이버 로그인 페이지로 이동 중...';
+                window.location.href = `${BASE_URL}/api/naver/login?u=${uid}`;
+            } catch (error) {
+                resultDiv.textContent = `오류: ${error.message}`;
+            }
+        }
+
+        async function testNaverCategories() {
+            const uid = document.getElementById('uid').value || 'demo';
+            const resultDiv = document.getElementById('categoriesResult');
+            
+            try {
+                resultDiv.textContent = '카테고리 조회 중...';
+                const response = await fetch(`${BASE_URL}/api/naver/categories?u=${uid}`);
+                const data = await response.json();
+                
+                if (response.ok) {
+                    resultDiv.textContent = `✅ 성공!\n\n${JSON.stringify(data, null, 2)}`;
+                } else {
+                    resultDiv.textContent = `❌ 실패 (${response.status}): ${JSON.stringify(data, null, 2)}`;
+                }
+            } catch (error) {
+                resultDiv.textContent = `❌ 오류: ${error.message}`;
+            }
+        }
+
+        async function testNaverPost() {
+            const uid = document.getElementById('uid').value || 'demo';
+            const title = document.getElementById('postTitle').value;
+            const content = document.getElementById('postContent').value;
+            const categoryNo = document.getElementById('categoryNo').value;
+            const resultDiv = document.getElementById('postResult');
+            
+            try {
+                resultDiv.textContent = '글 발행 중...';
+                const response = await fetch(`${BASE_URL}/api/naver/post`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        u: uid,
+                        title: title,
+                        html: content,
+                        categoryNo: categoryNo || undefined
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    resultDiv.textContent = `✅ 발행 성공!\n\n${JSON.stringify(data, null, 2)}`;
+                } else {
+                    resultDiv.textContent = `❌ 발행 실패 (${response.status}): ${JSON.stringify(data, null, 2)}`;
+                }
+            } catch (error) {
+                resultDiv.textContent = `❌ 오류: ${error.message}`;
+            }
+        }
+    </script>
+</body>
+</html>

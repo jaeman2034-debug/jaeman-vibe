@@ -1,0 +1,101 @@
+﻿{
+  "name": "YAGO VIBE - ?대?吏 ?녿뒗 ?곹뭹 ?먮룞 ??젣",
+  "nodes": [
+    {
+      "id": "1",
+      "name": "Start",
+      "type": "n8n-nodes-base.start",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "id": "2",
+      "name": "Firestore - Get Products",
+      "type": "n8n-nodes-base.firestore",
+      "typeVersion": 1,
+      "position": [500, 300],
+      "parameters": {
+        "resource": "document",
+        "operation": "getAll",
+        "collection": "marketItems"
+      },
+      "credentials": {
+        "firebaseFirestoreOAuth2Api": "YAGO VIBE Firestore"
+      }
+    },
+    {
+      "id": "3",
+      "name": "IF - No Image",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [750, 300],
+      "parameters": {
+        "conditions": {
+          "boolean": [],
+          "string": [
+            {
+              "value1": "={{$json[\"imageUrl\"]}}",
+              "operation": "isEmpty"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "4",
+      "name": "Firestore - Delete",
+      "type": "n8n-nodes-base.firestore",
+      "typeVersion": 1,
+      "position": [1000, 280],
+      "parameters": {
+        "resource": "document",
+        "operation": "delete",
+        "collection": "marketItems",
+        "documentId": "={{$json[\"id\"]}}"
+      },
+      "credentials": {
+        "firebaseFirestoreOAuth2Api": "YAGO VIBE Firestore"
+      }
+    },
+    {
+      "id": "5",
+      "name": "Log Deleted Items",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [1250, 280],
+      "parameters": {
+        "functionCode": "const deleted = items.map(i => i.json.title || i.json.id);\nconsole.log(`?뿊截?${deleted.length}媛쒖쓽 ?대?吏 ?녿뒗 ?곹뭹 ??젣??);\nconsole.log(`??젣???곹뭹 紐⑸줉: ${deleted.join(', ')}`);\nreturn items;"
+      }
+    }
+  ],
+  "connections": {
+    "Start": { 
+      "main": [ 
+        [{ "node": "Firestore - Get Products", "type": "main", "index": 0 }] 
+      ] 
+    },
+    "Firestore - Get Products": { 
+      "main": [ 
+        [{ "node": "IF - No Image", "type": "main", "index": 0 }] 
+      ] 
+    },
+    "IF - No Image": { 
+      "main": [ 
+        [{ "node": "Firestore - Delete", "type": "main", "index": 0 }] 
+      ] 
+    },
+    "Firestore - Delete": { 
+      "main": [ 
+        [{ "node": "Log Deleted Items", "type": "main", "index": 0 }] 
+      ] 
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "description": "YAGO VIBE 留덉폆?먯꽌 ?대?吏媛 ?녿뒗 ?곹뭹?ㅼ쓣 ?먮룞?쇰줈 ?뺣━?섎뒗 ?뚰겕?뚮줈??,
+    "tags": ["yago-vibe", "firestore", "cleanup", "market", "automation"]
+  }
+}

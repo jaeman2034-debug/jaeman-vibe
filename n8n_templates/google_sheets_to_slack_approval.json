@@ -1,0 +1,240 @@
+{
+  "name": "Google Sheets → Slack 승인요청 자동 발행",
+  "nodes": [
+    {
+      "parameters": {
+        "operation": "getAll",
+        "documentId": "{{ $vars.GOOGLE_SHEET_ID }}",
+        "sheetName": "승인요청",
+        "options": {
+          "range": "A:Z"
+        }
+      },
+      "id": "google_sheets_trigger",
+      "name": "Google Sheets 조회",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.승인상태 }}",
+              "operation": "equal",
+              "value2": "대기중"
+            },
+            {
+              "value1": "={{ $json.제목 }}",
+              "operation": "isNotEmpty"
+            }
+          ]
+        }
+      },
+      "id": "filter_pending",
+      "name": "대기중 필터",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "url": "https://asia-northeast3-{{ $vars.PROJECT_ID }}.cloudfunctions.net/slack/internal/approval/notify",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-internal-key",
+              "value": "{{ $vars.INTERNAL_KEY }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "channel",
+              "value": "{{ $vars.SLACK_APPROVER_CHANNEL }}"
+            },
+            {
+              "name": "type",
+              "value": "={{ $json.타입 }}"
+            },
+            {
+              "name": "refId",
+              "value": "={{ $json.ID }}"
+            },
+            {
+              "name": "title",
+              "value": "={{ $json.제목 }}"
+            },
+            {
+              "name": "summary",
+              "value": "={{ $json.요약 }}"
+            },
+            {
+              "name": "url",
+              "value": "={{ $json.링크 }}"
+            },
+            {
+              "name": "image",
+              "value": "={{ $json.이미지URL }}"
+            },
+            {
+              "name": "required",
+              "value": "={{ $json.필요승인수 || 2 }}"
+            },
+            {
+              "name": "ttlMinutes",
+              "value": "={{ $json.TTL분 || 1440 }}"
+            },
+            {
+              "name": "approverAllowlist",
+              "value": "={{ $json.승인자목록 ? $json.승인자목록.split(',').map(id => id.trim()) : [] }}"
+            },
+            {
+              "name": "payload",
+              "value": "={{ JSON.stringify($json) }}"
+            }
+          ]
+        }
+      },
+      "id": "slack_approval_request",
+      "name": "Slack 승인요청",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.ok }}",
+              "operation": "equal",
+              "value2": "true"
+            }
+          ]
+        }
+      },
+      "id": "check_success",
+      "name": "성공 확인",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": "{{ $vars.GOOGLE_SHEET_ID }}",
+        "sheetName": "승인요청",
+        "columnToMatchOn": "ID",
+        "valueToMatchOn": "={{ $('Google Sheets 조회').item.json.ID }}",
+        "fieldsUi": {
+          "values": [
+            {
+              "column": "승인상태",
+              "fieldValue": "승인요청됨"
+            },
+            {
+              "column": "SlackDocId",
+              "fieldValue": "={{ $json.docId }}"
+            },
+            {
+              "column": "SlackChannel",
+              "fieldValue": "={{ $json.channel }}"
+            },
+            {
+              "column": "SlackTs",
+              "fieldValue": "={{ $json.ts }}"
+            },
+            {
+              "column": "요청시간",
+              "fieldValue": "={{ new Date().toISOString() }}"
+            }
+          ]
+        }
+      },
+      "id": "update_sheets",
+      "name": "Sheets 업데이트",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [1120, 200]
+    },
+    {
+      "parameters": {
+        "message": "❌ Slack 승인요청 실패: {{ $json.error }}",
+        "additionalFields": {}
+      },
+      "id": "error_notification",
+      "name": "에러 알림",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 1,
+      "position": [1120, 400]
+    }
+  ],
+  "connections": {
+    "Google Sheets 조회": {
+      "main": [
+        [
+          {
+            "node": "대기중 필터",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "대기중 필터": {
+      "main": [
+        [
+          {
+            "node": "Slack 승인요청",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Slack 승인요청": {
+      "main": [
+        [
+          {
+            "node": "성공 확인",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "성공 확인": {
+      "main": [
+        [
+          {
+            "node": "Sheets 업데이트",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "에러 알림",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 1,
+  "updatedAt": "2024-01-15T00:00:00.000Z",
+  "versionId": "1"
+}

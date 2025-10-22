@@ -1,0 +1,8 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>NAVER Callback</title>
+<script>
+  // Cloud Functions의 naverCallback URL로 쿼리스트링 그대로 전달
+  const fn = 'https://us-central1-jaeman-vibe-platform.cloudfunctions.net/naverCallback';
+  location.replace(fn + (location.search || ''));
+</script>

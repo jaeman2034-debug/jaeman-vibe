@@ -1,0 +1,193 @@
+{
+  "name": "YAGO – SNS Post Auto-Deploy",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "yago/sns-post",
+        "responseMode": "lastNode"
+      },
+      "id": "Webhook",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [0, 300]
+    },
+    {
+      "parameters": {
+        "functionCode": "const { title, description, url, clubName, sport, region } = $json;\nconst caption = `${title}\\n\\n${description}\\n\\n📍 ${region || ''}\\n🏃 ${sport || ''}\\n\\n#${clubName?.replace(/\\s+/g, '')} #야고스포츠 #모임`;\nreturn [{ json: { ...$json, caption } }];"
+      },
+      "name": "Build Caption",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [260, 300]
+    },
+    {
+      "parameters": {
+        "requestMethod": "GET",
+        "url": "={{$json.url}}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": false,
+              "neverError": true
+            }
+          }
+        }
+      },
+      "name": "Fetch OG Image",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [520, 300]
+    },
+    {
+      "parameters": {
+        "requestMethod": "POST",
+        "url": "https://upload.twitter.com/1.1/media/upload.json",
+        "jsonParameters": true,
+        "options": {
+          "headers": {
+            "Authorization": "=\"Bearer \" + $env.X_BEARER_TOKEN"
+          }
+        },
+        "bodyParametersJson": "={\n  \"media_data\": \"{{$binary.data}}\"\n}"
+      },
+      "name": "X – Upload Media (v2)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [780, 300]
+    },
+    {
+      "parameters": {
+        "requestMethod": "POST",
+        "url": "https://api.twitter.com/2/tweets",
+        "jsonParameters": true,
+        "options": {
+          "headers": {
+            "Authorization": "=\"Bearer \" + $env.X_BEARER_TOKEN"
+          }
+        },
+        "bodyParametersJson": "={\n  \"text\": $json.caption,\n  \"media\": {\n    \"media_ids\": [\"{{$json('data').media_id_string}}\"]\n  }\n}"
+      },
+      "name": "X – Create Post",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [1040, 300]
+    },
+    {
+      "parameters": {
+        "requestMethod": "POST",
+        "url": "=\"https://graph.facebook.com/\" + ($env.IG_GRAPH_VERSION || 'v23.0') + \"/\" + $env.IG_USER_ID + \"/media\"",
+        "jsonParameters": true,
+        "options": {
+          "headers": {
+            "Authorization": "=\"Bearer \" + $env.INSTAGRAM_ACCESS_TOKEN"
+          }
+        },
+        "bodyParametersJson": "={\n  \"image_url\": $json.ogUrl,\n  \"caption\": $json.caption\n}"
+      },
+      "name": "IG – Create Media Container",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [720, 300]
+    },
+    {
+      "parameters": {
+        "requestMethod": "POST",
+        "url": "=\"https://graph.facebook.com/\" + ($env.IG_GRAPH_VERSION || 'v23.0') + \"/\" + $env.IG_USER_ID + \"/media_publish\"",
+        "jsonParameters": true,
+        "options": {
+          "headers": {
+            "Authorization": "=\"Bearer \" + $env.INSTAGRAM_ACCESS_TOKEN"
+          }
+        },
+        "bodyParametersJson": "={\n  \"creation_id\": {{$json(\"body\").id}}\n}"
+      },
+      "name": "IG – Publish",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [980, 300]
+    },
+    {
+      "parameters": {
+        "requestMethod": "POST",
+        "url": "=\"https://graph.facebook.com/\" + ($env.IG_GRAPH_VERSION || 'v23.0') + \"/\" + $env.FACEBOOK_PAGE_ID + \"/photos\"",
+        "jsonParameters": true,
+        "options": {
+          "headers": {
+            "Authorization": "=\"Bearer \" + $env.FACEBOOK_ACCESS_TOKEN"
+          }
+        },
+        "bodyParametersJson": "={\n  \"url\": $json.ogUrl,\n  \"message\": $json.caption\n}"
+      },
+      "name": "FB Page – Photo",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [720, 520]
+    },
+    {
+      "parameters": {
+        "requestMethod": "POST",
+        "url": "https://api.linkedin.com/rest/posts",
+        "jsonParameters": true,
+        "options": {
+          "headers": {
+            "Authorization": "=\"Bearer \" + $env.LINKEDIN_ACCESS_TOKEN",
+            "Linkedin-Version": "202502",
+            "Content-Type": "application/json"
+          }
+        },
+        "bodyParametersJson": "={\n  \"author\": \"{{$env.LINKEDIN_ORG_URN}}\",\n  \"commentary\": $json.caption,\n  \"visibility\": \"PUBLIC\",\n  \"distribution\": {\n    \"feedDistribution\": \"MAIN_FEED\",\n    \"targetEntities\": [],\n    \"thirdPartyDistributionChannels\": []\n  },\n  \"content\": {\n    \"media\": {\n      \"altText\": \"YAGO OG Image\",\n      \"originalUrl\": $json.ogUrl\n    }\n  }\n}"
+      },
+      "name": "LinkedIn – Post (URL attach)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [720, 740],
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "responseBody": "={{$json}}",
+        "responseCode": 200
+      },
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1240, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [[{"node": "Build Caption", "type": "main", "index": 0}]]
+    },
+    "Build Caption": {
+      "main": [
+        [{"node": "Fetch OG Image", "type": "main", "index": 0}],
+        [{"node": "IG – Create Media Container", "type": "main", "index": 0}],
+        [{"node": "FB Page – Photo", "type": "main", "index": 0}],
+        [{"node": "LinkedIn – Post (URL attach)", "type": "main", "index": 0}]
+      ]
+    },
+    "Fetch OG Image": {
+      "main": [[{"node": "X – Upload Media (v2)", "type": "main", "index": 0}]]
+    },
+    "X – Upload Media (v2)": {
+      "main": [[{"node": "X – Create Post", "type": "main", "index": 0}]]
+    },
+    "X – Create Post": {
+      "main": [[{"node": "Respond", "type": "main", "index": 0}]]
+    },
+    "IG – Create Media Container": {
+      "main": [[{"node": "IG – Publish", "type": "main", "index": 0}]]
+    },
+    "IG – Publish": {
+      "main": [[{"node": "Respond", "type": "main", "index": 0}]]
+    },
+    "FB Page – Photo": {
+      "main": [[{"node": "Respond", "type": "main", "index": 0}]]
+    },
+    "LinkedIn – Post (URL attach)": {
+      "main": [[{"node": "Respond", "type": "main", "index": 0}]]
+    }
+  }
+}

@@ -1,0 +1,74 @@
+﻿{
+  "name": "AI Report ??Firebase FCM",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "ai-report",
+        "method": "POST",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook (Trigger)",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [200, 300],
+      "webhookId": "ai-report-webhook"
+    },
+    {
+      "parameters": {
+        "model": "gpt-4o-mini",
+        "prompt": "?낅젰???곗씠?곕? 遺꾩꽍?섏뿬 愿由ъ옄???섎（ 由ы룷?몃? ?묒꽦?섏꽭??\n\n洹쒖튃:\n1. ?곗씠?곌? ?쒓뎅?댁씠硫??쒓뎅?대줈, ?곸뼱?대㈃ ?곸뼱濡??먯뿰?ㅻ읇寃??붿빟?섏꽭??\n2. ?뺤떇: '?붿빟: ...' 臾몄옣?쇰줈 ?쒖옉?섏꽭??\n3. 二쇱슂 吏?쒖? ?몄궗?댄듃瑜??ы븿?섏꽭??\n\n?곗씠??\n{{JSON.stringify($json)}}",
+        "temperature": 0.3
+      },
+      "id": "openai-summary",
+      "name": "OpenAI GPT Summary",
+      "type": "n8n-nodes-base.openai",
+      "typeVersion": 1,
+      "position": [500, 300]
+    },
+    {
+      "parameters": {
+        "functionCode": "const content = $json[\"choices\"][0].message.content;\nreturn [{ json: { summary: content } }];"
+      },
+      "id": "format-json",
+      "name": "Format JSON",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [800, 300]
+    },
+    {
+      "parameters": {
+        "url": "https://us-central1-jaeman-vibe-platform.cloudfunctions.net/sendAdminReport",
+        "jsonParameters": true,
+        "bodyParametersJson": "{ \"summary\": \"={{$json[\"summary\"]}}\" }"
+      },
+      "id": "send-to-firebase",
+      "name": "Send to Firebase Function",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [1100, 300]
+    },
+  ],
+  "connections": {
+    "Webhook (Trigger)": { "main": [[{ "node": "OpenAI GPT Summary", "type": "main", "index": 0 }]] },
+    "OpenAI GPT Summary": { "main": [[{ "node": "Format JSON", "type": "main", "index": 0 }]] },
+    "Format JSON": { "main": [[{ "node": "Send to Firebase Function", "type": "main", "index": 0 }]] }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "createdAt": "2024-01-01T00:00:00.000Z",
+      "updatedAt": "2024-01-01T00:00:00.000Z",
+      "id": "ai-automation",
+      "name": "AI Automation"
+    }
+  ],
+  "triggerCount": 1,
+  "updatedAt": "2024-01-01T00:00:00.000Z",
+  "versionId": "1"
+}

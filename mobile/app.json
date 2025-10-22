@@ -1,0 +1,93 @@
+﻿{
+  "expo": {
+    "name": "Yago Assistant",
+    "slug": "yago-assistant",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "scheme": "yago",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "bundleIdentifier": "com.yago.assistant",
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSMicrophoneUsageDescription": "?뚯꽦 紐낅졊 ?몄떇???꾪빐 留덉씠???묎렐???꾩슂?⑸땲??",
+        "NSLocationWhenInUseUsageDescription": "湲몄갼湲곗? 二쇰? 異붿쿇???꾪빐 ?꾩튂 ?묎렐???꾩슂?⑸땲??",
+        "NSSpeechRecognitionUsageDescription": "?뚯꽦 ?몄떇???꾪빐 沅뚰븳???꾩슂?⑸땲??",
+        "NSAppTransportSecurity": {
+          "NSAllowsArbitraryLoads": true
+        },
+        "UIBackgroundModes": ["remote-notification"]
+      }
+    },
+    "android": {
+      "package": "com.yago.assistant",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#FFFFFF"
+      },
+      "permissions": [
+        "RECORD_AUDIO",
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "INTERNET",
+        "ACCESS_NETWORK_STATE"
+      ],
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "data": [{ "scheme": "kakaonavi" }],
+          "category": ["BROWSABLE", "DEFAULT"]
+        }
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png",
+      "bundler": "metro"
+    },
+    "plugins": [
+      "expo-location",
+      [
+        "expo-build-properties",
+        {
+          "ios": {
+            "deploymentTarget": "13.0"
+          },
+          "android": {
+            "compileSdkVersion": 34,
+            "targetSdkVersion": 34,
+            "buildToolsVersion": "34.0.0"
+          }
+        }
+      ]
+    ],
+    "extra": {
+      "kakaoAppKey": "YOUR_KAKAO_JS_KEY",
+      "functionsProxy": "https://asia-northeast3-YOUR_PROJECT_ID.cloudfunctions.net/getKakaoDirections",
+      "firebase": {
+        "apiKey": "YOUR_FIREBASE_API_KEY",
+        "authDomain": "YOUR_FIREBASE_AUTH_DOMAIN",
+        "projectId": "YOUR_FIREBASE_PROJECT_ID",
+        "storageBucket": "YOUR_FIREBASE_STORAGE_BUCKET",
+        "messagingSenderId": "YOUR_FIREBASE_MESSAGING_SENDER_ID",
+        "appId": "YOUR_FIREBASE_APP_ID"
+      }
+    },
+    "updates": {
+      "enabled": true,
+      "checkAutomatically": "ON_LOAD",
+      "fallbackToCacheTimeout": 0
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    }
+  }
+}

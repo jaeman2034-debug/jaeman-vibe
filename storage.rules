@@ -1,0 +1,25 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /club-logos/{clubId}/{file} {
+      allow read: if true;
+      allow write: if request.auth != null && request.resource.size < 5 * 1024 * 1024;
+    }
+        match /club-blogs/{clubId}/{postId}/{fileName} {
+          allow read: if true;
+          allow write: if request.auth != null && request.resource.size < 10 * 1024 * 1024;
+        }
+        match /blogs/{clubId}/{fileName} {
+          allow read: if true;
+          allow write: if request.auth != null && request.resource.size < 50 * 1024 * 1024;
+        }
+        // 클럽 포스트 미디어 (이미지/영상)
+        match /clubs/{clubId}/blog/{postId}/{allPaths=**} {
+          allow read: if true;
+          allow write: if request.auth != null
+                       && request.resource.size < 10 * 1024 * 1024
+                       && request.resource.contentType.matches('image/.*|video/.*');
+        }
+    match /{allPaths=**} { allow read, write: if false; }
+  }
+}

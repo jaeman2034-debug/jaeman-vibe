@@ -1,0 +1,1 @@
+export default function VADTestPage() {  return (    <div className="p-6">      <h1 className="text-2xl font-bold mb-2">VAD Test (Page)</h1>      <p className="opacity-70 mb-4">VAD ?ŒìŠ¤???˜ì´ì§€?…ë‹ˆ?? ?¤ì œ ì»´í¬?ŒíŠ¸ë¥?ë°°ì¹˜?˜ì„¸??</p>    </div>  );} 

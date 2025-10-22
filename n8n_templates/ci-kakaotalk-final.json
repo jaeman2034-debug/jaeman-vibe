@@ -1,0 +1,79 @@
+﻿{
+  "name": "CI ??移댁뭅?ㅽ넚 ?뚮┝ (理쒖쥌)",
+  "nodes": [
+    {
+      "id": "1",
+      "name": "CI Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [300, 300],
+      "parameters": {
+        "path": "ci-result",
+        "httpMethod": "POST"
+      }
+    },
+    {
+      "id": "2",
+      "name": "Switch by Status",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 1,
+      "position": [600, 300],
+      "parameters": {
+        "propertyName": "status",
+        "rules": [
+          { "operation": "equal", "value": "success" },
+          { "operation": "equal", "value": "failure" }
+        ]
+      }
+    },
+    {
+      "id": "3",
+      "name": "移댁뭅?ㅽ넚 ?깃났 ?뚮┝",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [900, 200],
+      "parameters": {
+        "url": "https://kapi.kakao.com/v2/api/talk/memo/default/send",
+        "method": "POST",
+        "authentication": "headerAuth",
+        "sendBody": true,
+        "jsonParameters": true,
+        "options": {},
+        "bodyParametersJson": "={\"template_object\": {\n  \"object_type\": \"text\",\n  \"text\": \"??CI ?깃났!\\nRepo: {{$json[\"repo\"]}}\\nRun: {{$json[\"run\"]}}\\n?곸꽭蹂닿린: {{$json[\"url\"]}}\",\n  \"link\": {\"web_url\": \"{{$json[\"url\"]}}\"}\n}}"
+      },
+      "credentials": {
+        "httpHeaderAuth": "Kakao API Token"
+      }
+    },
+    {
+      "id": "4",
+      "name": "移댁뭅?ㅽ넚 ?ㅽ뙣 ?뚮┝",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [900, 400],
+      "parameters": {
+        "url": "https://kapi.kakao.com/v2/api/talk/memo/default/send",
+        "method": "POST",
+        "authentication": "headerAuth",
+        "sendBody": true,
+        "jsonParameters": true,
+        "options": {},
+        "bodyParametersJson": "={\"template_object\": {\n  \"object_type\": \"text\",\n  \"text\": \"??CI ?ㅽ뙣!\\nRepo: {{$json[\"repo\"]}}\\nRun: {{$json[\"run\"]}}\\n?곸꽭蹂닿린: {{$json[\"url\"]}}\",\n  \"link\": {\"web_url\": \"{{$json[\"url\"]}}\"}\n}}"
+      },
+      "credentials": {
+        "httpHeaderAuth": "Kakao API Token"
+      }
+    }
+  ],
+  "connections": {
+    "CI Webhook": {
+      "main": [[{ "node": "Switch by Status", "type": "main", "index": 0 }]]
+    },
+    "Switch by Status": {
+      "main": [
+        [{ "node": "移댁뭅?ㅽ넚 ?깃났 ?뚮┝", "type": "main", "index": 0 }],
+        [{ "node": "移댁뭅?ㅽ넚 ?ㅽ뙣 ?뚮┝", "type": "main", "index": 0 }]
+      ]
+    }
+  }
+}

@@ -1,0 +1,78 @@
+{
+  "name": "Club – Post Sync → GitHub",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "club-post"
+      },
+      "id": "wh",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [-620, 60]
+    },
+    {
+      "parameters": {
+        "keepOnlySet": false,
+        "values": {
+          "string": [
+            {"name": "clubId", "value": "={{$json.clubId}}"},
+            {"name": "postId", "value": "={{$json.postId}}"},
+            {"name": "title", "value": "={{$json.title}}"},
+            {"name": "contentMd", "value": "={{$json.contentMd}}"},
+            {"name": "owner", "value": "={{$env.GH_OWNER}}"}
+          ]
+        }
+      },
+      "id": "set",
+      "name": "Set",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [-410, 60]
+    },
+    {
+      "parameters": {
+        "url": "=https://api.github.com/repos/{{$json.owner}}/club-{{$json.clubId}}/contents/posts/{{$json.postId}}.md",
+        "method": "PUT",
+        "sendBody": true,
+        "jsonParameters": true,
+        "options": {
+          "headerParametersJson": "={\n  \"Authorization\": \"token {{$env.GH_TOKEN}}\",\n  \"Accept\": \"application/vnd.github+json\"\n}",
+          "bodyParametersJson": "={\n  \"message\": \"post: {{$json.postId}}\",\n  \"content\": \"{{(Buffer.from(`# ${$json.title}\\n\\n${$json.contentMd}`,'utf8')).toString('base64')}}\"\n}"
+        }
+      },
+      "id": "put",
+      "name": "Put MD",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [-200, 60]
+    },
+    {
+      "parameters": {
+        "url": "={{$env.SLACK_KPI_WEBHOOK}}",
+        "jsonParameters": true,
+        "sendBody": true,
+        "bodyParametersJson": "={\n  \"text\": \"📝 Club post synced: {{$json.postId}}\"\n}"
+      },
+      "id": "slack",
+      "name": "Slack",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [10, 60]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [[{"node": "Set", "type": "main", "index": 0}]]
+    },
+    "Set": {
+      "main": [[{"node": "Put MD", "type": "main", "index": 0}]]
+    },
+    "Put MD": {
+      "main": [[{"node": "Slack", "type": "main", "index": 0}]]
+    }
+  },
+  "settings": {
+    "timezone": "Asia/Seoul"
+  }
+}

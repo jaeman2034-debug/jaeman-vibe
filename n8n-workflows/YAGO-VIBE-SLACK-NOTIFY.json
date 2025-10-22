@@ -1,0 +1,161 @@
+﻿{
+  "name": "YAGO VIBE - ?뺣━ + Slack ?뚮┝",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "1",
+      "name": "Start",
+      "type": "n8n-nodes-base.start",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "resource": "document",
+        "operation": "getAll",
+        "collection": "marketItems"
+      },
+      "id": "2",
+      "name": "Firestore - Get Products",
+      "type": "n8n-nodes-base.firestore",
+      "typeVersion": 1,
+      "position": [500, 300],
+      "credentials": {
+        "firebaseFirestoreOAuth2Api": "YAGO VIBE Firestore"
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{$json[\"imageUrl\"]}}",
+              "operation": "isEmpty"
+            }
+          ]
+        }
+      },
+      "id": "3",
+      "name": "IF - No Image",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [750, 300]
+    },
+    {
+      "parameters": {
+        "resource": "document",
+        "operation": "delete",
+        "collection": "marketItems",
+        "documentId": "={{$json[\"id\"]}}"
+      },
+      "id": "4",
+      "name": "Firestore - Delete Product",
+      "type": "n8n-nodes-base.firestore",
+      "typeVersion": 1,
+      "position": [1000, 280],
+      "credentials": {
+        "firebaseFirestoreOAuth2Api": "YAGO VIBE Firestore"
+      }
+    },
+    {
+      "parameters": {
+        "functionCode": "const deletedCount = items.length;\nconst deletedTitles = items.map(i => i.json.title || i.json.id);\nconst timestamp = new Date().toLocaleString('ko-KR');\n\nreturn [{\n  json: {\n    deletedCount,\n    deletedTitles,\n    timestamp,\n    summary: `?뿊截?${deletedCount}媛쒖쓽 ?대?吏 ?녿뒗 ?곹뭹???뺣━?섏뿀?듬땲??`\n  }\n}];"
+      },
+      "id": "5",
+      "name": "Count Deleted Items",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [1250, 280]
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "post",
+        "channel": "#yago-vibe-alerts",
+        "text": "?㏏ YAGO VIBE ?곹뭹 ?뺣━ ?꾨즺",
+        "blocks": [
+          {
+            "type": "section",
+            "text": {
+              "type": "mrkdwn",
+              "text": "*?㏏ YAGO VIBE ?곹뭹 ?뺣━ ?꾨즺*\n\n*??젣???곹뭹 ??* {{$json.deletedCount}}媛?n*?ㅽ뻾 ?쒓컙:* {{$json.timestamp}}\n\n*??젣???곹뭹 紐⑸줉:*\n{{$json.deletedTitles.map(title => `??${title}`).join('\\n')}}"
+            }
+          }
+        ]
+      },
+      "id": "6",
+      "name": "Slack Notification",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 1,
+      "position": [1500, 280],
+      "credentials": {
+        "slackOAuth2Api": "YAGO VIBE Slack"
+      }
+    }
+  ],
+  "connections": {
+    "Start": {
+      "main": [
+        [
+          {
+            "node": "Firestore - Get Products",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Firestore - Get Products": {
+      "main": [
+        [
+          {
+            "node": "IF - No Image",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF - No Image": {
+      "main": [
+        [
+          {
+            "node": "Firestore - Delete Product",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Firestore - Delete Product": {
+      "main": [
+        [
+          {
+            "node": "Count Deleted Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Count Deleted Items": {
+      "main": [
+        [
+          {
+            "node": "Slack Notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "description": "YAGO VIBE ?곹뭹 ?뺣━ + Slack ?뚮┝ - ?뺣━ ??????먮룞 ?뚮┝",
+    "tags": ["yago-vibe", "firestore", "cleanup", "slack", "notification", "automation"]
+  }
+}

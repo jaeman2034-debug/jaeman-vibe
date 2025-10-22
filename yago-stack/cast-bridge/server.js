@@ -1,0 +1,209 @@
+/**
+ * 🎧 YAGO VIBE Google Cast Bridge Server
+ * n8n Webhook → 로컬 Node 서버 → Google Nest/Home 스피커 캐스트
+ */
+
+import express from "express";
+import cors from "cors";
+import Client from "castv2-client";
+const { DefaultMediaReceiver } = Client;
+
+const app = express();
+const PORT = 4000;
+
+// 미들웨어
+app.use(cors());
+app.use(express.json());
+
+// 캐스트 가능한 스피커 목록 (환경변수에서 가져오기)
+const SPEAKERS = {
+  "living_room": process.env.SPEAKER_LIVING_ROOM || "192.168.1.100",
+  "bedroom": process.env.SPEAKER_BEDROOM || "192.168.1.101", 
+  "kitchen": process.env.SPEAKER_KITCHEN || "192.168.1.102"
+};
+
+// 🎵 스피커로 캐스트하는 함수
+function castToSpeaker(host, audioUrl, metadata = {}) {
+  return new Promise((resolve, reject) => {
+    console.log(`🎧 ${host}로 캐스트 시작: ${audioUrl}`);
+    
+    const client = new Client();
+    
+    client.connect(host, () => {
+      console.log(`✅ ${host} 연결 성공`);
+      
+      client.launch(DefaultMediaReceiver, (err, player) => {
+        if (err) {
+          console.error(`❌ ${host} 미디어 리시버 실행 실패:`, err);
+          return reject(err);
+        }
+        
+        console.log(`🎵 ${host} 미디어 리시버 실행 성공`);
+        
+        const media = {
+          contentId: audioUrl,
+          contentType: "audio/mpeg",
+          streamType: "BUFFERED",
+          metadata: {
+            metadataType: 0,
+            title: metadata.title || "🎧 YAGO 브리핑",
+            subtitle: metadata.subtitle || "AI 음성 리포트",
+            images: metadata.albumArt ? [{ url: metadata.albumArt }] : []
+          }
+        };
+        
+        player.load(media, { autoplay: true }, (err, status) => {
+          if (err) {
+            console.error(`❌ ${host} 미디어 로드 실패:`, err);
+            return reject(err);
+          }
+          
+          console.log(`✅ ${host} 미디어 로드 성공:`, status);
+          
+          // 재생 상태 모니터링
+          player.on('status', (status) => {
+            console.log(`📊 ${host} 재생 상태:`, status.playerState);
+            
+            if (status.playerState === 'IDLE' && status.idleReason === 'FINISHED') {
+              console.log(`🎉 ${host} 재생 완료`);
+              client.close();
+              resolve({ success: true, finished: true });
+            }
+          });
+          
+          resolve({ success: true, status });
+        });
+      });
+    });
+    
+    client.on('error', (err) => {
+      console.error(`❌ ${host} 연결 오류:`, err);
+      reject(err);
+    });
+    
+    // 타임아웃 설정 (30초)
+    setTimeout(() => {
+      console.log(`⏰ ${host} 연결 타임아웃`);
+      client.close();
+      reject(new Error('Connection timeout'));
+    }, 30000);
+  });
+}
+
+// 🎧 메인 캐스트 엔드포인트
+app.post("/cast", async (req, res) => {
+  try {
+    const { host, url, metadata } = req.body;
+    
+    if (!host || !url) {
+      return res.status(400).json({
+        error: 'host와 url이 필요합니다'
+      });
+    }
+    
+    console.log(`📱 캐스트 요청: ${host} → ${url}`);
+    
+    const result = await castToSpeaker(host, url, metadata);
+    
+    res.json({
+      success: true,
+      message: `${host}에서 재생 시작`,
+      result
+    });
+    
+  } catch (error) {
+    console.error('❌ 캐스트 오류:', error);
+    res.status(500).json({
+      error: '캐스트 실패',
+      details: error.message
+    });
+  }
+});
+
+// 📱 사용 가능한 스피커 목록
+app.get("/speakers", (req, res) => {
+  res.json({
+    speakers: SPEAKERS,
+    message: '사용 가능한 스피커 목록'
+  });
+});
+
+// 🎧 특정 스피커로 브리핑 재생
+app.post("/cast/:speaker", async (req, res) => {
+  try {
+    const { speaker } = req.params;
+    const { url, metadata } = req.body;
+    
+    const speakerIP = SPEAKERS[speaker];
+    if (!speakerIP) {
+      return res.status(404).json({
+        error: '지원하지 않는 스피커입니다',
+        available: Object.keys(SPEAKERS)
+      });
+    }
+    
+    if (!url) {
+      return res.status(400).json({
+        error: 'url이 필요합니다'
+      });
+    }
+    
+    console.log(`🎧 ${speaker}(${speakerIP})로 브리핑 재생: ${url}`);
+    
+    const result = await castToSpeaker(speakerIP, url, metadata);
+    
+    res.json({
+      success: true,
+      message: `${speaker} 스피커에서 브리핑 재생 시작`,
+      speaker: speaker,
+      speakerIP: speakerIP,
+      result
+    });
+    
+  } catch (error) {
+    console.error(`❌ ${req.params.speaker} 캐스트 오류:`, error);
+    res.status(500).json({
+      error: '스피커 재생 실패',
+      details: error.message
+    });
+  }
+});
+
+// 🔍 상태 확인
+app.get("/status", (req, res) => {
+  res.json({
+    status: 'running',
+    timestamp: new Date().toISOString(),
+    speakers: Object.keys(SPEAKERS).length,
+    message: 'YAGO Cast Bridge 서버 정상 동작 중'
+  });
+});
+
+// 🛑 서버 종료
+app.post("/shutdown", (req, res) => {
+  console.log('🛑 서버 종료 요청');
+  res.json({ message: '서버를 종료합니다' });
+  setTimeout(() => {
+    process.exit(0);
+  }, 1000);
+});
+
+// 서버 시작
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`🎧 YAGO Cast Bridge 서버 시작: http://0.0.0.0:${PORT}`);
+  console.log(`📱 사용 가능한 스피커: ${Object.keys(SPEAKERS).join(', ')}`);
+  console.log(`🎵 엔드포인트:`);
+  console.log(`   POST /cast - 직접 캐스트`);
+  console.log(`   POST /cast/:speaker - 특정 스피커로 캐스트`);
+  console.log(`   GET /speakers - 스피커 목록`);
+  console.log(`   GET /status - 상태 확인`);
+});
+
+// 에러 핸들링
+process.on('uncaughtException', (err) => {
+  console.error('❌ 처리되지 않은 예외:', err);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('❌ 처리되지 않은 Promise 거부:', reason);
+});

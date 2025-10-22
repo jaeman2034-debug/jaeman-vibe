@@ -1,0 +1,294 @@
+{
+  "name": "team-blog-create",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "team-blog-create",
+        "httpMethod": "POST",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [200, 200],
+      "webhookMethods": {
+        "POST": true
+      },
+      "name": "Webhook"
+    },
+    {
+      "parameters": {
+        "functionCode": "// 팀과 포스트 데이터 분리\nconst { team = {}, posts = [] } = items[0].json;\n\n// 팀 정보 정규화\nconst normalizedTeam = {\n  id: team.id || 'unknown',\n  name: team.name || 'Unknown Team',\n  sport: team.sport || 'multi',\n  region: team.region || 'Unknown',\n  logoUrl: team.logoUrl || '',\n  bio: team.bio || '',\n  hashtags: team.hashtags || [],\n  notionTeamsDb: team.notionTeamsDb || process.env.NOTION_TEAMS_DB || 'REPLACE_TEAMS_DB',\n  notionPostsDb: team.notionPostsDb || process.env.NOTION_POSTS_DB || 'REPLACE_POSTS_DB',\n  wordpressEndpoint: team.wordpressEndpoint || process.env.WORDPRESS_ENDPOINT || 'https://example.com/wp-json/wp/v2/posts'\n};\n\n// 포스트별로 분리\nconst postItems = posts.map(post => ({\n  json: {\n    team: normalizedTeam,\n    post: {\n      title: post.title || 'Untitled',\n      summary: post.summary || '',\n      url: post.url || '',\n      og: post.og || '',\n      content: post.content || post.summary || '',\n      publishedAt: post.publishedAt || new Date().toISOString()\n    }\n  }\n}));\n\nreturn postItems;"
+      },
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [420, 200],
+      "name": "Fan-out Posts"
+    },
+    {
+      "parameters": {
+        "resource": "page",
+        "operation": "create",
+        "databaseId": "={{$json.team.notionTeamsDb}}",
+        "title": "={{$json.team.name}}",
+        "additionalFields": {
+          "propertiesUi": {
+            "propertyValues": [
+              {
+                "key": "TeamID",
+                "value": "={{$json.team.id}}"
+              },
+              {
+                "key": "ClubID",
+                "value": "={{$json.team.clubId || 'unknown'}}"
+              },
+              {
+                "key": "Sport",
+                "value": "={{$json.team.sport}}"
+              },
+              {
+                "key": "Region",
+                "value": "={{$json.team.region}}"
+              },
+              {
+                "key": "LogoURL",
+                "value": "={{$json.team.logoUrl}}"
+              },
+              {
+                "key": "Bio",
+                "value": "={{$json.team.bio}}"
+              },
+              {
+                "key": "Hashtags",
+                "value": "={{$json.team.hashtags.join(', ')}}"
+              }
+            ]
+          }
+        },
+        "simple": false
+      },
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 1,
+      "position": [640, 100],
+      "name": "Upsert Team",
+      "credentials": {
+        "notionApi": {
+          "id": "notion-cred"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "page",
+        "operation": "create",
+        "databaseId": "={{$json.team.notionPostsDb}}",
+        "title": "={{$json.post.title}}",
+        "additionalFields": {
+          "propertiesUi": {
+            "propertyValues": [
+              {
+                "key": "TeamID",
+                "value": "={{$json.team.id}}"
+              },
+              {
+                "key": "URL",
+                "value": "={{$json.post.url}}"
+              },
+              {
+                "key": "OG",
+                "value": "={{$json.post.og}}"
+              },
+              {
+                "key": "Summary",
+                "value": "={{$json.post.summary}}"
+              },
+              {
+                "key": "PublishedAt",
+                "value": "={{$json.post.publishedAt}}"
+              }
+            ]
+          }
+        },
+        "simple": false
+      },
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 1,
+      "position": [640, 300],
+      "name": "Create Post",
+      "credentials": {
+        "notionApi": {
+          "id": "notion-cred"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "={{$json.team.wordpressEndpoint}}",
+        "requestMethod": "POST",
+        "jsonParameters": true,
+        "options": {
+          "bodyContentType": "json"
+        },
+        "bodyParametersJson": "={\n  \"title\": \"{{$json.post.title}}\",\n  \"content\": \"{{$json.post.content}}<p><img src='{{$json.post.og}}'/></p><p><a href='{{$json.post.url}}'>Read more</a></p>\",\n  \"status\": \"publish\",\n  \"meta\": {\n    \"team_id\": \"{{$json.team.id}}\",\n    \"team_name\": \"{{$json.team.name}}\"\n  }\n}"
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 2,
+      "position": [860, 300],
+      "name": "WordPress Publish",
+      "credentials": {
+        "httpBasicAuth": {
+          "id": "wp-basic"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "functionCode": "// 결과 집계\nconst team = items[0].json.team;\nconst post = items[0].json.post;\nconst notionTeam = $node['Upsert Team'].json;\nconst notionPost = $node['Create Post'].json;\nconst wordpress = $node['WordPress Publish'].json;\n\nreturn [{\n  json: {\n    success: true,\n    team: {\n      id: team.id,\n      name: team.name,\n      notionPageId: notionTeam.id\n    },\n    post: {\n      title: post.title,\n      notionPageId: notionPost.id,\n      wordpressId: wordpress.id,\n      url: post.url\n    },\n    timestamp: new Date().toISOString()\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [1080, 200],
+      "name": "Aggregate Results"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{$json}}"
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1300, 200],
+      "name": "Success Response"
+    },
+    {
+      "parameters": {
+        "functionCode": "// 에러 처리\nconst error = items[0].json;\n\nreturn [{\n  json: {\n    success: false,\n    error: error.message || 'Unknown error',\n    timestamp: new Date().toISOString()\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [1080, 400],
+      "name": "Error Handler"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{$json}}",
+        "responseCode": 500
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1300, 400],
+      "name": "Error Response"
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Fan-out Posts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fan-out Posts": {
+      "main": [
+        [
+          {
+            "node": "Upsert Team",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Create Post",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upsert Team": {
+      "main": [
+        [
+          {
+            "node": "Aggregate Results",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Error Handler",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Post": {
+      "main": [
+        [
+          {
+            "node": "WordPress Publish",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Error Handler",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "WordPress Publish": {
+      "main": [
+        [
+          {
+            "node": "Aggregate Results",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Error Handler",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate Results": {
+      "main": [
+        [
+          {
+            "node": "Success Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Error Handler": {
+      "main": [
+        [
+          {
+            "node": "Error Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": {},
+  "pinData": {}
+}

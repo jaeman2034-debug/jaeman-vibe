@@ -1,0 +1,42 @@
+version: "3.8"
+
+services:
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      # TLS 설정 완료 후 주석 해제
+      # - "443:443"
+    volumes:
+      - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+      - ./data/public:/data/public:ro
+    depends_on:
+      - og
+      - webhook
+
+  og:
+    build: ./services/og
+    restart: unless-stopped
+    environment:
+      - SITE_NAME=${SITE_NAME}
+    volumes:
+      - ./services/og:/app
+
+  webhook:
+    build: ./services/webhook
+    restart: unless-stopped
+    environment:
+      - DOMAIN=${DOMAIN}
+      - SITE_URL=${SITE_URL}
+      - N8N_WEBHOOK_POST_PUBLISHED=${N8N_WEBHOOK_POST_PUBLISHED}
+      - N8N_TOKEN=${N8N_TOKEN}
+    volumes:
+      - ./services/webhook:/app
+      - ./data/public:/data/public
+
+volumes:
+  caddy_data:
+  caddy_config:

@@ -1,0 +1,55 @@
+name: CI - Academy Tests (KakaoTalk)
+
+on:
+  pull_request:
+    branches: [ "main", "develop" ]
+  push:
+    branches: [ "develop" ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1) 저장소 체크아웃
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # 2) Node.js 환경 세팅
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      # 3) Firebase Emulator 설치
+      - name: Install Firebase Emulator
+        run: |
+          npm install -g firebase-tools
+          firebase setup:emulators:firestore
+
+      # 4) 의존성 설치
+      - name: Install dependencies
+        run: npm install --legacy-peer-deps
+
+      # 5) Firestore Emulator 실행 (백그라운드)
+      - name: Start Firestore Emulator
+        run: |
+          nohup firebase emulators:start --only firestore --project demo-test --import=./firestore-data --export-on-exit &
+
+      # 6) 테스트 실행 (Reset → Seed → Cypress)
+      - name: Run Academy Tests
+        run: npm run test:academy
+
+      # 7) KakaoTalk 알림 via n8n
+      - name: Notify Kakao via n8n
+        if: always()
+        run: |
+          curl -X POST ${{ secrets.N8N_KAKAO_WEBHOOK }} \
+          -H "Content-Type: application/json" \
+          -d '{
+            "status": "${{ job.status }}",
+            "repo": "${{ github.repository }}",
+            "branch": "${{ github.ref_name }}",
+            "author": "${{ github.actor }}"
+          }'

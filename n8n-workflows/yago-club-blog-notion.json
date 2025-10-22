@@ -1,0 +1,277 @@
+{
+  "name": "YAGO • Club Blog Notion",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "club-blog-create",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-node",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [-200, 0],
+      "webhookId": "club-blog-create"
+    },
+    {
+      "parameters": {
+        "functionCode": "const key = $json.headers?.['x-internal-key'] || $json.headers?.['X-Internal-Key'];\nif (key !== $env.INTERNAL_KEY) {\n  return [{ httpCode: 401, body: { ok:false, error:'unauthorized' } }];\n}\nreturn items;"
+      },
+      "id": "auth-gate",
+      "name": "Auth Gate",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 2,
+      "position": [-20, 0]
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "resource": "page",
+        "databaseId": "={{$env.NOTION_DATABASE_ID}}",
+        "propertiesUi": {
+          "propertyValues": [
+            {
+              "key": "Name",
+              "type": "title",
+              "title": [
+                {
+                  "text": {
+                    "content": "={{$json.body.name || '무제 클럽'}}"
+                  }
+                }
+              ]
+            },
+            {
+              "key": "ClubId",
+              "type": "rich_text",
+              "richText": [
+                {
+                  "text": {
+                    "content": "={{$json.body.clubId}}"
+                  }
+                }
+              ]
+            },
+            {
+              "key": "Sport",
+              "type": "select",
+              "select": {
+                "name": "={{$json.body.sport || '기타'}}"
+              }
+            },
+            {
+              "key": "Region",
+              "type": "rich_text",
+              "richText": [
+                {
+                  "text": {
+                    "content": "={{$json.body.region || ''}}"
+                  }
+                }
+              ]
+            },
+            {
+              "key": "Contact",
+              "type": "url",
+              "url": "={{$json.body.contactUrl || ''}}"
+            },
+            {
+              "key": "Join",
+              "type": "url",
+              "url": "={{$json.body.joinUrl || ''}}"
+            }
+          ]
+        },
+        "blocksUi": {
+          "blockData": [
+            {
+              "type": "heading_1",
+              "heading_1": {
+                "rich_text": [
+                  {
+                    "text": {
+                      "content": "클럽 소개"
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "type": "paragraph",
+              "paragraph": {
+                "rich_text": [
+                  {
+                    "text": {
+                      "content": "={{$json.body.intro || '소개가 아직 없습니다.'}}"
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "type": "heading_2",
+              "heading_2": {
+                "rich_text": [
+                  {
+                    "text": {
+                      "content": "모집/일정"
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "type": "bulleted_list_item",
+              "bulleted_list_item": {
+                "rich_text": [
+                  {
+                    "text": {
+                      "content": "회비: ={{$json.body.fee ? ($json.body.fee + '원/월') : '문의'}}"
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "type": "bulleted_list_item",
+              "bulleted_list_item": {
+                "rich_text": [
+                  {
+                    "text": {
+                      "content": "일정: ={{Array.isArray($json.body.schedule) ? $json.body.schedule.join(', ') : '문의'}}"
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "type": "heading_2",
+              "heading_2": {
+                "rich_text": [
+                  {
+                    "text": {
+                      "content": "링크"
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "type": "paragraph",
+              "paragraph": {
+                "rich_text": [
+                  {
+                    "text": {
+                      "content": "가입: "
+                    }
+                  },
+                  {
+                    "type": "text",
+                    "text": {
+                      "content": "바로가기",
+                      "link": {
+                        "url": "={{$json.body.joinUrl || ''}}"
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      },
+      "id": "notion-create",
+      "name": "Notion • Create Page",
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 2,
+      "position": [200, 0],
+      "credentials": {
+        "notionApi": {
+          "id": "__REPLACE_WITH_YOUR_CREDENTIAL_ID__"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "functionCode": "return [{ json: { notionUrl: $json.url } }];"
+      },
+      "id": "extract-url",
+      "name": "Extract URL",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 2,
+      "position": [420, 0]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { ok: true, notionUrl: $json.notionUrl } }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "respond",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [640, 0]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Auth Gate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Auth Gate": {
+      "main": [
+        [
+          {
+            "node": "Notion • Create Page",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Notion • Create Page": {
+      "main": [
+        [
+          {
+            "node": "Extract URL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract URL": {
+      "main": [
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "1",
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "id": "yago-club-blog-notion",
+  "tags": []
+}

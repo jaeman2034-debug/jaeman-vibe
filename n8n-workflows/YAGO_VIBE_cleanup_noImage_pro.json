@@ -1,0 +1,305 @@
+﻿{
+  "name": "YAGO VIBE - ?대?吏 ?녿뒗 ?곹뭹 ?먮룞 ?뺣━ (泥쒖옱 紐⑤뱶 ?꾩꽦??",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 3 * * *"
+            }
+          ]
+        }
+      },
+      "id": "1",
+      "name": "Schedule Trigger (留ㅼ씪 ?덈꼍 3??",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "resource": "document",
+        "operation": "getAll",
+        "collection": "marketItems"
+      },
+      "id": "2",
+      "name": "Firestore - Get All Products",
+      "type": "n8n-nodes-base.firestore",
+      "typeVersion": 1,
+      "position": [500, 300],
+      "credentials": {
+        "firebaseFirestoreOAuth2Api": "YAGO VIBE Firestore"
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{$json[\"imageUrl\"]}}",
+              "operation": "isEmpty"
+            }
+          ]
+        }
+      },
+      "id": "3",
+      "name": "IF - Filter No Image Products",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [750, 300]
+    },
+    {
+      "parameters": {
+        "resource": "document",
+        "operation": "create",
+        "collection": "marketItems_backup",
+        "documentId": "={{$json[\"id\"]}}_archived_{{new Date().toISOString().replace(/[:.]/g, '-')}}",
+        "fields": "={{$json}}"
+      },
+      "id": "4",
+      "name": "Firestore - Backup Products",
+      "type": "n8n-nodes-base.firestore",
+      "typeVersion": 1,
+      "position": [1000, 280],
+      "credentials": {
+        "firebaseFirestoreOAuth2Api": "YAGO VIBE Firestore"
+      }
+    },
+    {
+      "parameters": {
+        "resource": "document",
+        "operation": "delete",
+        "collection": "marketItems",
+        "documentId": "={{$json[\"id\"]}}"
+      },
+      "id": "5",
+      "name": "Firestore - Delete Original",
+      "type": "n8n-nodes-base.firestore",
+      "typeVersion": 1,
+      "position": [1250, 280],
+      "credentials": {
+        "firebaseFirestoreOAuth2Api": "YAGO VIBE Firestore"
+      }
+    },
+    {
+      "parameters": {
+        "functionCode": "// ?쭬 泥쒖옱 紐⑤뱶 ?곗씠??泥섎━\nconst deletedCount = items.length;\nconst deletedTitles = items.map(i => i.json.title || i.json.id || '?쒕ぉ ?놁쓬');\nconst timestamp = new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' });\nconst backupLocation = 'marketItems_backup';\n\n// ?뱤 ?곸꽭 ?듦퀎\nconst stats = {\n  totalDeleted: deletedCount,\n  deletedTitles: deletedTitles,\n  backupLocation: backupLocation,\n  executionTime: timestamp,\n  executor: 'YAGO VIBE Auto System',\n  status: 'SUCCESS'\n};\n\n// ?뼢截?肄섏넄 濡쒓렇 (?곸꽭)\nconsole.log('?㏏ YAGO VIBE ?먮룞 ?뺣━ ?꾨즺!');\nconsole.log(`?뿊截???젣???곹뭹: ${deletedCount}媛?);\nconsole.log(`?뾺截?諛깆뾽 ?꾩튂: ${backupLocation}`);\nconsole.log(`?븧 ?ㅽ뻾 ?쒓컙: ${timestamp}`);\nconsole.log('?뱥 ??젣???곹뭹 紐⑸줉:');\ndeletedTitles.forEach((title, index) => {\n  console.log(`  ${index + 1}. ${title}`);\n});\n\nreturn [{\n  json: stats\n}];"
+      },
+      "id": "6",
+      "name": "Generate Cleanup Report",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [1500, 280]
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "post",
+        "channel": "#yago-vibe-alerts",
+        "text": "?㏏ YAGO VIBE ?먮룞 ?뺣━ ?꾨즺",
+        "blocks": [
+          {
+            "type": "header",
+            "text": {
+              "type": "plain_text",
+              "text": "?㏏ YAGO VIBE ?먮룞 ?뺣━ ?꾨즺"
+            }
+          },
+          {
+            "type": "section",
+            "fields": [
+              {
+                "type": "mrkdwn",
+                "text": "*??젣???곹뭹 ??*\\n{{$json.totalDeleted}}媛?
+              },
+              {
+                "type": "mrkdwn",
+                "text": "*諛깆뾽 ?꾩튂:*\\n{{$json.backupLocation}}"
+              },
+              {
+                "type": "mrkdwn",
+                "text": "*?ㅽ뻾 ?쒓컙:*\\n{{$json.executionTime}}"
+              },
+              {
+                "type": "mrkdwn",
+                "text": "*?ㅽ뻾??*\\n{{$json.executor}}"
+              }
+            ]
+          },
+          {
+            "type": "section",
+            "text": {
+              "type": "mrkdwn",
+              "text": "*?뿊截???젣???곹뭹 紐⑸줉:*\\n{{$json.deletedTitles.map((title, index) => `${index + 1}. ${title}`).join('\\n')}}"
+            }
+          },
+          {
+            "type": "context",
+            "elements": [
+              {
+                "type": "mrkdwn",
+                "text": "??諛깆뾽 ?꾨즺 ???봽 ?먮룞 ?ㅽ뻾 ????YAGO VIBE ?쒖뒪??
+              }
+            ]
+          }
+        ]
+      },
+      "id": "7",
+      "name": "Slack - Send Notification",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 1,
+      "position": [1750, 280],
+      "credentials": {
+        "slackOAuth2Api": "YAGO VIBE Slack"
+      }
+    },
+    {
+      "parameters": {
+        "functionCode": "// ?슚 ?먮윭 泥섎━ 諛?濡쒓퉭\nconst errorMessage = $input.first().json.error || 'Unknown error occurred';\nconst timestamp = new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' });\n\nconsole.error('??YAGO VIBE ?뺣━ ?묒뾽 ?ㅽ뙣:', errorMessage);\nconsole.error('?븧 ?먮윭 諛쒖깮 ?쒓컙:', timestamp);\n\nreturn [{\n  json: {\n    error: errorMessage,\n    timestamp: timestamp,\n    status: 'ERROR',\n    executor: 'YAGO VIBE Auto System'\n  }\n}];"
+      },
+      "id": "8",
+      "name": "Error Handler",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [1000, 500]
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "post",
+        "channel": "#yago-vibe-alerts",
+        "text": "?슚 YAGO VIBE ?뺣━ ?묒뾽 ?ㅽ뙣",
+        "blocks": [
+          {
+            "type": "header",
+            "text": {
+              "type": "plain_text",
+              "text": "?슚 YAGO VIBE ?뺣━ ?묒뾽 ?ㅽ뙣"
+            }
+          },
+          {
+            "type": "section",
+            "fields": [
+              {
+                "type": "mrkdwn",
+                "text": "*?먮윭 硫붿떆吏:*\\n{{$json.error}}"
+              },
+              {
+                "type": "mrkdwn",
+                "text": "*諛쒖깮 ?쒓컙:*\\n{{$json.timestamp}}"
+              }
+            ]
+          },
+          {
+            "type": "context",
+            "elements": [
+              {
+                "type": "mrkdwn",
+                "text": "?좑툘 利됱떆 ?뺤씤 ?꾩슂 ???뵩 ?쒖뒪???먭? ?붿껌 ????YAGO VIBE"
+              }
+            ]
+          }
+        ]
+      },
+      "id": "9",
+      "name": "Slack - Error Alert",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 1,
+      "position": [1250, 500],
+      "credentials": {
+        "slackOAuth2Api": "YAGO VIBE Slack"
+      }
+    }
+  ],
+  "connections": {
+    "Schedule Trigger (留ㅼ씪 ?덈꼍 3??": {
+      "main": [
+        [
+          {
+            "node": "Firestore - Get All Products",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Firestore - Get All Products": {
+      "main": [
+        [
+          {
+            "node": "IF - Filter No Image Products",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF - Filter No Image Products": {
+      "main": [
+        [
+          {
+            "node": "Firestore - Backup Products",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Firestore - Backup Products": {
+      "main": [
+        [
+          {
+            "node": "Firestore - Delete Original",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Firestore - Delete Original": {
+      "main": [
+        [
+          {
+            "node": "Generate Cleanup Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Cleanup Report": {
+      "main": [
+        [
+          {
+            "node": "Slack - Send Notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Asia/Seoul",
+    "errorWorkflow": {
+      "errorWorkflow": "Error Handler"
+    }
+  },
+  "meta": {
+    "description": "YAGO VIBE 泥쒖옱 紐⑤뱶 ?꾩꽦??- 留ㅼ씪 ?덈꼍 3???먮룞 ?ㅽ뻾, 諛깆뾽 ????젣, Slack ?뚮┝源뚯? ?꾩쟾 ?먮룞??,
+    "tags": ["yago-vibe", "firestore", "cleanup", "automation", "backup", "slack", "production", "genius-mode"],
+    "version": "2.0.0",
+    "author": "YAGO VIBE Team",
+    "features": [
+      "?먮룞 ?ㅼ?以??ㅽ뻾 (留ㅼ씪 ?덈꼍 3??",
+      "?덉쟾??諛깆뾽 ?쒖뒪??,
+      "?ㅼ떆媛?Slack ?뚮┝",
+      "?곸꽭??濡쒓퉭 諛??듦퀎",
+      "?먮윭 泥섎━ 諛??뚮┝"
+    ]
+  }
+}

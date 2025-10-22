@@ -1,0 +1,251 @@
+{
+  "name": "Notion → Slack 승인요청 자동 발행",
+  "nodes": [
+    {
+      "parameters": {
+        "databaseId": "{{ $json.database_id }}",
+        "filter": {
+          "property": "승인상태",
+          "select": {
+            "equals": "대기중"
+          }
+        }
+      },
+      "id": "notion_trigger",
+      "name": "Notion DB 조회",
+      "type": "n8n-nodes-base.notionTrigger",
+      "typeVersion": 1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.properties.타입.select.name }}",
+              "operation": "isNotEmpty"
+            }
+          ]
+        }
+      },
+      "id": "filter_check",
+      "name": "데이터 검증",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "url": "https://asia-northeast3-{{ $vars.PROJECT_ID }}.cloudfunctions.net/slack/internal/approval/notify",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-internal-key",
+              "value": "{{ $vars.INTERNAL_KEY }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "channel",
+              "value": "{{ $vars.SLACK_APPROVER_CHANNEL }}"
+            },
+            {
+              "name": "type",
+              "value": "={{ $json.properties.타입.select.name }}"
+            },
+            {
+              "name": "refId",
+              "value": "={{ $json.id }}"
+            },
+            {
+              "name": "title",
+              "value": "={{ $json.properties.제목.title[0].plain_text }}"
+            },
+            {
+              "name": "summary",
+              "value": "={{ $json.properties.요약.rich_text[0].plain_text }}"
+            },
+            {
+              "name": "url",
+              "value": "={{ $json.url }}"
+            },
+            {
+              "name": "image",
+              "value": "={{ $json.properties.이미지.files[0]?.file?.url || '' }}"
+            },
+            {
+              "name": "required",
+              "value": "={{ $json.properties.필요승인수.number || 2 }}"
+            },
+            {
+              "name": "ttlMinutes",
+              "value": "={{ $json.properties.TTL분.number || 1440 }}"
+            },
+            {
+              "name": "approverAllowlist",
+              "value": "={{ $json.properties.승인자목록.multi_select.map(item => item.name) }}"
+            },
+            {
+              "name": "payload",
+              "value": "={{ JSON.stringify($json) }}"
+            }
+          ]
+        }
+      },
+      "id": "slack_approval_request",
+      "name": "Slack 승인요청",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.ok }}",
+              "operation": "equal",
+              "value2": "true"
+            }
+          ]
+        }
+      },
+      "id": "check_success",
+      "name": "성공 확인",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "databaseId": "={{ $('Notion DB 조회').item.json.database_id }}",
+        "pageId": "={{ $('Notion DB 조회').item.json.id }}",
+        "updateFields": {
+          "properties": {
+            "승인상태": {
+              "select": {
+                "name": "승인요청됨"
+              }
+            },
+            "SlackDocId": {
+              "rich_text": {
+                "rich_text": [
+                  {
+                    "text": {
+                      "content": "={{ $json.docId }}"
+                    }
+                  }
+                ]
+              }
+            },
+            "SlackChannel": {
+              "rich_text": {
+                "rich_text": [
+                  {
+                    "text": {
+                      "content": "={{ $json.channel }}"
+                    }
+                  }
+                ]
+              }
+            },
+            "SlackTs": {
+              "rich_text": {
+                "rich_text": [
+                  {
+                    "text": {
+                      "content": "={{ $json.ts }}"
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        }
+      },
+      "id": "update_notion",
+      "name": "Notion 업데이트",
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 2,
+      "position": [1120, 200]
+    },
+    {
+      "parameters": {
+        "message": "❌ Slack 승인요청 실패: {{ $json.error }}",
+        "additionalFields": {}
+      },
+      "id": "error_notification",
+      "name": "에러 알림",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 1,
+      "position": [1120, 400]
+    }
+  ],
+  "connections": {
+    "Notion DB 조회": {
+      "main": [
+        [
+          {
+            "node": "데이터 검증",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "데이터 검증": {
+      "main": [
+        [
+          {
+            "node": "Slack 승인요청",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Slack 승인요청": {
+      "main": [
+        [
+          {
+            "node": "성공 확인",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "성공 확인": {
+      "main": [
+        [
+          {
+            "node": "Notion 업데이트",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "에러 알림",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 1,
+  "updatedAt": "2024-01-15T00:00:00.000Z",
+  "versionId": "1"
+}

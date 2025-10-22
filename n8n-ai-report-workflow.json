@@ -1,0 +1,184 @@
+{
+  "name": "YAGO VIBE AI 자동 리포트 생성",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 0 * * *"
+            }
+          ]
+        }
+      },
+      "id": "cron-trigger",
+      "name": "매일 자정 실행",
+      "type": "n8n-nodes-base.cron",
+      "typeVersion": 1,
+      "position": [200, 300],
+      "webhookDescription": "매일 자정(00:00)에 실행되어 전날 알림 통계를 집계합니다"
+    },
+    {
+      "parameters": {
+        "projectId": "jaeman-vibe-platform",
+        "collection": "notifications",
+        "operation": "getMany"
+      },
+      "id": "firestore-query",
+      "name": "Firestore 알림 데이터 조회",
+      "type": "n8n-nodes-base.googleFirebase",
+      "typeVersion": 1,
+      "position": [600, 300]
+    },
+    {
+      "parameters": {
+        "functionCode": "// 전날 날짜 계산\nconst yesterday = new Date();\nyesterday.setDate(yesterday.getDate() - 1);\nconst dateStr = yesterday.toISOString().split('T')[0];\n\nconsole.log('📊 처리할 날짜:', dateStr);\n\n// Firestore에서 받은 데이터 처리\nconst items = $input.all();\nconsole.log('📋 받은 알림 데이터:', items.length, '개');\n\n// 통계 계산\nconst stats = {\n  FCM: 0,\n  Slack: 0,\n  Kakao: 0,\n  message: 0,\n  comment: 0,\n  market: 0,\n  system: 0\n};\n\nlet totalCount = 0;\n\n// 각 알림 문서 처리\nfor (const item of items) {\n  const data = item.json;\n  \n  // 알림 아이템들 처리\n  if (data.items) {\n    for (const [itemId, itemData] of Object.entries(data.items)) {\n      const notification = itemData;\n      \n      // 전날 생성된 알림만 처리\n      if (notification.createdAt) {\n        const itemDate = new Date(notification.createdAt.seconds * 1000);\n        const itemDateStr = itemDate.toISOString().split('T')[0];\n        \n        if (itemDateStr === dateStr) {\n          totalCount++;\n          \n          // 타입별 통계\n          const type = notification.type || 'system';\n          if (stats.hasOwnProperty(type)) {\n            stats[type]++;\n          } else {\n            stats.system++;\n          }\n          \n          // 채널별 통계 (data에 channel 정보가 있는 경우)\n          const channel = notification.channel || notification.data?.channel;\n          if (channel === 'FCM' || channel === 'fcm') stats.FCM++;\n          else if (channel === 'Slack' || channel === 'slack') stats.Slack++;\n          else if (channel === 'Kakao' || channel === 'kakao') stats.Kakao++;\n        }\n      }\n    }\n  }\n}\n\nconsole.log('📈 계산된 통계:', stats);\nconsole.log('📊 총 알림 수:', totalCount);\n\n// 결과 반환\nreturn [{\n  json: {\n    date: dateStr,\n    stats: stats,\n    totalCount: totalCount,\n    processedAt: new Date().toISOString()\n  }\n}];"
+      },
+      "id": "js-stats",
+      "name": "JavaScript: 통계 계산",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [1000, 300]
+    },
+    {
+      "parameters": {
+        "resource": "chat",
+        "operation": "create",
+        "model": "gpt-4o-mini",
+        "messages": {
+          "values": [
+            {
+              "role": "system",
+              "content": "너는 YAGO VIBE 플랫폼의 데이터 분석가야. 알림 통계 데이터를 보고 하루 요약 리포트를 작성해줘."
+            },
+            {
+              "role": "user",
+              "content": "다음은 {{$json.date}}의 알림 통계 데이터입니다:\\n\\n총 알림 수: {{$json.totalCount}}건\\n\\n채널별 분포:\\n- FCM: {{$json.stats.FCM}}건\\n- Slack: {{$json.stats.Slack}}건\\n- Kakao: {{$json.stats.Kakao}}건\\n\\n타입별 분포:\\n- 메시지: {{$json.stats.message}}건\\n- 댓글: {{$json.stats.comment}}건\\n- 마켓: {{$json.stats.market}}건\\n- 시스템: {{$json.stats.system}}건\\n\\n위 데이터를 바탕으로 2-3문장의 한국어 요약 리포트를 작성해주세요. 형식은:\\n\\n\"오늘 하루 총 X건의 알림이 전송되었습니다. 주요 채널은 Y였으며, Z 타입 알림이 가장 많았습니다. 전반적으로 안정적인 알림 서비스 운영이 이루어졌습니다.\""
+            }
+          ]
+        },
+        "options": {
+          "temperature": 0.7,
+          "maxTokens": 200
+        }
+      },
+      "id": "openai-summary",
+      "name": "OpenAI: AI 요약 생성",
+      "type": "n8n-nodes-base.openAi",
+      "typeVersion": 1,
+      "position": [1400, 300]
+    },
+    {
+      "parameters": {
+        "projectId": "jaeman-vibe-platform",
+        "collection": "reports",
+        "operation": "create",
+        "fields": {
+          "string": [
+            {
+              "name": "date",
+              "value": "={{$('JavaScript: 통계 계산').item.json.date}}"
+            },
+            {
+              "name": "stats",
+              "value": "={{$('JavaScript: 통계 계산').item.json.stats}}"
+            },
+            {
+              "name": "totalCount",
+              "value": "={{$('JavaScript: 통계 계산').item.json.totalCount}}"
+            },
+            {
+              "name": "summary",
+              "value": "={{$('OpenAI: AI 요약 생성').item.json.choices[0].message.content}}"
+            },
+            {
+              "name": "createdAt",
+              "value": "={{$now}}"
+            },
+            {
+              "name": "processedAt",
+              "value": "={{$('JavaScript: 통계 계산').item.json.processedAt}}"
+            }
+          ]
+        }
+      },
+      "id": "firestore-write",
+      "name": "Firestore: 리포트 저장",
+      "type": "n8n-nodes-base.googleFirebase",
+      "typeVersion": 1,
+      "position": [1800, 300]
+    },
+    {
+      "parameters": {
+        "channel": "#yago-vibe-reports",
+        "text": "🤖 **YAGO VIBE 일일 AI 리포트 생성 완료**\\n\\n📅 **날짜**: {{$('JavaScript: 통계 계산').item.json.date}}\\n📊 **총 알림 수**: {{$('JavaScript: 통계 계산').item.json.totalCount}}건\\n\\n📈 **채널별 분포**:\\n- FCM: {{$('JavaScript: 통계 계산').item.json.stats.FCM}}건\\n- Slack: {{$('JavaScript: 통계 계산').item.json.stats.Slack}}건\\n- Kakao: {{$('JavaScript: 통계 계산').item.json.stats.Kakao}}건\\n\\n🤖 **AI 요약**:\\n{{$('OpenAI: AI 요약 생성').item.json.choices[0].message.content}}\\n\\n📊 대시보드에서 상세 확인: http://localhost:5183/admin/reports"
+      },
+      "id": "slack-notify",
+      "name": "Slack: 완료 알림",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 1,
+      "position": [1800, 100]
+    }
+  ],
+  "connections": {
+    "매일 자정 실행": {
+      "main": [
+        [
+          {
+            "node": "Firestore 알림 데이터 조회",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Firestore 알림 데이터 조회": {
+      "main": [
+        [
+          {
+            "node": "JavaScript: 통계 계산",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "JavaScript: 통계 계산": {
+      "main": [
+        [
+          {
+            "node": "OpenAI: AI 요약 생성",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI: AI 요약 생성": {
+      "main": [
+        [
+          {
+            "node": "Firestore: 리포트 저장",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Slack: 완료 알림",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": ["yago-vibe", "ai", "reports", "automation"],
+  "triggerCount": 0,
+  "meta": {
+    "description": "매일 자정에 실행되어 전날의 알림 통계를 집계하고, OpenAI를 통해 AI 요약을 생성하여 Firestore에 저장하는 워크플로우입니다."
+  }
+}

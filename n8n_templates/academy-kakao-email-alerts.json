@@ -1,0 +1,129 @@
+﻿{
+  "name": "Academy Kakao + Email Alerts",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "enroll",
+        "options": {}
+      },
+      "id": "Webhook_Enroll",
+      "name": "Webhook Enroll",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 200]
+    },
+    {
+      "parameters": {
+        "path": "payment",
+        "options": {}
+      },
+      "id": "Webhook_Payment",
+      "name": "Webhook Payment",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 450]
+    },
+    {
+      "parameters": {
+        "url": "https://api.talk.kakao.com/v2/api/talk/memo/default/send",
+        "method": "POST",
+        "authentication": "headerAuth",
+        "sendBody": true,
+        "jsonBody": true,
+        "bodyParametersJson": "={\n  \"template_object\": {\n    \"object_type\": \"text\",\n    \"text\": \"?뱼 ?섍컯 ?좎껌 ?뚮┝\\n?숈깮: {{$json[\"student\"]}}\\n媛뺤쥖: {{$json[\"courseTitle\"]}}\\n?꾪솕踰덊샇: {{$json[\"phone\"]}}\",\n    \"link\": {\"web_url\": \"https://your-academy-site.com\"},\n    \"button_title\": \"諛붾줈 ?뺤씤\"\n  }\n}"
+      },
+      "id": "Kakao_Enroll",
+      "name": "Kakao Enroll Alert",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [600, 150],
+      "credentials": {
+        "httpHeaderAuth": "Kakao API Token"
+      }
+    },
+    {
+      "parameters": {
+        "url": "https://api.talk.kakao.com/v2/api/talk/memo/default/send",
+        "method": "POST",
+        "authentication": "headerAuth",
+        "sendBody": true,
+        "jsonBody": true,
+        "bodyParametersJson": "={\n  \"template_object\": {\n    \"object_type\": \"text\",\n    \"text\": \"?뮥 寃곗젣 ?꾨즺 ?뚮┝\\n?숈깮: {{$json[\"student\"]}}\\n媛뺤쥖: {{$json[\"courseTitle\"]}}\\n?꾪솕踰덊샇: {{$json[\"phone\"]}}\",\n    \"link\": {\"web_url\": \"https://your-academy-site.com\"},\n    \"button_title\": \"諛붾줈 ?뺤씤\"\n  }\n}"
+      },
+      "id": "Kakao_Payment",
+      "name": "Kakao Payment Alert",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [600, 400],
+      "credentials": {
+        "httpHeaderAuth": "Kakao API Token"
+      }
+    },
+    {
+      "parameters": {
+        "fromEmail": "noreply@your-academy.com",
+        "toEmail": "={{$json[\"email\"]}}",
+        "subject": "?뱼 ?섍컯 ?좎껌 ?덈궡",
+        "text": "?덈뀞?섏꽭??{{$json[\"student\"]}}??\n\n{{$json[\"courseTitle\"]}} 媛뺤쥖???좎껌???꾨즺?섏뿀?듬땲??\n\n?먯꽭???댁슜? ?덊럹?댁??먯꽌 ?뺤씤?섏꽭??"
+      },
+      "id": "Email_Enroll",
+      "name": "Email Enroll Alert",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 1,
+      "position": [850, 150],
+      "credentials": {
+        "smtp": "SMTP Server"
+      }
+    },
+    {
+      "parameters": {
+        "fromEmail": "noreply@your-academy.com",
+        "toEmail": "={{$json[\"email\"]}}",
+        "subject": "?뮥 寃곗젣 ?꾨즺 ?덈궡",
+        "text": "?덈뀞?섏꽭??{{$json[\"student\"]}}??\n\n{{$json[\"courseTitle\"]}} 媛뺤쥖??寃곗젣媛 ?꾨즺?섏뿀?듬땲?? ?섍컯???뺤젙?섏뿀?듬땲??\n\n媛먯궗?⑸땲??"
+      },
+      "id": "Email_Payment",
+      "name": "Email Payment Alert",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 1,
+      "position": [850, 400],
+      "credentials": {
+        "smtp": "SMTP Server"
+      }
+    }
+  ],
+  "connections": {
+    "Webhook_Enroll": {
+      "main": [
+        [
+          {
+            "node": "Kakao_Enroll",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Email_Enroll",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook_Payment": {
+      "main": [
+        [
+          {
+            "node": "Kakao_Payment",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Email_Payment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

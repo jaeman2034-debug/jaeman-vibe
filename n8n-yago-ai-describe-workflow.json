@@ -1,0 +1,103 @@
+{
+  "name": "YAGO VIBE - AI 상품 설명 생성기",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "ai-describe",
+        "responseMode": "onReceived",
+        "responseData": "={{$json}}"
+      },
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [300, 200],
+      "webhookId": "yago-ai-describe"
+    },
+    {
+      "parameters": {
+        "authentication": "headerAuth",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "responseFormat": "json",
+        "options": {},
+        "headerParametersJson": "{ \"Authorization\": \"Bearer {{$env.OPENAI_API_KEY}}\", \"Content-Type\": \"application/json\" }",
+        "bodyParametersJson": "={\"model\":\"gpt-4o-mini\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"이 상품의 브랜드, 상태, 용도, 특징을 자연스럽게 설명해줘. 단어는 30~60자 정도, 친근하고 판매용 어조로.\"},{\"type\":\"image_url\",\"image_url\":\"{{$json[\"image\"]}}\"}]}],\"max_tokens\":300}"
+      },
+      "name": "OpenAI Vision API",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [600, 200],
+      "credentials": {}
+    },
+    {
+      "parameters": {
+        "keepOnlySet": true,
+        "values": {
+          "string": [
+            {
+              "name": "description",
+              "value": "={{$json[\"choices\"][0][\"message\"][\"content\"]}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "Extract Description",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [900, 200]
+    },
+    {
+      "parameters": {
+        "responseBody": "={{$json}}",
+        "responseCode": 200,
+        "options": {}
+      },
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1200, 200]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "OpenAI Vision API",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Vision API": {
+      "main": [
+        [
+          {
+            "node": "Extract Description",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Description": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {},
+  "versionId": "1.0.0",
+  "meta": {
+    "instanceId": "yago-vibe-ai-describe"
+  }
+}

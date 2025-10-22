@@ -1,0 +1,153 @@
+﻿{
+  "name": "YAGO VIBE - 諛깆뾽 紐⑤뱶 ?뺣━ (?덉쟾????젣)",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "1",
+      "name": "Start",
+      "type": "n8n-nodes-base.start",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "resource": "document",
+        "operation": "getAll",
+        "collection": "marketItems"
+      },
+      "id": "2",
+      "name": "Firestore - Get Products",
+      "type": "n8n-nodes-base.firestore",
+      "typeVersion": 1,
+      "position": [500, 300],
+      "credentials": {
+        "firebaseFirestoreOAuth2Api": "YAGO VIBE Firestore"
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{$json[\"imageUrl\"]}}",
+              "operation": "isEmpty"
+            }
+          ]
+        }
+      },
+      "id": "3",
+      "name": "IF - No Image",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [750, 300]
+    },
+    {
+      "parameters": {
+        "resource": "document",
+        "operation": "create",
+        "collection": "marketItems_archive",
+        "documentId": "={{$json[\"id\"]}}_archived_{{new Date().toISOString()}}",
+        "fields": "={{$json}}"
+      },
+      "id": "4",
+      "name": "Backup to Archive",
+      "type": "n8n-nodes-base.firestore",
+      "typeVersion": 1,
+      "position": [1000, 280],
+      "credentials": {
+        "firebaseFirestoreOAuth2Api": "YAGO VIBE Firestore"
+      }
+    },
+    {
+      "parameters": {
+        "resource": "document",
+        "operation": "delete",
+        "collection": "marketItems",
+        "documentId": "={{$json[\"id\"]}}"
+      },
+      "id": "5",
+      "name": "Firestore - Delete Product",
+      "type": "n8n-nodes-base.firestore",
+      "typeVersion": 1,
+      "position": [1250, 280],
+      "credentials": {
+        "firebaseFirestoreOAuth2Api": "YAGO VIBE Firestore"
+      }
+    },
+    {
+      "parameters": {
+        "functionCode": "const deletedCount = items.length;\nconst deletedTitles = items.map(i => i.json.title || i.json.id);\nconst timestamp = new Date().toLocaleString('ko-KR');\n\nconsole.log(`?뵏 諛깆뾽 紐⑤뱶 ?뺣━ ?꾨즺 - ${timestamp}`);\nconsole.log(`?뿊截?${deletedCount}媛쒖쓽 ?대?吏 ?녿뒗 ?곹뭹 ??젣??);\nconsole.log(`?뮶 紐⑤뱺 ?곹뭹??marketItems_archive??諛깆뾽??);\nconsole.log(`??젣???곹뭹: ${deletedTitles.join(', ')}`);\n\nreturn [{\n  json: {\n    deletedCount,\n    deletedTitles,\n    timestamp,\n    backupStatus: '?꾨즺',\n    summary: `?뵏 諛깆뾽 紐⑤뱶 ?뺣━ ?꾨즺 - ${deletedCount}媛??곹뭹 ?덉쟾 ??젣`\n  }\n}];"
+      },
+      "id": "6",
+      "name": "Backup Report",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [1500, 280]
+    }
+  ],
+  "connections": {
+    "Start": {
+      "main": [
+        [
+          {
+            "node": "Firestore - Get Products",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Firestore - Get Products": {
+      "main": [
+        [
+          {
+            "node": "IF - No Image",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF - No Image": {
+      "main": [
+        [
+          {
+            "node": "Backup to Archive",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Backup to Archive": {
+      "main": [
+        [
+          {
+            "node": "Firestore - Delete Product",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Firestore - Delete Product": {
+      "main": [
+        [
+          {
+            "node": "Backup Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "description": "YAGO VIBE 諛깆뾽 紐⑤뱶 ?뺣━ - ??젣 ???덉쟾?섍쾶 諛깆뾽 ????젣",
+    "tags": ["yago-vibe", "firestore", "cleanup", "backup", "safe-delete", "automation"]
+  }
+}

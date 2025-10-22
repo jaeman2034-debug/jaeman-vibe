@@ -1,0 +1,118 @@
+{
+  "name": "Club – Post → Drive (Doc->PDF)",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "club-post-drive"
+      },
+      "id": "wh",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [-840, 60]
+    },
+    {
+      "parameters": {
+        "keepOnlySet": false,
+        "values": {
+          "string": [
+            {"name": "title", "value": "={{$json.title}}"},
+            {"name": "content", "value": "={{$json.contentMd}}"},
+            {"name": "folder", "value": "={{$env.GDRIVE_FOLDER_ID}}"},
+            {"name": "templateId", "value": "={{$env.GDRIVE_TEMPLATE_ID}}"}
+          ]
+        }
+      },
+      "id": "set",
+      "name": "Set",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [-630, 60]
+    },
+    {
+      "parameters": {
+        "operation": "copy",
+        "fileId": "={{$json.templateId}}",
+        "options": {
+          "parents": ["={{$json.folder}}"],
+          "fileName": "={{$json.title}}"
+        }
+      },
+      "id": "copy",
+      "name": "Copy Template",
+      "type": "n8n-nodes-base.googleDocs",
+      "typeVersion": 1,
+      "position": [-420, 60],
+      "credentials": {
+        "googleDocsOAuth2Api": {
+          "id": "REPLACE",
+          "name": "Google Docs OAuth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "replaceText",
+        "fileId": "={{$json[\"Copy Template\"].id}}",
+        "textUi": {
+          "keyValue": [
+            {"key": "{{TITLE}}", "value": "={{$json.title}}"},
+            {"key": "{{CONTENT}}", "value": "={{$json.content}}"}
+          ]
+        }
+      },
+      "id": "replace",
+      "name": "Replace",
+      "type": "n8n-nodes-base.googleDocs",
+      "typeVersion": 1,
+      "position": [-210, 60]
+    },
+    {
+      "parameters": {
+        "operation": "export",
+        "fileId": "={{$json[\"Copy Template\"].id}}",
+        "options": {
+          "exportType": "pdf"
+        }
+      },
+      "id": "export",
+      "name": "Export PDF",
+      "type": "n8n-nodes-base.googleDocs",
+      "typeVersion": 1,
+      "position": [-10, 60]
+    },
+    {
+      "parameters": {
+        "url": "={{$env.SLACK_KPI_WEBHOOK}}",
+        "jsonParameters": true,
+        "sendBody": true,
+        "bodyParametersJson": "={\n  \"text\": \"📄 Drive post exported: {{$json.title}}\"\n}"
+      },
+      "id": "slack",
+      "name": "Slack",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [200, 60]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [[{"node": "Set", "type": "main", "index": 0}]]
+    },
+    "Set": {
+      "main": [[{"node": "Copy Template", "type": "main", "index": 0}]]
+    },
+    "Copy Template": {
+      "main": [[{"node": "Replace", "type": "main", "index": 0}]]
+    },
+    "Replace": {
+      "main": [[{"node": "Export PDF", "type": "main", "index": 0}]]
+    },
+    "Export PDF": {
+      "main": [[{"node": "Slack", "type": "main", "index": 0}]]
+    }
+  },
+  "settings": {
+    "timezone": "Asia/Seoul"
+  }
+}

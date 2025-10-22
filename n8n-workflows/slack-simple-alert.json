@@ -1,0 +1,118 @@
+﻿{
+  "name": "YAGO VIBE - New Chat Message Alert (Simple)",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "chat-new-message",
+        "options": {
+          "responseData": "allEntries",
+          "responseMode": "lastNode"
+        }
+      },
+      "id": "webhook-entry",
+      "name": "Webhook Entry",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [300, 300],
+      "webhookId": "chat-new-message",
+      "notes": "??Receives POST data from Firebase Function when a new chat message is created.\n\nEndpoint: https://n8n.yagovibe.com/webhook/chat-new-message"
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "#yagovibe-alerts",
+          "mode": "name"
+        },
+        "text": "?뮠 *??梨꾪똿 ?꾩갑!*\n\n*?곹뭹:* {{$json.room.productTitle}}\n*蹂대궦??* {{$json.message.senderName}}\n*?댁슜:* {{$json.message.text}}\n*諛⑸쾲??* {{$json.roomId}}\n*?쒓컙:* {{$json.message.createdAt}}\n\n?뵕 <{{$json.links.chatRoom}}|梨꾪똿諛??닿린> | <{{$json.links.product}}|?곹뭹 蹂닿린>",
+        "otherOptions": {
+          "includeLinkToWorkflow": false
+        }
+      },
+      "id": "slack-notify",
+      "name": "Send Slack Message",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.1,
+      "position": [700, 300],
+      "credentials": {
+        "slackOAuth2Api": {
+          "id": "1",
+          "name": "Slack OAuth2 API"
+        }
+      },
+      "notes": "??Sends formatted message to Slack channel whenever a new chat message arrives.\n\nRequired Scopes:\n- chat:write\n- chat:write.public"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": true,\n  \"message\": \"?뚮┝ ?꾩넚 ?꾨즺\",\n  \"roomId\": \"{{$json.roomId}}\",\n  \"timestamp\": \"{{$now}}\"\n}",
+        "options": {}
+      },
+      "id": "webhook-response",
+      "name": "Webhook Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [900, 300],
+      "notes": "??Returns success response to Firebase Function"
+    }
+  ],
+  "connections": {
+    "Webhook Entry": {
+      "main": [
+        [
+          {
+            "node": "Send Slack Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Slack Message": {
+      "main": [
+        [
+          {
+            "node": "Webhook Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": ""
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "createdAt": "2025-01-13T00:00:00.000Z",
+      "updatedAt": "2025-01-13T00:00:00.000Z",
+      "id": "1",
+      "name": "YAGO VIBE"
+    },
+    {
+      "createdAt": "2025-01-13T00:00:00.000Z",
+      "updatedAt": "2025-01-13T00:00:00.000Z",
+      "id": "2",
+      "name": "梨꾪똿"
+    },
+    {
+      "createdAt": "2025-01-13T00:00:00.000Z",
+      "updatedAt": "2025-01-13T00:00:00.000Z",
+      "id": "3",
+      "name": "Slack"
+    }
+  ],
+  "triggerCount": 1,
+  "updatedAt": "2025-01-13T00:00:00.000Z",
+  "versionId": "yagovibe-chat-alert-v1",
+  "active": true
+}
+

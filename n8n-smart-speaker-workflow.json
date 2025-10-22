@@ -1,0 +1,393 @@
+{
+  "name": "YAGO VIBE 스마트 스피커 브리핑 시스템",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 8 * * *"
+            }
+          ]
+        }
+      },
+      "id": "morning-briefing-trigger",
+      "name": "⏰ 아침 브리핑 트리거 (08:00)",
+      "type": "n8n-nodes-base.cron",
+      "typeVersion": 1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "url": "https://firestore.googleapis.com/v1/projects/{{ $env.FIREBASE_PROJECT_ID }}/databases/(default)/documents/ai_voice_reports",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer {{ $env.FIREBASE_ACCESS_TOKEN }}"
+            }
+          ]
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "pageSize",
+              "value": "1"
+            },
+            {
+              "name": "orderBy",
+              "value": "createdAt desc"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "get-latest-report",
+      "name": "📊 최신 리포트 조회",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "condition-1",
+              "leftValue": "={{ $json.documents?.length }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "check-report-exists",
+      "name": "🔍 리포트 존재 확인",
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "url": "https://asia-northeast3-yago-vibe.cloudfunctions.net/kakaoMiniBriefing",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"trigger\": \"morning_briefing\",\n  \"timestamp\": \"{{ new Date().toISOString() }}\"\n}",
+        "options": {}
+      },
+      "id": "kakao-mini-notification",
+      "name": "🎤 Kakao Mini 알림",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [900, 200]
+    },
+    {
+      "parameters": {
+        "url": "https://asia-northeast3-yago-vibe.cloudfunctions.net/googleCastLatest",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"speaker\": \"living_room\",\n  \"autoPlay\": true,\n  \"trigger\": \"morning_briefing\"\n}",
+        "options": {}
+      },
+      "id": "google-cast-auto-play",
+      "name": "🔊 Google Cast 자동 재생",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [900, 400]
+    },
+    {
+      "parameters": {
+        "url": "https://exp.host/--/api/v2/push/send",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"to\": \"ExponentPushToken[형님_기기토큰]\",\n  \"sound\": \"default\",\n  \"title\": \"🌅 아침 브리핑 시간!\",\n  \"body\": \"오늘의 YAGO AI 브리핑을 스피커에서 들어보세요 🎧\",\n  \"data\": {\n    \"type\": \"morning_briefing\",\n    \"autoPlay\": true\n  }\n}",
+        "options": {}
+      },
+      "id": "mobile-push-notification",
+      "name": "📱 모바일 푸시 알림",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [900, 600]
+    },
+    {
+      "parameters": {
+        "url": "https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"text\": \"🌅 아침 브리핑 알림\",\n  \"blocks\": [\n    {\n      \"type\": \"header\",\n      \"text\": {\n        \"type\": \"plain_text\",\n        \"text\": \"🌅 아침 브리핑 알림\"\n      }\n    },\n    {\n      \"type\": \"section\",\n      \"text\": {\n        \"type\": \"mrkdwn\",\n        \"text\": \"매일 아침 8시 자동 브리핑이 시작됩니다! 🎧\\n\\n• Kakao Mini: '야고 브리핑 틀어줘'\\n• Google Home: '오케이 구글, 야고 브리핑'\\n• 모바일 앱: 자동 푸시 알림\"\n      }\n    },\n    {\n      \"type\": \"divider\"\n    },\n    {\n      \"type\": \"context\",\n      \"elements\": [\n        {\n          \"type\": \"mrkdwn\",\n          \"text\": \"🤖 YAGO VIBE 스마트 스피커 브리핑 시스템\"\n        }\n      ]\n    }\n  ]\n}",
+        "options": {}
+      },
+      "id": "slack-morning-notification",
+      "name": "💬 Slack 아침 알림",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1120, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"ok\": true,\n  \"message\": \"스마트 스피커 브리핑 알림 전송 완료\",\n  \"timestamp\": \"{{ new Date().toISOString() }}\",\n  \"platforms\": [\"kakao_mini\", \"google_cast\", \"mobile_push\", \"slack\"],\n  \"autoPlay\": true\n}"
+      },
+      "id": "webhook-response",
+      "name": "✅ Webhook Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1340, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"ok\": false,\n  \"message\": \"재생할 브리핑이 없습니다\",\n  \"timestamp\": \"{{ new Date().toISOString() }}\"\n}"
+      },
+      "id": "no-report-response",
+      "name": "❌ No Report Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [680, 500]
+    },
+    {
+      "parameters": {
+        "url": "https://asia-northeast3-yago-vibe.cloudfunctions.net/googleCastLatest",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"speaker\": \"{{ $json.speaker || 'living_room' }}\",\n  \"trigger\": \"manual_request\"\n}",
+        "options": {}
+      },
+      "id": "manual-cast-request",
+      "name": "🎧 수동 캐스트 요청",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [240, 600]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 20 * * *"
+            }
+          ]
+        }
+      },
+      "id": "evening-briefing-trigger",
+      "name": "🌙 저녁 브리핑 트리거 (20:00)",
+      "type": "n8n-nodes-base.cron",
+      "typeVersion": 1,
+      "position": [240, 800]
+    },
+    {
+      "parameters": {
+        "url": "https://asia-northeast3-yago-vibe.cloudfunctions.net/kakaoMiniWeeklySummary",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"trigger\": \"evening_summary\",\n  \"timestamp\": \"{{ new Date().toISOString() }}\"\n}",
+        "options": {}
+      },
+      "id": "evening-weekly-summary",
+      "name": "📊 저녁 주간 요약",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [460, 800]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "⏰ 아침 브리핑 트리거 (08:00)": {
+      "main": [
+        [
+          {
+            "node": "📊 최신 리포트 조회",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📊 최신 리포트 조회": {
+      "main": [
+        [
+          {
+            "node": "🔍 리포트 존재 확인",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔍 리포트 존재 확인": {
+      "main": [
+        [
+          {
+            "node": "🎤 Kakao Mini 알림",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "🔊 Google Cast 자동 재생",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "📱 모바일 푸시 알림",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "❌ No Report Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🎤 Kakao Mini 알림": {
+      "main": [
+        [
+          {
+            "node": "💬 Slack 아침 알림",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔊 Google Cast 자동 재생": {
+      "main": [
+        [
+          {
+            "node": "💬 Slack 아침 알림",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📱 모바일 푸시 알림": {
+      "main": [
+        [
+          {
+            "node": "💬 Slack 아침 알림",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "💬 Slack 아침 알림": {
+      "main": [
+        [
+          {
+            "node": "✅ Webhook Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🎧 수동 캐스트 요청": {
+      "main": [
+        [
+          {
+            "node": "✅ Webhook Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🌙 저녁 브리핑 트리거 (20:00)": {
+      "main": [
+        [
+          {
+            "node": "📊 저녁 주간 요약",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📊 저녁 주간 요약": {
+      "main": [
+        [
+          {
+            "node": "✅ Webhook Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "1",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "smart-speaker-briefing"
+  },
+  "id": "smart-speaker-briefing",
+  "tags": ["yago-vibe", "smart-speaker", "kakao-mini", "google-cast", "briefing", "automation"]
+}

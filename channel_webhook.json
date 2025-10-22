@@ -1,0 +1,11 @@
+{
+  "type": "webhook",
+  "displayName": "Slack via Function (prod)",
+  "description": "Cloud Monitoring → Function relay → Slack",
+  "labels": {
+    "url": "https://asia-northeast3-<PROJECT_ID>.cloudfunctions.net/monitoringToSlack"
+  },
+  "userLabels": {
+    "env": "prod"
+  }
+}

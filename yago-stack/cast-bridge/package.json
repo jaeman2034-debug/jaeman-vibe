@@ -1,0 +1,22 @@
+{
+  "name": "yago-cast-bridge",
+  "version": "1.0.0",
+  "description": "YAGO VIBE Google Cast Bridge Server",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js"
+  },
+  "dependencies": {
+    "castv2-client": "^1.2.0",
+    "express": "^4.19.2",
+    "cors": "^2.8.5"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.2"
+  },
+  "keywords": ["google-cast", "smart-speaker", "yago-vibe", "briefing"],
+  "author": "YAGO VIBE Team",
+  "license": "MIT"
+}

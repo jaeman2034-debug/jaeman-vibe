@@ -1,0 +1,23 @@
+{
+  "displayName": "[VIBE] Fanout FCM failures detected (>=1, 10m, 2x)",
+  "combiner": "OR",
+  "notificationChannels": [
+    "projects/${PROJECT_NUMBER}/notificationChannels/${NOTIF_CHANNEL_ID}"
+  ],
+  "documentation": {
+    "content": "최근 10분 동안 FCM 팬아웃 실패가 연속으로 감지되었습니다. sendFcm / FCM key / 단말 토큰 이슈를 점검하세요."
+  },
+  "conditions": [
+    {
+      "displayName": "failed_fcm >= 1 (2x)",
+      "conditionMonitoringQueryLanguage": {
+        "query": "fetch global\n| metric 'custom.googleapis.com/vibe/fanout_failed_fcm'\n| group_by 5m, [sum_fails: sum(value.fanout_failed_fcm)]\n| condition gt(sum_fails, 0, 2)"
+      }
+    }
+  ],
+  "alertStrategy": {
+    "autoClose": "3600s",
+    "notificationRateLimit": { "period": "600s" }
+  },
+  "enabled": true
+}

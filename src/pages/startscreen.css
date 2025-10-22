@@ -1,0 +1,102 @@
+/* 화면 전체 */
+.start-root {
+  min-height: 100vh;
+  background: #ffffff;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  color: #0f172a; /* slate-900 */
+}
+
+/* 가운데 카드(실제 박스 테두리는 없이 공간만) */
+.start-card {
+  width: 100%;
+  max-width: 360px;
+  text-align: center;
+}
+
+/* 상단 로고 배지 */
+.logo {
+  width: 48px;
+  height: 48px;
+  margin: 0 auto 14px;
+  border-radius: 12px;
+  background: #eef2ff;     /* indigo-50 */
+  color: #6366f1;          /* indigo-500 */
+  font-weight: 800;
+  display: grid;
+  place-items: center;
+  user-select: none;
+}
+
+/* 타이틀/설명 */
+.brand {
+  margin: 0 0 4px;
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: 0.3px;
+}
+
+.tagline {
+  margin: 2px 0;
+  font-size: 13px;
+  line-height: 1.55;
+  color: #64748b;          /* slate-500 */
+}
+
+/* 작은 점 토글(디자인용) */
+.tiny-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid #e5e7eb;   /* gray-200 */
+  background: #fff;
+  padding: 6px 10px;
+  border-radius: 999px;
+  margin: 14px 0 18px;
+}
+.tiny-toggle .dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: #cbd5e1;         /* slate-300 */
+}
+.tiny-toggle .dot.active {
+  background: #111827;         /* gray-900 */
+}
+
+/* 시작 버튼 */
+.primary {
+  width: 100%;
+  height: 44px;
+  border: none;
+  border-radius: 10px;
+  background: #2563eb;         /* blue-600 */
+  color: #fff;
+  font-weight: 700;
+  font-size: 14px;
+  letter-spacing: .2px;
+  cursor: pointer;
+  transition: filter .15s ease;
+}
+.primary:hover { filter: brightness(1.05); }
+.primary:active { filter: brightness(0.95); }
+
+/* 로그인 링크 */
+.login-row {
+  margin-top: 12px;
+  font-size: 13px;
+  color: #475569;              /* slate-600 */
+}
+.login-row a {
+  color: #2563eb;
+  text-decoration: none;
+  font-weight: 600;
+}
+.login-row a:hover { text-decoration: underline; }
+
+/* 모바일 대응 */
+@media (max-width: 380px) {
+  .brand { font-size: 20px; }
+  .tagline { font-size: 12.5px; }
+}

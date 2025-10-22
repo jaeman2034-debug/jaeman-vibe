@@ -1,0 +1,143 @@
+{
+  "name": "Market Intent with AI Tagging (Unified Respond)",
+  "nodes": [
+    {
+      "id": "1",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [200, 300],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "chat-final-ai",
+        "responseMode": "lastNode"
+      }
+    },
+    {
+      "id": "2",
+      "name": "Switch Intent",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 1,
+      "position": [500, 300],
+      "parameters": {
+        "property": "={{$json[\"intent\"]}}",
+        "rules": [
+          { "operation": "equal", "value": "market.create" },
+          { "operation": "equal", "value": "market.get" },
+          { "operation": "equal", "value": "market.list" },
+          { "operation": "equal", "value": "market.updateStatus" },
+          { "operation": "equal", "value": "market.delete" }
+        ]
+      }
+    },
+    {
+      "id": "3",
+      "name": "OpenAI Vision",
+      "type": "n8n-nodes-base.openAi",
+      "typeVersion": 1,
+      "position": [800, 200],
+      "parameters": {
+        "resource": "image",
+        "operation": "analyze",
+        "imagePropertyName": "image",
+        "instructions": "상품 이미지를 분석하여 브랜드, 모델, 카테고리를 JSON으로 반환해 주세요."
+      }
+    },
+    {
+      "id": "4",
+      "name": "Merge AI + Payload",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [1100, 200],
+      "parameters": {
+        "functionCode": "return [{\n  ...items[0].json,\n  brand: items[1].json.brand || \"\",\n  model: items[1].json.model || \"\",\n  category: items[1].json.category || \"\"\n}];"
+      }
+    },
+    {
+      "id": "5",
+      "name": "SQLite Insert",
+      "type": "n8n-nodes-base.sqlite",
+      "typeVersion": 1,
+      "position": [1400, 200],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO market (title, description, price, brand, model, category, status) VALUES ( :title, :description, :price, :brand, :model, :category, 'open' )"
+      }
+    },
+    {
+      "id": "6",
+      "name": "SQLite Select",
+      "type": "n8n-nodes-base.sqlite",
+      "typeVersion": 1,
+      "position": [800, 400],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT * FROM market WHERE id = :id"
+      }
+    },
+    {
+      "id": "7",
+      "name": "SQLite Select All",
+      "type": "n8n-nodes-base.sqlite",
+      "typeVersion": 1,
+      "position": [800, 500],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT * FROM market"
+      }
+    },
+    {
+      "id": "8",
+      "name": "SQLite Update",
+      "type": "n8n-nodes-base.sqlite",
+      "typeVersion": 1,
+      "position": [800, 600],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE market SET status = :status WHERE id = :id"
+      }
+    },
+    {
+      "id": "9",
+      "name": "SQLite Delete",
+      "type": "n8n-nodes-base.sqlite",
+      "typeVersion": 1,
+      "position": [800, 700],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "DELETE FROM market WHERE id = :id"
+      }
+    },
+    {
+      "id": "10",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1700, 400],
+      "parameters": {
+        "responseMode": "lastNode",
+        "respondWith": "json",
+        "responseBody": "{\n  \"ok\": true,\n  \"intent\": \"={{$json.intent}}\",\n  \"data\": {{$json}}\n}"
+      }
+    }
+  ],
+  "connections": {
+    "Webhook": { "main": [[{ "node": "Switch Intent", "type": "main", "index": 0 }]] },
+    "Switch Intent": {
+      "main": [
+        [{ "node": "OpenAI Vision", "type": "main", "index": 0 }],
+        [{ "node": "SQLite Select", "type": "main", "index": 0 }],
+        [{ "node": "SQLite Select All", "type": "main", "index": 0 }],
+        [{ "node": "SQLite Update", "type": "main", "index": 0 }],
+        [{ "node": "SQLite Delete", "type": "main", "index": 0 }]
+      ]
+    },
+    "OpenAI Vision": { "main": [[{ "node": "Merge AI + Payload", "type": "main", "index": 0 }]] },
+    "Merge AI + Payload": { "main": [[{ "node": "SQLite Insert", "type": "main", "index": 0 }]] },
+    "SQLite Insert": { "main": [[{ "node": "Respond to Webhook", "type": "main", "index": 0 }]] },
+    "SQLite Select": { "main": [[{ "node": "Respond to Webhook", "type": "main", "index": 0 }]] },
+    "SQLite Select All": { "main": [[{ "node": "Respond to Webhook", "type": "main", "index": 0 }]] },
+    "SQLite Update": { "main": [[{ "node": "Respond to Webhook", "type": "main", "index": 0 }]] },
+    "SQLite Delete": { "main": [[{ "node": "Respond to Webhook", "type": "main", "index": 0 }]] }
+  }
+}

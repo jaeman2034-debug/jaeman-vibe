@@ -1,0 +1,119 @@
+﻿{
+  "name": "marketItems-sellerId-auto-fix",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "1",
+      "name": "Start Manual",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [200, 300]
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "collection": "marketItems"
+      },
+      "id": "2",
+      "name": "Get All Items",
+      "type": "n8n-nodes-base.googleFirebaseFirestore",
+      "typeVersion": 1,
+      "position": [450, 300],
+      "credentials": {
+        "googleFirebaseAccount": "Firebase Admin"
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [],
+          "number": [],
+          "string": [
+            {
+              "value1": "={{$json[\"sellerId\"]}}",
+              "operation": "isEmpty"
+            }
+          ]
+        }
+      },
+      "id": "3",
+      "name": "Check Missing sellerId",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [700, 300]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "collection": "marketItems",
+        "documentId": "={{$json[\"id\"]}}",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "sellerId",
+              "fieldValue": "kohXYANy9sVX0o4dJWxkhWHdYOm2"
+            }
+          ]
+        }
+      },
+      "id": "4",
+      "name": "Update sellerId",
+      "type": "n8n-nodes-base.googleFirebaseFirestore",
+      "typeVersion": 1,
+      "position": [950, 200],
+      "credentials": {
+        "googleFirebaseAccount": "Firebase Admin"
+      }
+    },
+    {
+      "parameters": {
+        "text": "??Fixed: {{$json[\"title\"] || 'No Title'}} ??{{$json[\"id\"]}}"
+      },
+      "id": "5",
+      "name": "Console Log",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [1150, 200]
+    }
+  ],
+  "connections": {
+    "Get All Items": {
+      "main": [
+        [
+          {
+            "node": "Check Missing sellerId",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Missing sellerId": {
+      "main": [
+        [
+          {
+            "node": "Update sellerId",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Update sellerId": {
+      "main": [
+        [
+          {
+            "node": "Console Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

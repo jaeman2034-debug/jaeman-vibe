@@ -1,0 +1,48 @@
+# YAGO Stack Caddy 설정
+# 도메인이 아직 없다면 :80 블록만 사용. 도메인 연결 후 도메인 블록으로 교체하면 자동 TLS 발급됩니다.
+
+# (A) 도메인 없이 테스트
+:80 {
+  encode gzip
+
+  # 정적 OG 이미지 공개 경로 (예: http://SERVER/ogimg/og/<id>.png)
+  handle_path /ogimg/* {
+    root * /data/public
+    file_server
+  }
+
+  # 서비스 프록시
+  reverse_proxy /og* webhook:3001
+  reverse_proxy /webhook* webhook:3001
+  reverse_proxy /ticket* webhook:3001
+  reverse_proxy /checkin* webhook:3001
+  reverse_proxy /ics* webhook:3001
+  reverse_proxy /manage* webhook:3001
+  reverse_proxy /payments* webhook:3001
+  reverse_proxy /wallet* webhook:3001
+  reverse_proxy /sitemap.xml webhook:3001
+  reverse_proxy /robots.txt webhook:3001
+
+  respond / 200 {
+    body "YAGO Stack OK"
+  }
+}
+
+# (B) 도메인 운영 (예: blog.yagovibe.com)
+# {$DOMAIN} {
+#   encode gzip
+#   handle_path /ogimg/* {
+#     root * /data/public
+#     file_server
+#   }
+#   reverse_proxy /og* webhook:3001
+#   reverse_proxy /webhook* webhook:3001
+#   reverse_proxy /ticket* webhook:3001
+#   reverse_proxy /checkin* webhook:3001
+#   reverse_proxy /ics* webhook:3001
+#   reverse_proxy /manage* webhook:3001
+#   reverse_proxy /payments* webhook:3001
+#   reverse_proxy /wallet* webhook:3001
+#   reverse_proxy /sitemap.xml webhook:3001
+#   reverse_proxy /robots.txt webhook:3001
+# }

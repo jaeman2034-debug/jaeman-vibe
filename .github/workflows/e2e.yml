@@ -21,7 +21,7 @@ jobs:
         env:
           E2E_BASE_URL: http://127.0.0.1:5173
         run: npx playwright test --reporter=line
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         if: always()
         with:
           name: playwright-report
